@@ -7,7 +7,7 @@
 <up A simple WhatsApp User Bot Coded By CASEYRHODES ❤️</u>
 </p>
 <p align="center">
-<img src="https://files.catbox.moe/j2ego4.jpg"/>       
+<img src="https://files.catbox.moe/8l3qvk.jpeg"/>       
 <p align="center">
   <a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=EB+Garamond&weight=800&size=25&duration=4000&pause=1000&random=false&width=435&lines=+•__I'M+NHEZHO-+MD__•;MULTI-DEVICE+WHATSAPP+BOT;DEVELOPED+BY+CASEYRHODES❤️+MD+TECHS;RELEASED+DATE+07%2F7%2F2024."                               alt="Typing SVG" /></a>
 </p> 
