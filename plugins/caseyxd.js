@@ -43,7 +43,7 @@ function toFancyFont(text, isUpperCase = false) {
 
 // Image fetch utility
 async function fetchMenuImage() {
-  const imageUrl = "https://files.catbox.moe/omgszj.jpg";
+  const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
   for (let i = 0; i < 3; i++) {
     try {
       const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
@@ -107,16 +107,16 @@ const menu = async (m, Matrix) => {
       const messageOptions = {
         viewOnce: true,
         buttons: [
-          { buttonId: `${prefix}download-menu`, buttonText: { displayText: `① Download` }, type: 1 },
-          { buttonId: `${prefix}group-menu`, buttonText: { displayText: `② Group` }, type: 1 },
-          { buttonId: `${prefix}fun-menu`, buttonText: { displayText: `③ Fun` }, type: 1 },
-          { buttonId: `${prefix}owner-menu`, buttonText: { displayText: `④ Owner` }, type: 1 },
-          { buttonId: `${prefix}ai-menu`, buttonText: { displayText: `⑤ AI` }, type: 1 },
-          { buttonId: `${prefix}anime-menu`, buttonText: { displayText: `⑥ Anime` }, type: 1 },
-          { buttonId: `${prefix}converter-menu`, buttonText: { displayText: `⑦ Converter` }, type: 1 },
-          { buttonId: `${prefix}other-menu`, buttonText: { displayText: `⑧ Other` }, type: 1 },
-          { buttonId: `${prefix}reactions-menu`, buttonText: { displayText: `⑨ Reactions` }, type: 1 },
-          { buttonId: `${prefix}main-menu`, buttonText: { displayText: `⑩ Main` }, type: 1 }
+          { buttonId: `${prefix}download-menu`, buttonText: { displayText: `① ᴅᴏᴡɴʟᴏᴀᴅ` }, type: 1 },
+          { buttonId: `${prefix}group-menu`, buttonText: { displayText: `② ɢʀᴏᴜᴘ` }, type: 1 },
+          { buttonId: `${prefix}fun-menu`, buttonText: { displayText: `③ ғᴜɴ` }, type: 1 },
+          { buttonId: `${prefix}owner-menu`, buttonText: { displayText: `④ ᴏᴡɴᴇʀ` }, type: 1 },
+          { buttonId: `${prefix}ai-menu`, buttonText: { displayText: `⑤ ᴀɪ` }, type: 1 },
+          { buttonId: `${prefix}anime-menu`, buttonText: { displayText: `⑥ ᴀɴɪᴍᴇ` }, type: 1 },
+          { buttonId: `${prefix}converter-menu`, buttonText: { displayText: `⑦ ᴄᴏɴᴠᴇʀᴛᴇʀ` }, type: 1 },
+          { buttonId: `${prefix}other-menu`, buttonText: { displayText: `⑧ ᴏᴛʜᴇʀ` }, type: 1 },
+          { buttonId: `${prefix}reactions-menu`, buttonText: { displayText: `⑨ ʀᴇᴀᴄᴛɪᴏɴs` }, type: 1 },
+          { buttonId: `${prefix}main-menu`, buttonText: { displayText: `⑩ ᴍᴀɪɴ` }, type: 1 }
         ],
         contextInfo: {
           mentionedJid: [m.sender],
