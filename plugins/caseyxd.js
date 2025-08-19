@@ -92,7 +92,7 @@ const menu = async (m, Matrix) => {
 - . ②  *ɢʀᴏᴜᴘ ᴍᴇɴᴜ*
 - . ③  *ғᴜɴ ᴍᴇɴᴜ*
 - . ④  *ᴏᴡɴᴇʀ ᴍᴇɴᴜ*
-- . ⑤  *ᴀɪ �ᴇɴᴜ*
+- . ⑤  *ᴀɪ ᴍᴇɴᴜ*
 - . ⑥  *ᴀɴɪᴍᴇ ᴍᴇɴᴜ*
 - . ⑦  *ᴄᴏɴᴠᴇʀᴛ ᴍᴇɴᴜ*
 - . ⑧  *ᴏᴛʜᴇʀ ᴍᴇɴᴜ*
@@ -123,8 +123,8 @@ const menu = async (m, Matrix) => {
           forwardingScore: 999,
           isForwarded: true,
           forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363399999197102@newsletter',
-            newsletterName: "╭••➤®Njabulo Jb",
+            newsletterJid: '120363302677217436@newsletter',
+            newsletterName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
             serverMessageId: 143
           },
         },
@@ -145,8 +145,8 @@ const menu = async (m, Matrix) => {
             },
             message: {
               contactMessage: {
-                displayName: "✆︎NנɐႦυℓσ נႦ verified",
-                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Njabulo-Jb;BOT;;;\nFN:Njabulo-Jb\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
+                displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
+                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟;BOT;;;\nFN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
               }
             }
           }
@@ -169,8 +169,8 @@ const menu = async (m, Matrix) => {
           },
           message: {
             contactMessage: {
-              displayName: "✆︎NנɐႦυℓσ נႦ verified",
-              vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Njabulo-Jb;BOT;;;\nFN:Njabulo-Jb\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
+              displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
+              vcard: `BEGIN:VCARD\nVERSION:3.0\nN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟;BOT;;;\nFN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
             }
           }
         }
@@ -398,7 +398,7 @@ ${menuResponse}
 *⚙️ Prefix*: ${prefix}
 *🌐 Mode*: ${mode}
 
-> ✆︎Pσɯҽɾҽԃ Ⴆყ NנɐႦυℓσ נႦ
+> ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
 `;
 
       const backButton = {
