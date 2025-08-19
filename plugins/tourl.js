@@ -1,7 +1,6 @@
 import fetch from 'node-fetch';
 import FormData from 'form-data';
 import { fileTypeFromBuffer } from 'file-type';
-import { writeFile, unlink } from 'fs/promises';
 
 const MAX_FILE_SIZE_MB = 200;
 async function uploadMedia(buffer) {
@@ -40,44 +39,39 @@ const tourl = async (m, bot) => {
     }
 
     try {
-      const loadingMessages = [
-        "*ᴊɪɴx-xᴍᴅ ᴘʀᴏᴄᴇssɪɴɢ.......*",
-        "*ᴊɪɴx-xᴍᴅ ᴘʀᴏᴄᴇssɪɴɢ.......*",
-      ];
-
-      const loadingMessageCount = loadingMessages.length;
-      let currentMessageIndex = 0;
-
-      const { key } = await bot.sendMessage(m.from, { text: loadingMessages[currentMessageIndex] }, { quoted: m });
-
-      const loadingInterval = setInterval(() => {
-        currentMessageIndex = (currentMessageIndex + 1) % loadingMessageCount;
-        bot.sendMessage(m.from, { text: loadingMessages[currentMessageIndex] }, { quoted: m, messageId: key });
-      }, 500);
-
       const media = await m.quoted.download();
       if (!media) throw new Error('Failed to download media.');
 
       const fileSizeMB = media.length / (1024 * 1024);
       if (fileSizeMB > MAX_FILE_SIZE_MB) {
-        clearInterval(loadingInterval);
         return m.reply(`File size exceeds the limit of ${MAX_FILE_SIZE_MB}MB.`);
       }
+      
       const mediaUrl = await uploadMedia(media);
 
-      clearInterval(loadingInterval);
-      await bot.sendMessage(m.from, { text: '✅ Loading complete.' }, { quoted: m });
-
       const mediaType = getMediaType(m.quoted.mtype);
+      const contextInfo = {
+        mentionedJid: [m.sender],
+        forwardingScore: 999,
+        isForwarded: true,
+        forwardedNewsletterMessageInfo: {
+          newsletterJid: '120363302677217436@newsletter',
+          newsletterName: 'CASEYRHODES-XMD',
+          serverMessageId: 143
+        }
+      };
+
       if (mediaType === 'audio') {
         const message = {
           text: `*Hey ${m.pushName} Here Is Your Audio URL*\n*Url:* ${mediaUrl}`,
+          contextInfo: contextInfo
         };
         await bot.sendMessage(m.from, message, { quoted: m });
       } else {
         const message = {
           [mediaType]: { url: mediaUrl },
           caption: `*Hey ${m.pushName} Here Is Your Media*\n*Url:* ${mediaUrl}`,
+          contextInfo: contextInfo
         };
         await bot.sendMessage(m.from, message, { quoted: m });
       }
