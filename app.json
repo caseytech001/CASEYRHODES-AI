@@ -1,9 +1,9 @@
 {
-  "name": "JINX-XMD",
-  "description": "I am JINX-XMD WhatsApp MultiDevice Bot built in NodeJs to enhance the experience.",
-  "logo": "https://files.catbox.moe/qk52l3.jpg",
-  "keywords": ["JINX-MD"],
-  "repository": "https://github.com/caseyweb/JINX-MD",
+  "name": "NjabuloJb-elite",
+  "description": "I am NjabuloJb WhatsApp MultiDevice Bot built in NodeJs to enhance the experience.",
+  "logo": "https://files.catbox.moe/neni8p.jpg",
+  "keywords": ["NjabuloJb-elite"],
+  "repository": "https://github.com/NjabuloJ/NjabuloJb-elite",
   "stack": "container",
   "env": { 
       "SESSION_ID": {
@@ -19,17 +19,17 @@
     "BOT_NAME": {
       "description": "change bot name what you want!",
       "required": false,
-      "value": "JINX-MD"
+      "value": "NjabuloJb-elite"
     },
     "MENU_IMAGE": {
       "description": "change menu image if want otherwise use default",
       "required": false,
-      "value": "https://files.catbox.moe/6852sf.jpg"
+      "value": "https://files.catbox.moe/7l1tt5.jpg"
     },
     "DESCRIPTION": {
       "description": "add caption for menu and etc",
       "required": false,
-      "value": "© ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ"
+      "value": "> ✆︎Pσɯҽɾҽԃ Ⴆყ NנɐႦυℓσ נႦ"
     },
     "ANTI_DELETE": {
       "description": "set path for antidelete for same chat set to same",
@@ -55,17 +55,17 @@
     "STATUS_READ_MSG": {
       "description": "set your status reply message",
       "required": false,
-      "value": "*Status Seen By JINX-MD 👻🤍*"
+      "value": "*Just saw your status. Keep it 100, fam! 🖤*"
     },
     "OWNER_NAME": {
-      "description": "set your status reply message",
+      "description": "set owner name",
       "required": false,
-      "value": "JINX-SMD"
+      "value": "Njabulo Jb"
     },
     "OWNER_NUMBER": {
-      "description": "set your status reply message",
+      "description": "set your owner number",
       "required": false,
-      "value": "254112192119"
+      "value": "26777821911"
     },
     "AUTO_READ": {
       "description": "make it true if you want bot to read message",
@@ -96,6 +96,16 @@
       "description": "make it true if you want to reject call",
       "required": false,
       "value": "false"
+    },
+    "WELCOME": {
+      "description": "make it true if you want to enable auto welcome",
+      "required": false,
+      "value": "true" 
+      },
+    "ANTILINK": {
+      "description": "make it true if you want to enable auto delete links",
+      "required": false,
+      "value": "true"  
     },
     "PREFIX": {
       "description": "Your Bot Prefix default (.)",
