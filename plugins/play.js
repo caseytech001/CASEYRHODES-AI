@@ -47,11 +47,66 @@ function toFancyFont(text) {
 const streamPipeline = promisify(pipeline);
 const tmpDir = os.tmpdir();
 
+// Store temporary file paths for users
+const userTempFiles = new Map();
+
 const play = async (m, Matrix) => {
   try {
     const prefix = config.Prefix || config.PREFIX || ".";
     const cmd = m.body?.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
     const args = m.body.slice(prefix.length + cmd.length).trim().split(" ");
+
+    // Handle button responses
+    if (m.message?.buttonsResponseMessage) {
+      const buttonId = m.message.buttonsResponseMessage.selectedButtonId;
+      const userId = m.sender;
+      
+      if (buttonId === 'audio_format' && userTempFiles.has(userId)) {
+        const { filePath, songTitle, safeTitle } = userTempFiles.get(userId);
+        
+        // Send as audio
+        const audioMessage = {
+          audio: fs.readFileSync(filePath),
+          mimetype: 'audio/mpeg',
+          ptt: false,
+        };
+        await Matrix.sendMessage(m.from, audioMessage, { quoted: m });
+        
+        // Clean up
+        setTimeout(() => {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            console.log(`Deleted temp file: ${filePath}`);
+          }
+          userTempFiles.delete(userId);
+        }, 5000);
+        
+        return;
+      }
+      
+      if (buttonId === 'document_format' && userTempFiles.has(userId)) {
+        const { filePath, songTitle, safeTitle } = userTempFiles.get(userId);
+        
+        // Send as document
+        const documentMessage = {
+          document: fs.readFileSync(filePath),
+          mimetype: 'audio/mpeg',
+          fileName: `${safeTitle}.mp3`,
+        };
+        await Matrix.sendMessage(m.from, documentMessage, { quoted: m });
+        
+        // Clean up
+        setTimeout(() => {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            console.log(`Deleted temp file: ${filePath}`);
+          }
+          userTempFiles.delete(userId);
+        }, 5000);
+        
+        return;
+      }
+    }
 
     if (cmd === "play") {
       if (args.length === 0 || !args.join(" ")) {
@@ -83,7 +138,7 @@ const play = async (m, Matrix) => {
       
       const searchQuery = args.join(" ");
       await Matrix.sendMessage(m.from, {
-        text: `*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* ${toFancyFont("huntin'")} ${toFancyFont("for")} "${searchQuery}"`,
+        text: `*ɴᴊᴀʙᴜʟᴏ ᴊʙ* ${toFancyFont("huntin'")} ${toFancyFont("for")} "${searchQuery}"`,
       }, { 
         quoted: {
           key: {
@@ -149,7 +204,7 @@ const play = async (m, Matrix) => {
         // Send song info from yt-search and API
         const songInfo = `
 
-${toFancyFont("*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ*")} Song Intel 🔥
+${toFancyFont("*Njbulo Jb*")} Song Intel 🔥
 ${toFancyFont("*Title*")}: ${data.result.title || song.title}
 ${toFancyFont("*Views*")}: ${song.views.toLocaleString()}
 ${toFancyFont("*Duration*")}: ${song.timestamp}
@@ -160,53 +215,21 @@ ${toFancyFont("*URL*")}: ${data.result.video_url || song.url}
 
         const buttons = [
           {
-            buttonId: "action",
-            buttonText: { displayText: "📂 ᴍᴇɴᴜ ᴏᴘᴛɪᴏɴꜱ" },
-            type: 4,
-            nativeFlowInfo: {
-              name: "single_select",
-              paramsJson: JSON.stringify({
-                title: "📂 ᴄʟɪᴄᴋ ʜᴇʀᴇ",
-                sections: [
-                  {
-                    title: "📁 ᴍᴇʀᴄᴇᴅᴇs",
-                    highlight_label: "",
-                    rows: [
-                      {
-                        title: "📂 ᴍᴇɴᴜ",
-                        description: "ᴏᴘᴇɴ ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅꜱ",
-                        id: `${prefix}menu`,
-                      },
-                      {
-                        title: "👑 ᴏᴡɴᴇʀ",
-                        description: "ᴄᴏɴᴛᴀᴄᴛ ʙᴏᴛ ᴏᴡɴᴇʀ",
-                        id: `${prefix}owner`,
-                      },
-                      {
-                        title: "📶 ᴘɪɴɢ",
-                        description: "ᴛᴇꜱᴛ ʙᴏᴛ ꜱᴘᴇᴇᴅ",
-                        id: `${prefix}ping`,
-                      },
-                      {
-                        title: "🖥️ ꜱʏꜱᴛᴇᴍ",
-                        description: "ꜱʏꜱᴛᴇᴍ ɪɴꜰᴏʀᴍᴀᴛɪᴏɴ",
-                        id: `${prefix}system`,
-                      },
-                      {
-                        title: "🛠️ ʀᴇᴘᴏ",
-                        description: "ɢɪᴛʜᴜʙ ʀᴇᴘᴏꜱɪᴛᴏʀʏ",
-                        id: `${prefix}repo`,
-                      },
-                    ],
-                  },
-                ],
-              }),
-            },
+            buttonId: "audio_format",
+            buttonText: { displayText: "🎵 Audio" },
+            type: 1,
           },
+          {
+            buttonId: "document_format",
+            buttonText: { displayText: "📁 Document" },
+            type: 1,
+          }
         ];
 
         await Matrix.sendMessage(m.from, {
           text: songInfo,
+          buttons: buttons,
+          headerType: 1
         }, { 
           quoted: {
             key: {
@@ -230,6 +253,26 @@ ${toFancyFont("*URL*")}: ${data.result.video_url || song.url}
         }
         const fileStream = fs.createWriteStream(filePath);
         await streamPipeline(downloadResponse.body, fileStream);
+        
+        // Store file info for this user
+        userTempFiles.set(m.sender, {
+          filePath,
+          songTitle: song.title,
+          safeTitle
+        });
+        
+        // Set timeout to clean up after 5 minutes if not used
+        setTimeout(() => {
+          if (userTempFiles.has(m.sender)) {
+            const { filePath } = userTempFiles.get(m.sender);
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+              console.log(`Cleaned up unused temp file: ${filePath}`);
+            }
+            userTempFiles.delete(m.sender);
+          }
+        }, 5 * 60 * 1000);
+        
       } catch (apiError) {
         console.error(`API error:`, apiError.message);
         const buttons = [
@@ -240,7 +283,7 @@ ${toFancyFont("*URL*")}: ${data.result.video_url || song.url}
           },
         ];
         return Matrix.sendMessage(m.from, {
-          text: `*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* ${toFancyFont("couldn't")} ${toFancyFont("hit")} ${toFancyFont("the")} ${toFancyFont("api")} ${toFancyFont("for")} "${song.title}". ${toFancyFont("server's")} ${toFancyFont("actin'")} ${toFancyFont("up")}!`,
+          text: `*Njabulo Jb* ${toFancyFont("couldn't")} ${toFancyFont("hit")} ${toFancyFont("the")} ${toFancyFont("api")} ${toFancyFont("for")} "${song.title}". ${toFancyFont("server's")} ${toFancyFont("actin'")} ${toFancyFont("up")}!`,
         }, { 
           quoted: {
             key: {
@@ -257,82 +300,6 @@ ${toFancyFont("*URL*")}: ${data.result.video_url || song.url}
           }
         });
       }
-
-      // Send the audio file
-      try {
-        const doc = {
-          audio: {
-            url: filePath,
-          },
-          mimetype: 'audio/mpeg',
-          ptt: false,
-          fileName: `${safeTitle}.mp3`,
-        };
-        await Matrix.sendMessage(m.from, doc, { quoted: m });
-
-        // Clean up temp file after 5 seconds
-        setTimeout(() => {
-          try {
-            if (fs.existsSync(filePath)) {
-              fs.unlinkSync(filePath);
-              console.log(`Deleted temp file: ${filePath}`);
-            }
-          } catch (cleanupErr) {
-            console.error('Error during file cleanup:', cleanupErr);
-          }
-        }, 5000);
-      } catch (sendError) {
-        console.error(`Failed to send audio:`, sendError.message);
-        const buttons = [
-          {
-            buttonId: `.support`,
-            buttonText: { displayText: `⚠︎${toFancyFont("support")}` },
-            type: 1,
-          },
-        ];
-        return Matrix.sendMessage(m.from, {
-          text: `*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* ${toFancyFont("can't")} ${toFancyFont("song")} "${song.title}". ${toFancyFont("failed")} ${toFancyFont("to")} ${toFancyFont("send")} ${toFancyFont("audio")}`,
-        }, { 
-          quoted: {
-            key: {
-              fromMe: false,
-              participant: `0@s.whatsapp.net`,
-              remoteJid: "status@broadcast"
-            },
-            message: {
-              contactMessage: {
-                displayName: "✆︎NנɐႦυℓσ נႦ verified",
-                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ;BOT;;;\nFN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
-              }
-            }
-          }
-        });
-      }
-
-      const buttons = [
-        {
-          buttonId: `.menu`,
-          buttonText: { displayText: `📃${toFancyFont("Menu")}` },
-          type: 1,
-        },
-      ];
-      await Matrix.sendMessage(m.from, {
-        text: `*${song.title}* ${toFancyFont("dropped")} ${toFancyFont("by")} *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ*! ${toFancyFont("blast")} ${toFancyFont("it")}!`,
-      }, { 
-        quoted: {
-          key: {
-            fromMe: false,
-            participant: `0@s.whatsapp.net`,
-            remoteJid: "status@broadcast"
-          },
-          message: {
-            contactMessage: {
-              displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ verified",
-              vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Njabulo-Jb;BOT;;;\nFN:Njabulo-Jb\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
-            }
-          }
-        }
-      });
     }
   } catch (error) {
     console.error(`❌ song error: ${error.message}`);
