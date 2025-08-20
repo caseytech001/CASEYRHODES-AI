@@ -2,9 +2,14 @@ import config from '../config.cjs';
 
 const block = async (m, gss) => {
   try {
-    const botNumber = gss.user.id.split(':')[0] + '@s.whatsapp.net';
+    // Get bot number safely
+    const botNumber = gss.user?.id ? gss.user.id.split(':')[0] + '@s.whatsapp.net' : '';
     const isCreator = [botNumber, config.OWNER_NUMBER + '@s.whatsapp.net'].includes(m.sender);
     const prefix = config.PREFIX;
+    
+    // Check if message body exists
+    if (!m.body) return;
+    
     const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
     const text = m.body.slice(prefix.length + cmd.length).trim();
 
@@ -21,7 +26,12 @@ const block = async (m, gss) => {
     } else if (m.quoted) {
       users = m.quoted.sender;
     } else if (text) {
-      users = text.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+      // Validate and format phone number
+      const number = text.replace(/[^0-9]/g, '');
+      if (number.length < 10) {
+        return m.reply('Please provide a valid phone number with at least 10 digits.');
+      }
+      users = number + '@s.whatsapp.net';
     } else {
       return m.reply('Please mention a user, reply to a message, or provide a number to block.');
     }
@@ -29,6 +39,11 @@ const block = async (m, gss) => {
     // Validate the JID format
     if (!users.includes('@s.whatsapp.net')) {
       return m.reply('Invalid user format. Please provide a valid WhatsApp number.');
+    }
+
+    // Check if updateBlockStatus method exists
+    if (typeof gss.updateBlockStatus !== 'function') {
+      return m.reply('❌ Block functionality is not available in this version.');
     }
 
     // Block the user
