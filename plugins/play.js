@@ -3,11 +3,52 @@ import ytSearch from 'yt-search';
 import fs from 'fs';
 import { pipeline } from 'stream';
 import { promisify } from 'util';
-import osCallbacks from 'os';
+import os from 'os';
 import config from "../config.cjs";
+import pkg from "@whiskeysockets/baileys";
+const { generateWAMessageFromContent, proto, prepareWAMessageMedia } = pkg;
 
+// Create promisified pipeline
 const streamPipeline = promisify(pipeline);
-const tmpDir = osCallbacks.tmpdir();
+
+// Create temporary directory
+const tmpDir = os.tmpdir();
+
+function toFancyFont(text) {
+  const fonts = {
+    a: "ᴀ",
+    b: "ʙ",
+    c: "ᴄ",
+    d: "ᴅ",
+    e: "ᴇ",
+    f: "ғ",
+    g: "ɢ",
+    h: "ʜ",
+    i: "ɪ",
+    j: "ᴊ",
+    k: "ᴋ",
+    l: "ʟ",
+    m: "ᴍ",
+    n: "ɴ",
+    o: "ᴏ",
+    p: "ᴘ",
+    q: "ǫ",
+    r: "ʀ",
+    s: "s",
+    t: "ᴛ",
+    u: "ᴜ",
+    v: "ᴠ",
+    w: "ᴡ",
+    x: "x",
+    y: "ʏ",
+    z: "ᴢ",
+  };
+  return text
+    .toLowerCase()
+    .split("")
+    .map((char) => fonts[char] || char)
+    .join("");
+}
 
 const song = async (m, Matrix) => {
   try {
@@ -27,7 +68,7 @@ const song = async (m, Matrix) => {
       const searchQuery = args.join(" ");
       await Matrix.sendMessage(m.from, {
         text: `◈━━━━━━━━━━━━━━━━◈
-│❒ *Toxic-MD* huntin’ for "${searchQuery}"... 🎧
+│❒ *Toxic-MD* huntin' for "${searchQuery}"... 🎧
 ◈━━━━━━━━━━━━━━━━◈`,
       }, { quoted: m });
 
@@ -36,7 +77,7 @@ const song = async (m, Matrix) => {
       if (!searchResults.videos || searchResults.videos.length === 0) {
         return Matrix.sendMessage(m.from, {
           text: `◈━━━━━━━━━━━━━━━━◈
-│❒ No tracks found for "${searchQuery}". You slippin’! 💀
+│❒ No tracks found for "${searchQuery}". You slippin'! 💀
 ◈━━━━━━━━━━━━━━━━◈`,
         }, { quoted: m });
       }
@@ -83,22 +124,41 @@ const song = async (m, Matrix) => {
         console.error(`API error:`, apiError.message);
         return Matrix.sendMessage(m.from, {
           text: `◈━━━━━━━━━━━━━━━━◈
-│❒ *Toxic-MD* couldn’t hit the API for "${song.title}". Server’s actin’ up! 😡
+│❒ *Toxic-MD* couldn't hit the API for "${song.title}". Server's actin' up! 😡
 ◈━━━━━━━━━━━━━━━━◈`,
         }, { quoted: m });
       }
 
       // Send the audio file
       try {
-        const doc = {
-          audio: {
-            url: filePath,
-          },
+        const audioBuffer = fs.readFileSync(filePath);
+        
+        // Prepare audio message with buttons
+        const audioMessage = {
+          audio: audioBuffer,
           mimetype: 'audio/mpeg',
-          ptt: false,
           fileName: `${safeTitle}.mp3`,
+          ptt: false
         };
-        await Matrix.sendMessage(m.from, doc, { quoted: m });
+        
+        // Create message with buttons
+        const buttonMessage = {
+          text: `◈━━━━━━━━━━━━━━━━◈
+│❒ *${song.title}* dropped by *Toxic-MD*! Blast it! 🎶
+◈━━━━━━━━━━━━━━━━◈`,
+          footer: 'Toxic-MD Music Bot',
+          buttons: [
+            { buttonId: `${prefix}song ${searchQuery}`, buttonText: { displayText: 'Download Again' }, type: 1 },
+            { buttonId: `${prefix}yt ${searchQuery}`, buttonText: { displayText: 'Video Version' }, type: 1 }
+          ],
+          headerType: 1
+        };
+        
+        // Send audio
+        await Matrix.sendMessage(m.from, audioMessage, { quoted: m });
+        
+        // Send buttons
+        await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
 
         // Clean up temp file after 5 seconds
         setTimeout(() => {
@@ -115,16 +175,10 @@ const song = async (m, Matrix) => {
         console.error(`Failed to send audio:`, sendError.message);
         return Matrix.sendMessage(m.from, {
           text: `◈━━━━━━━━━━━━━━━━◈
-│❒ *Toxic-MD* can’t song "${song.title}". Failed to send audio 😣
+│❒ *Toxic-MD* can't song "${song.title}". Failed to send audio 😣
 ◈━━━━━━━━━━━━━━━━◈`,
         }, { quoted: m });
       }
-
-      await Matrix.sendMessage(m.from, {
-        text: `◈━━━━━━━━━━━━━━━━◈
-│❒ *${song.title}* dropped by *Toxic-MD*! Blast it! 🎶
-◈━━━━━━━━━━━━━━━━◈`,
-      }, { quoted: m });
     }
   } catch (error) {
     console.error(`❌ song error: ${error.message}`);
