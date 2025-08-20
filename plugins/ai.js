@@ -1,7 +1,7 @@
 import axios from "axios";
 import config from '../config.cjs';
-import pkg from "baileys-pro";
-const { generateWAMessageFromContent, proto, prepareWAMessageMedia } = pkg;
+import pkg from "@whiskeysockets/baileys";
+const { generateWAMessageFromContent, proto } = pkg;
 
 function toFancyFont(text, isUpperCase = false) {
   const fonts = {
