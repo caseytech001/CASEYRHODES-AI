@@ -19,7 +19,7 @@
     "BOT_NAME": {
       "description": "change bot name what you want!",
       "required": false,
-      "value": "NjabuloJb-elite"
+      "value": "Caseyrhodes tech"
     },
     "MENU_IMAGE": {
       "description": "change menu image if want otherwise use default",
@@ -29,7 +29,7 @@
     "DESCRIPTION": {
       "description": "add caption for menu and etc",
       "required": false,
-      "value": "> ✆︎Pσɯҽɾҽԃ Ⴆყ NנɐႦυℓσ נႦ"
+      "value": "> powered by Caseyrhodes"
     },
     "ANTI_DELETE": {
       "description": "set path for antidelete for same chat set to same",
@@ -65,12 +65,12 @@
     "OWNER_NAME": {
       "description": "set owner name",
       "required": false,
-      "value": "Njabulo Jb"
+      "value": "Caseyrhodes tech"
     },
     "OWNER_NUMBER": {
       "description": "set your owner number",
       "required": false,
-      "value": "26777821911"
+      "value": "254112192119"
     },
     "AUTO_READ": {
       "description": "make it true if you want bot to read message",
