@@ -21,6 +21,12 @@ import axios from 'axios';
 import config from './config.cjs';
 import pkg from './lib/autoreact.cjs';
 const { emojis, doReact } = pkg;
+
+// Chatbot Configuration
+let CHATBOT_ENABLED = true; // Default state
+const GROQ_API_URL = 'https://api.giftedtech.co.ke/api/ai/groq-beta?apikey=gifted';
+const chatbotCache = new NodeCache({ stdTTL: 60, checkperiod: 120 }); // Cache for 1 minute
+
 const prefix = process.env.PREFIX || config.PREFIX;
 const sessionName = "session";
 const app = express();
@@ -46,6 +52,57 @@ const credsPath = path.join(sessionDir, 'creds.json');
 
 if (!fs.existsSync(sessionDir)) {
     fs.mkdirSync(sessionDir, { recursive: true });
+}
+
+// Chatbot Functions
+async function handleChatbotToggle(m, Matrix) {
+    const buttons = [
+        {
+            buttonId: 'enable_chatbot',
+            buttonText: { displayText: CHATBOT_ENABLED ? '❌ Disable' : '✅ Enable' },
+            type: 1
+        },
+        {
+            buttonId: 'chatbot_status',
+            buttonText: { displayText: '📊 Status' },
+            type: 1
+        }
+    ];
+
+    await Matrix.sendMessage(m.key.remoteJid, {
+        text: `🤖 *Chatbot Status:* ${CHATBOT_ENABLED ? '🟢 ACTIVE' : '🔴 DISABLED'}\n\n_Powered by Groq AI_`,
+        buttons,
+        footer: config.BOT_NAME || 'Mercedes'
+    }, { quoted: m });
+}
+
+async function handleChatbotResponse(m, Matrix) {
+    try {
+        const messageText = m.message?.conversation || 
+                          m.message?.extendedTextMessage?.text || 
+                          '';
+        
+        if (!messageText || messageText.startsWith(prefix)) return;
+
+        // Check cache to avoid duplicate processing
+        if (chatbotCache.has(m.key.id)) return;
+        chatbotCache.set(m.key.id, true);
+
+        await Matrix.sendPresenceUpdate('composing', m.key.remoteJid);
+        
+        const response = await axios.get(`${GROQ_API_URL}&q=${encodeURIComponent(messageText)}`);
+        const aiResponse = response.data?.result || "I couldn't process that request.";
+
+        await Matrix.sendMessage(m.key.remoteJid, {
+            text: aiResponse,
+            mentions: [m.key.participant || m.key.remoteJid]
+        }, { quoted: m });
+
+    } catch (error) {
+        console.error('Chatbot error:', error);
+        // Optionally send an error message
+        // await Matrix.sendMessage(m.key.remoteJid, { text: "⚠️ Error processing your message" });
+    }
 }
 
 async function downloadSessionData() {
@@ -141,10 +198,7 @@ https://github.com/caseyweb/JINX-MD
                         }
                     };
 
-                    Matrix.sendMessage(Matrix.user.id, startMess)
-                        .then(() => console.log("Welcome message sent successfully"))
-                        .catch(err => console.error("Failed to send welcome message:", err));
-                    
+                    Matrix.sendMessage(Matrix.user.id, startMess).catch(console.error);
                     initialConnection = false;
                 } else {
                     console.log(chalk.blue("♻️ Connection reestablished after restart."));
@@ -154,10 +208,41 @@ https://github.com/caseyweb/JINX-MD
         
         Matrix.ev.on('creds.update', saveCreds);
 
-        Matrix.ev.on("messages.upsert", async chatUpdate => await Handler(chatUpdate, Matrix, logger));
+        // Enhanced messages.upsert handler
+        Matrix.ev.on("messages.upsert", async (chatUpdate) => {
+            const m = chatUpdate.messages[0];
+            if (!m.message) return;
+
+            // Handle chatbot toggle command
+            if (m.message.conversation?.toLowerCase() === prefix + 'chatbot') {
+                await handleChatbotToggle(m, Matrix);
+                return;
+            }
+
+            // Handle button responses
+            if (m.message.buttonsResponseMessage) {
+                const selected = m.message.buttonsResponseMessage.selectedButtonId;
+                if (selected === 'enable_chatbot') {
+                    CHATBOT_ENABLED = !CHATBOT_ENABLED;
+                    await Matrix.sendMessage(m.key.remoteJid, { 
+                        text: `Chatbot ${CHATBOT_ENABLED ? 'ENABLED ✅' : 'DISABLED ❌'}` 
+                    });
+                    return;
+                }
+            }
+
+            // Process chatbot responses if enabled
+            if (CHATBOT_ENABLED && !m.key.fromMe) {
+                await handleChatbotResponse(m, Matrix);
+            }
+
+            // Existing handlers
+            await Handler(chatUpdate, Matrix, logger);
+        });
+
         Matrix.ev.on("call", async (json) => await Callupdate(json, Matrix));
         Matrix.ev.on("group-participants.update", async (messag) => await GroupUpdate(Matrix, messag));
-
+        
         if (config.MODE === "public") {
             Matrix.public = true;
         } else if (config.MODE === "private") {
