@@ -2,6 +2,7 @@ import pkg from '@whiskeysockets/baileys';
 const { proto, downloadContentFromMessage } = pkg;
 import config from '../config.cjs';
 import { DeletedMessage, Settings } from '../data/database.js';
+import { Sequelize } from 'sequelize'; // Added missing import
 
 class AntiDeleteSystem {
   constructor() {
@@ -11,13 +12,23 @@ class AntiDeleteSystem {
   }
 
   async isEnabled() {
-    const settings = await Settings.findByPk(1);
-    return settings?.enabled ?? config.ANTI_DELETE;
+    try {
+      const settings = await Settings.findByPk(1);
+      return settings?.enabled ?? config.ANTI_DELETE;
+    } catch (error) {
+      console.error('Error checking anti-delete status:', error);
+      return config.ANTI_DELETE || false;
+    }
   }
 
   async getPath() {
-    const settings = await Settings.findByPk(1);
-    return settings?.path || config.ANTI_DELETE_PATH || 'inbox';
+    try {
+      const settings = await Settings.findByPk(1);
+      return settings?.path || config.ANTI_DELETE_PATH || 'inbox';
+    } catch (error) {
+      console.error('Error getting anti-delete path:', error);
+      return config.ANTI_DELETE_PATH || 'inbox';
+    }
   }
 
   async addMessage(key, message) {
@@ -37,18 +48,31 @@ class AntiDeleteSystem {
   }
 
   async getMessage(key) {
-    return await DeletedMessage.findByPk(key);
+    try {
+      return await DeletedMessage.findByPk(key);
+    } catch (error) {
+      console.error('Error retrieving message:', error);
+      return null;
+    }
   }
 
   async deleteMessage(key) {
-    await DeletedMessage.destroy({ where: { id: key } });
+    try {
+      await DeletedMessage.destroy({ where: { id: key } });
+    } catch (error) {
+      console.error('Error deleting message from cache:', error);
+    }
   }
 
   async cleanExpiredMessages() {
-    const expiryTime = Date.now() - this.cacheExpiry;
-    await DeletedMessage.destroy({ 
-      where: { timestamp: { [Sequelize.Op.lt]: expiryTime } }
-    });
+    try {
+      const expiryTime = Date.now() - this.cacheExpiry;
+      await DeletedMessage.destroy({ 
+        where: { timestamp: { [Sequelize.Op.lt]: expiryTime } }
+      });
+    } catch (error) {
+      console.error('Error cleaning expired messages:', error);
+    }
   }
 
   formatTime(timestamp) {
@@ -103,7 +127,17 @@ const AntiDelete = async (m, Matrix) => {
         return { name: 'Unknown Group', isGroup: true };
       }
     }
-    return { name: 'Private Chat', isGroup: false };
+    
+    try {
+      // Try to get the contact name for private chats
+      const contact = await Matrix.getContact(jid);
+      return {
+        name: contact?.name || contact?.notify || 'Private Chat',
+        isGroup: false
+      };
+    } catch {
+      return { name: 'Private Chat', isGroup: false };
+    }
   };
 
   const antiDelete = new AntiDeleteSystem();
@@ -121,16 +155,27 @@ const AntiDelete = async (m, Matrix) => {
       const isEnabled = await antiDelete.isEnabled();
 
       if (subCmd === 'on') {
-        await Settings.update({ enabled: true }, { where: { id: 1 } });
+        await Settings.upsert({ id: 1, enabled: true, path: mode });
         await m.reply(`╭━━〔 *ANTI-DELETE* 〕━━┈⊷\n┃◈╭─────────────·๏\n┃◈┃• Status: ✅ Enabled\n┃◈┃• Mode: ${modeName}\n┃◈╰─────────────·๏\n╰━━━━━━━━━━━━━━━━┈⊷`);
       } 
       else if (subCmd === 'off') {
-        await Settings.update({ enabled: false }, { where: { id: 1 } });
+        await Settings.upsert({ id: 1, enabled: false, path: mode });
         await antiDelete.cleanExpiredMessages();
         await m.reply(`╭━━〔 *ANTI-DELETE* 〕━━┈⊷\n┃◈╭─────────────·๏\n┃◈┃• Status: ❌ Disabled\n┃◈╰─────────────·๏\n╰━━━━━━━━━━━━━━━━┈⊷`);
       }
+      else if (subCmd === 'mode') {
+        const newMode = text[2]?.toLowerCase();
+        if (newMode && ['same', 'inbox', 'owner'].includes(newMode)) {
+          await Settings.upsert({ id: 1, enabled: isEnabled, path: newMode });
+          const newModeName = newMode === "same" ? "Same Chat" : 
+                            newMode === "inbox" ? "Bot Inbox" : "Owner PM";
+          await m.reply(`╭━━〔 *ANTI-DELETE* 〕━━┈⊷\n┃◈╭─────────────·๏\n┃◈┃• Mode changed to: ${newModeName}\n┃◈┃• Status: ${isEnabled ? '✅' : '❌'}\n┃◈╰─────────────·๏\n╰━━━━━━━━━━━━━━━━┈⊷`);
+        } else {
+          await m.reply(`╭━━〔 *ANTI-DELETE* 〕━━┈⊷\n┃◈╭─────────────·๏\n┃◈┃• Usage: ${prefix}antidelete mode <same|inbox|owner>\n┃◈┃• Current mode: ${modeName}\n┃◈╰─────────────·๏\n╰━━━━━━━━━━━━━━━━┈⊷`);
+        }
+      }
       else {
-        await m.reply(`╭━━〔 *ANTI-DELETE* 〕━━┈⊷\n┃◈╭─────────────·๏\n┃◈┃• ${prefix}antidelete on/off\n┃◈┃• Status: ${isEnabled ? '✅' : '❌'}\n┃◈┃• Mode: ${modeName}\n┃◈╰─────────────·๏\n╰━━━━━━━━━━━━━━━━┈⊷`);
+        await m.reply(`╭━━〔 *ANTI-DELETE* 〕━━┈⊷\n┃◈╭─────────────·๏\n┃◈┃• ${prefix}antidelete on/off\n┃◈┃• ${prefix}antidelete mode <same|inbox|owner>\n┃◈┃• Status: ${isEnabled ? '✅' : '❌'}\n┃◈┃• Mode: ${modeName}\n┃◈╰─────────────·๏\n╰━━━━━━━━━━━━━━━━┈⊷`);
       }
       await m.React('✅');
     } catch (error) {
@@ -142,7 +187,8 @@ const AntiDelete = async (m, Matrix) => {
 
   // Message handling
   Matrix.ev.on('messages.upsert', async ({ messages }) => {
-    if (!await antiDelete.isEnabled() || !messages?.length) return;
+    const isEnabled = await antiDelete.isEnabled();
+    if (!isEnabled || !messages?.length) return;
     
     for (const msg of messages) {
       if (msg.key.fromMe || !msg.message || msg.key.remoteJid === 'status@broadcast') continue;
@@ -152,7 +198,12 @@ const AntiDelete = async (m, Matrix) => {
                        msg.message.extendedTextMessage?.text ||
                        msg.message.imageMessage?.caption ||
                        msg.message.videoMessage?.caption ||
-                       msg.message.documentMessage?.caption;
+                       msg.message.documentMessage?.caption ||
+                       msg.message.buttonsMessage?.contentText ||
+                       msg.message.templateMessage?.fourRowTemplate?.content?.text ||
+                       msg.message.templateMessage?.hydratedTemplate?.content?.text ||
+                       msg.message.templateMessage?.hydratedFourRowTemplate?.content?.text ||
+                       '';
 
         let media, type, mimetype;
         
@@ -191,6 +242,40 @@ const AntiDelete = async (m, Matrix) => {
           }
         }
         
+        // Also check for viewOnce messages
+        if (msg.message.viewOnceMessage?.message) {
+          const viewOnceMsg = msg.message.viewOnceMessage.message;
+          const viewOnceContent = viewOnceMsg.conversation || 
+                                viewOnceMsg.extendedTextMessage?.text ||
+                                viewOnceMsg.imageMessage?.caption ||
+                                viewOnceMsg.videoMessage?.caption ||
+                                viewOnceMsg.documentMessage?.caption || '';
+          
+          if (viewOnceContent) {
+            content = viewOnceContent;
+          }
+          
+          // Check for media in viewOnce messages
+          for (const mediaType of mediaTypes) {
+            if (viewOnceMsg[`${mediaType}Message`]) {
+              const mediaMsg = viewOnceMsg[`${mediaType}Message`];
+              try {
+                const stream = await downloadContentFromMessage(mediaMsg, mediaType);
+                let buffer = Buffer.from([]);
+                for await (const chunk of stream) {
+                  buffer = Buffer.concat([buffer, chunk]);
+                }
+                media = buffer;
+                type = mediaType;
+                mimetype = mediaMsg.mimetype;
+                break;
+              } catch (e) {
+                console.error(`ViewOnce media download error:`, e);
+              }
+            }
+          }
+        }
+        
         if (content || media) {
           await antiDelete.addMessage(msg.key.id, {
             content,
@@ -211,7 +296,8 @@ const AntiDelete = async (m, Matrix) => {
 
   // Deletion handling with anti-spam
   Matrix.ev.on('messages.update', async (updates) => {
-    if (!await antiDelete.isEnabled() || !updates?.length) return;
+    const isEnabled = await antiDelete.isEnabled();
+    if (!isEnabled || !updates?.length) return;
 
     for (const update of updates) {
       try {
