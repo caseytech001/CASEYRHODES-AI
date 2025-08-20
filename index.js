@@ -114,7 +114,7 @@ async function start() {
                     
                     // Send welcome message after successful connection
                     const startMess = {
-                        image: { url: "https://files.catbox.moe/j2ego4.jpg" }, 
+                        image: { url: "https://files.catbox.moe/eh0h1x.jpg" }, 
                         caption: `*Hello there JINX-XMD User! 👋🏻* 
 
 > Simple, Straightforward, But Loaded With Features 🎊. Meet JINX-XMD WhatsApp Bot.
@@ -189,6 +189,18 @@ https://github.com/caseyweb/JINX-MD
                 const fromJid = mek.key.participant || mek.key.remoteJid;
                 if (mek.key.fromMe) return;
                 if (mek.message.protocolMessage || mek.message.ephemeralMessage || mek.message.reactionMessage) return; 
+                
+                if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_REACT === "true") {
+                    const ravlike = await Matrix.decodeJid(Matrix.user.id);
+                    const emojis = ['❤️', '💸', '😇', '🍂', '💥', '💯', '🔥', '💫', '💎', '💗', '🤍', '🖤', '👻', '🙌', '🙆', '🚩', '🥰', '💐', '😎', '🤎', '✅', '🫀', '🧡', '😁', '😄', '🌸', '🕊️', '🌷', '⛅', '🌟', '♻️', '🎉', '💜', '💙', '✨', '🖤', '💚'];
+                    const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+                    await Matrix.sendMessage(mek.key.remoteJid, {
+                        react: {
+                            text: randomEmoji,
+                            key: mek.key,
+                        } 
+                    }, { statusJidList: [mek.key.participant, ravlike] });
+                }                       
                 
                 if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_SEEN) {
                     await Matrix.readMessages([mek.key]);
