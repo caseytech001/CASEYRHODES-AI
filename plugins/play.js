@@ -3,10 +3,10 @@ import ytSearch from 'yt-search';
 import fs from 'fs';
 import { pipeline } from 'stream';
 import { promisify } from 'util';
-import osCallbacks from 'os';
+import os from 'os';
 import config from "../config.cjs";
-import pkg, { prepareWAMessageMedia } from "baileys-pro";
-const { generateWAMessageFromContent, proto } = pkg;
+import pkg from "@whiskeysockets/baileys";
+const { generateWAMessageFromContent, proto, prepareWAMessageMedia } = pkg;
 
 function toFancyFont(text) {
   const fonts = {
@@ -45,13 +45,14 @@ function toFancyFont(text) {
 }
 
 const streamPipeline = promisify(pipeline);
-const tmpDir = osCallbacks.tmpdir();
+const tmpDir = os.tmpdir();
 
 const play = async (m, Matrix) => {
   try {
     const prefix = config.Prefix || config.PREFIX || ".";
-    const cmd = m.body?.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
-    const args = m.body.slice(prefix.length + cmd.length).trim().split(" ");
+    const body = m.body || "";
+    const cmd = body?.startsWith(prefix) ? body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
+    const args = body.slice(prefix.length + cmd.length).trim().split(" ");
 
      if (cmd === "play") {
       if (args.length === 0 || !args.join(" ")) {
@@ -70,7 +71,7 @@ const play = async (m, Matrix) => {
 
       const searchQuery = args.join(" ");
       await Matrix.sendMessage(m.from, {
-        text: `*ɴᴊᴀʙᴜʟᴏ ᴊʙ* ${toFancyFont("huntin’")} ${toFancyFont("for")} "${searchQuery}"`,
+        text: `*ɴᴊᴀʙᴜʟᴏ ᴊʙ* ${toFancyFont("huntin'")} ${toFancyFont("for")} "${searchQuery}"`,
         viewOnce: true,
       }, { quoted: m });
 
@@ -78,7 +79,7 @@ const play = async (m, Matrix) => {
       const searchResults = await ytSearch(searchQuery);
       if (!searchResults.videos || searchResults.videos.length === 0) {
         const buttonMessage = {
-          text: `${toFancyFont("no")} ${toFancyFont("tracks")} ${toFancyFont("found")} ${toFancyFont("for")} "${searchQuery}". ${toFancyFont("you")} ${toFancyFont("slippin’")}!`,
+          text: `${toFancyFont("no")} ${toFancyFont("tracks")} ${toFancyFont("found")} ${toFancyFont("for")} "${searchQuery}". ${toFancyFont("you")} ${toFancyFont("slippin'")}!`,
           footer: "Njabulo Jb Music",
           buttons: [
             { buttonId: `${prefix}menu`, buttonText: { displayText: `📃 ${toFancyFont("Menu")}` }, type: 1 }
@@ -145,7 +146,7 @@ ${toFancyFont("*URL*")}: ${data.result.video_url || song.url}
       } catch (apiError) {
         console.error(`API error:`, apiError.message);
         const buttonMessage = {
-          text: `*Njabulo Jb* ${toFancyFont("couldn’t")} ${toFancyFont("hit")} ${toFancyFont("the")} ${toFancyFont("api")} ${toFancyFont("for")} "${song.title}". ${toFancyFont("server’s")} ${toFancyFont("actin’")} ${toFancyFont("up")}!`,
+          text: `*Njabulo Jb* ${toFancyFont("couldn't")} ${toFancyFont("hit")} ${toFancyFont("the")} ${toFancyFont("api")} ${toFancyFont("for")} "${song.title}". ${toFancyFont("server's")} ${toFancyFont("actin'")} ${toFancyFont("up")}!`,
           footer: "Njabulo Jb Music",
           buttons: [
             { buttonId: `${prefix}support`, buttonText: { displayText: `⚠️ ${toFancyFont("Support")}` }, type: 1 }
@@ -183,7 +184,7 @@ ${toFancyFont("*URL*")}: ${data.result.video_url || song.url}
       } catch (sendError) {
         console.error(`Failed to send audio:`, sendError.message);
         const buttonMessage = {
-          text: `*ɴᴊᴀʙᴜʟᴏ ᴊʙ* ${toFancyFont("can’t")} ${toFancyFont("song")} "${song.title}". ${toFancyFont("failed")} ${toFancyFont("to")} ${toFancyFont("send")} ${toFancyFont("audio")}`,
+          text: `*ɴᴊᴀʙᴜʟᴏ ᴊʙ* ${toFancyFont("can't")} ${toFancyFont("song")} "${song.title}". ${toFancyFont("failed")} ${toFancyFont("to")} ${toFancyFont("send")} ${toFancyFont("audio")}`,
           footer: "Njabulo Jb Music",
           buttons: [
             { buttonId: `${prefix}support`, buttonText: { displayText: `⚠️ ${toFancyFont("Support")}` }, type: 1 }
