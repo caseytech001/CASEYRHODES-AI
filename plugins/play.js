@@ -42,186 +42,129 @@ function toFancyFont(text) {
     .split("")
     .map((char) => fonts[char] || char)
     .join("");
-}
-
-const streamPipeline = promisify(pipeline);
-const tmpDir = os.tmpdir();
-
-const play = async (m, Matrix) => {
-  try {
-    const prefix = config.Prefix || config.PREFIX || ".";
-    const body = m.body || "";
-    const cmd = body?.startsWith(prefix) ? body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
-    const args = body.slice(prefix.length + cmd.length).trim().split(" ");
-
-     if (cmd === "play") {
-      if (args.length === 0 || !args.join(" ")) {
-        const buttonMessage = {
-          text: `${toFancyFont("give")} ${toFancyFont("me")} ${toFancyFont("a")} ${toFancyFont("song")} ${toFancyFont("name")} ${toFancyFont("or")} ${toFancyFont("keywords")} ${toFancyFont("to")} ${toFancyFont("search")}`,
-          footer: "Njabulo Jb Music",
-          buttons: [
-            { buttonId: `${prefix}menu`, buttonText: { displayText: `📃 ${toFancyFont("Menu")}` }, type: 1 }
-          ],
-          headerType: 1,
-          viewOnce: true
-        };
-        
-        return Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
-      }
-
-      const searchQuery = args.join(" ");
-      await Matrix.sendMessage(m.from, {
-        text: `*ɴᴊᴀʙᴜʟᴏ ᴊʙ* ${toFancyFont("huntin'")} ${toFancyFont("for")} "${searchQuery}"`,
-        viewOnce: true,
-      }, { quoted: m });
-
-      // Search YouTube for song info
-      const searchResults = await ytSearch(searchQuery);
-      if (!searchResults.videos || searchResults.videos.length === 0) {
-        const buttonMessage = {
-          text: `${toFancyFont("no")} ${toFancyFont("tracks")} ${toFancyFont("found")} ${toFancyFont("for")} "${searchQuery}". ${toFancyFont("you")} ${toFancyFont("slippin'")}!`,
-          footer: "Njabulo Jb Music",
-          buttons: [
-            { buttonId: `${prefix}menu`, buttonText: { displayText: `📃 ${toFancyFont("Menu")}` }, type: 1 }
-          ],
-          headerType: 1,
-          viewOnce: true
-        };
-        
-        return Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
-      }
-
-      const song = searchResults.videos[0];
-      const safeTitle = song.title.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').substring(0, 100);
-      const filePath = `${tmpDir}/${safeTitle}.mp3`;
-
-      // Fetch download URL from the new API
-      let apiResponse;
-      try {
-        const apiUrl = `https://apis.davidcyriltech.my.id/play?query=${encodeURIComponent(searchQuery)}`;
-        apiResponse = await fetch(apiUrl);
-        if (!apiResponse.ok) {
-          throw new Error(`API responded with status: ${apiResponse.status}`);
-        }
-        const data = await apiResponse.json();
-        if (!data.status || !data.result.download_url) {
-          throw new Error('API response missing download URL or failed');
-        }
-
-        // Send song info from yt-search and API
-        const songInfo = `
-
-${toFancyFont("*Njbulo Jb*")} Song Intel 🔥
-${toFancyFont("*Title*")}: ${data.result.title || song.title}
-${toFancyFont("*Views*")}: ${song.views.toLocaleString()}
-${toFancyFont("*Duration*")}: ${song.timestamp}
-${toFancyFont("*Channel*")}: ${song.author.name}
-${toFancyFont("*Uploaded*")}: ${song.ago}
-${toFancyFont("*URL*")}: ${data.result.video_url || song.url}
-`;
-        
-        const buttonMessage = {
-          text: songInfo,
-          footer: "Njabulo Jb Music",
-          buttons: [
-            { buttonId: `${prefix}img ${searchQuery}`, buttonText: { displayText: `🖼️ ${toFancyFont("Image")}` }, type: 1 },
-            { buttonId: `${prefix}lyrics ${searchQuery}`, buttonText: { displayText: `📃 ${toFancyFont("Lyrics")}` }, type: 1 },
-            { buttonId: `${prefix}yts ${searchQuery}`, buttonText: { displayText: `📃 ${toFancyFont("YTS")}` }, type: 1 },
-            { buttonId: `${prefix}video ${searchQuery}`, buttonText: { displayText: `🎥 ${toFancyFont("Video")}` }, type: 1 },
-            { buttonId: `${prefix}song ${searchQuery}`, buttonText: { displayText: `🎧 ${toFancyFont("Get Song")}` }, type: 1 }
-          ],
-          headerType: 1,
-          viewOnce: true
-        };
-        
-        await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
-
-        // Download the audio file
-        const downloadResponse = await fetch(data.result.download_url);
-        if (!downloadResponse.ok) {
-          throw new Error(`Failed to download audio: ${downloadResponse.status}`);
-        }
-        const fileStream = fs.createWriteStream(filePath);
-        await streamPipeline(downloadResponse.body, fileStream);
-      } catch (apiError) {
-        console.error(`API error:`, apiError.message);
-        const buttonMessage = {
-          text: `*Njabulo Jb* ${toFancyFont("couldn't")} ${toFancyFont("hit")} ${toFancyFont("the")} ${toFancyFont("api")} ${toFancyFont("for")} "${song.title}". ${toFancyFont("server's")} ${toFancyFont("actin'")} ${toFancyFont("up")}!`,
-          footer: "Njabulo Jb Music",
-          buttons: [
-            { buttonId: `${prefix}support`, buttonText: { displayText: `⚠️ ${toFancyFont("Support")}` }, type: 1 }
-          ],
-          headerType: 1,
-          viewOnce: true
-        };
-        
-        return Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
-      }
-
-      // Send the audio file
-      try {
-        const doc = {
-          audio: {
-            url: filePath,
-          },
-          mimetype: 'audio/mpeg',
-          ptt: false,
-          fileName: `${safeTitle}.mp3`,
-        };
-        await Matrix.sendMessage(m.from, doc, { quoted: m });
-
-        // Clean up temp file after 5 seconds
-        setTimeout(() => {
-          try {
-            if (fs.existsSync(filePath)) {
-              fs.unlinkSync(filePath);
-              console.log(`Deleted temp file: ${filePath}`);
-            }
-          } catch (cleanupErr) {
-            console.error('Error during file cleanup:', cleanupErr);
-          }
-        }, 5000);
-      } catch (sendError) {
-        console.error(`Failed to send audio:`, sendError.message);
-        const buttonMessage = {
-          text: `*ɴᴊᴀʙᴜʟᴏ ᴊʙ* ${toFancyFont("can't")} ${toFancyFont("song")} "${song.title}". ${toFancyFont("failed")} ${toFancyFont("to")} ${toFancyFont("send")} ${toFancyFont("audio")}`,
-          footer: "Njabulo Jb Music",
-          buttons: [
-            { buttonId: `${prefix}support`, buttonText: { displayText: `⚠️ ${toFancyFont("Support")}` }, type: 1 }
-          ],
-          headerType: 1,
-          viewOnce: true
-        };
-        
-        return Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
-      }
-
-      const buttonMessage = {
-        text: `*${song.title}* ${toFancyFont("dropped")} ${toFancyFont("by")} *Njabulo Jb*! ${toFancyFont("blast")} ${toFancyFont("it")}!`,
-        footer: "Njabulo Jb Music",
-        buttons: [
-          { buttonId: `${prefix}menu`, buttonText: { displayText: `📃 ${toFancyFont("Menu")}` }, type: 1 }
-        ],
-        headerType: 1,
-        viewOnce: true
-      };
-      
-      await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
-    }
-  } catch (error) {
-    console.error(`❌ song error: ${error.message}`);
-    const buttonMessage = {
-      text: `*ɴᴊᴀʙᴜʟᴏ ᴊʙ* ${toFancyFont("hit")} ${toFancyFont("a")} ${toFancyFont("snag")}, ${toFancyFont("fam")}! ${toFancyFont("try")} ${toFancyFont("again")} ${toFancyFont("or")} ${toFancyFont("pick")} ${toFancyFont("a")} ${toFancyFont("better")} ${toFancyFont("track")}! `,
-      footer: "Njabulo Jb Music",
-      buttons: [
-        { buttonId: `${prefix}support`, buttonText: { displayText: `⚠️ ${toFancyFont("Support")}` }, type: 1 }
-      ],
-      headerType: 1,
-      viewOnce: true
-    };
-    
-    await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
-  }
 };
+
+// MP3 song download
+cmd({ 
+    pattern: "song", 
+    alias: ["ytdl3", "play"], 
+    react: "🎶", 
+    desc: "Download YouTube song", 
+    category: "main", 
+    use: '.song < Yt url or Name >', 
+    filename: __filename 
+}, async (conn, mek, m, { from, prefix, quoted, q, reply }) => { 
+    try { 
+        if (!q) return await reply("Please provide a YouTube URL or song name.");
+        
+        const yt = await ytSearch(q);
+        if (yt.results.length < 1) return reply("No results found!");
+        
+        let yts = yt.results[0];  
+        let apiUrl = `https://apis.davidcyriltech.my.id/youtube/mp3?url=${encodeURIComponent(yts.url)}`;
+        
+        let response = await fetch(apiUrl);
+        let data = await response.json();
+        
+        if (data.status !== 200 || !data.success || !data.result.downloadUrl) {
+            return reply("Failed to fetch the audio. Please try again later.");
+        }
+        
+        let ytmsg = `🎵 *Song Details*
+🎶 *Title:* ${yts.title}
+⏳ *Duration:* ${yts.timestamp}
+👀 *Views:* ${yts.views}
+👤 *Author:* ${yts.author.name}
+🔗 *Link:* ${yts.url}
+
+*Choose download format:*`;
+        
+        let contextInfo = {
+            mentionedJid: [m.sender],
+            forwardingScore: 999,
+            isForwarded: true,
+            forwardedNewsletterMessageInfo: {
+                newsletterJid: '120363302677217436@newsletter',
+                newsletterName: 'CASEYRHODES-TECH',
+                serverMessageId: 143
+            }
+        };
+        
+        // Create buttons
+        const buttons = [
+            {buttonId: 'mp3doc', buttonText: {displayText: '📄 MP3 Document'}, type: 1},
+            {buttonId: 'mp3audio', buttonText: {displayText: '🎧 MP3 Audio'}, type: 1},
+            {buttonId: 'mp3ptt', buttonText: {displayText: '🎙️ MP3 Voice Note'}, type: 1}
+        ];
+        
+        const buttonMessage = {
+            image: { url: yts.thumbnail },
+            caption: ytmsg,
+            footer: 'Select a format',
+            buttons: buttons,
+            headerType: 4,
+            contextInfo: contextInfo
+        };
+        
+        // Send message with buttons
+        const songmsg = await conn.sendMessage(from, buttonMessage, { quoted: mek });
+        
+        // Handle button responses
+        conn.ev.on("messages.upsert", async (msgUpdate) => {
+            const mp3msg = msgUpdate.messages[0];
+            
+            // Check if this is a button response to our message
+            if (mp3msg.message && mp3msg.message.buttonsResponseMessage && 
+                mp3msg.message.buttonsResponseMessage.contextInfo &&
+                mp3msg.message.buttonsResponseMessage.contextInfo.stanzaId === songmsg.key.id) {
+                
+                const selectedOption = mp3msg.message.buttonsResponseMessage.selectedButtonId;
+                
+                await conn.sendMessage(from, { react: { text: "⬇️", key: mp3msg.key } });
+                
+                switch (selectedOption) {
+                    case 'mp3doc':   
+                        await conn.sendMessage(from, { 
+                            document: { url: data.result.downloadUrl }, 
+                            mimetype: "audio/mpeg", 
+                            fileName: `${yts.title}.mp3`, 
+                            contextInfo 
+                        }, { quoted: mp3msg });
+                        break;
+                        
+                    case 'mp3audio':   
+                        await conn.sendMessage(from, { 
+                            audio: { url: data.result.downloadUrl }, 
+                            mimetype: "audio/mpeg", 
+                            contextInfo 
+                        }, { quoted: mp3msg });
+                        break;
+                        
+                    case 'mp3ptt':   
+                        await conn.sendMessage(from, { 
+                            audio: { url: data.result.downloadUrl }, 
+                            mimetype: "audio/mpeg", 
+                            ptt: true, 
+                            contextInfo 
+                        }, { quoted: mp3msg });
+                        break;
+                        
+                    default:
+                        await conn.sendMessage(
+                            from,
+                            {
+                                text: "*Invalid selection. Please try again.*",
+                            },
+                            { quoted: mp3msg }
+                        );
+                }
+            }
+        });
+           
+    } catch (e) {
+        console.log(e);
+        reply("An error occurred. Please try again later.");
+    }
+});
 
 export default play;
