@@ -413,10 +413,19 @@ ${menuResponse}
         },
       };
 
-      await Matrix.sendMessage(m.from, {
-        text: fullResponse,
-        ...backButton
-      }, { quoted: m });
+      // Send sub-menu with image
+      if (menuImage) {
+        await Matrix.sendMessage(m.from, { 
+          image: menuImage,
+          caption: fullResponse,
+          ...backButton
+        }, { quoted: m });
+      } else {
+        await Matrix.sendMessage(m.from, {
+          text: fullResponse,
+          ...backButton
+        }, { quoted: m });
+      }
     }
   } catch (error) {
     console.error(`❌ Menu error: ${error.message}`);
