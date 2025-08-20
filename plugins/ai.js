@@ -46,7 +46,7 @@ async function deleteChatHistory(chatHistory, userId) {
 
 const mistral = async (m, Matrix) => {
     const chatHistory = await readChatHistoryFromFile();
-    const text = m.body.toLowerCase();
+    const text = m.body ? m.body.toLowerCase() : '';
 
     if (text === "/forget") {
         await deleteChatHistory(chatHistory, m.sender);
@@ -55,8 +55,9 @@ const mistral = async (m, Matrix) => {
     }
 
     const prefix = config.PREFIX;
-    const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-    const prompt = m.body.slice(prefix.length + cmd.length).trim();
+    const body = m.body || '';
+    const cmd = body.startsWith(prefix) ? body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+    const prompt = body.slice(prefix.length + cmd.length).trim();
 
     const validCommands = ['ai', 'gpt', 'mistral'];
 
@@ -74,30 +75,43 @@ const mistral = async (m, Matrix) => {
                 { role: "user", content: prompt }
             ];
 
-            await m.React("⏳");
+            if (m.React) await m.React("⏳");
 
-            const response = await fetch('https://matrixcoder.tech/api/ai', {
+            // Fixed API endpoint and request format
+            const response = await fetch('https://api.giftedtech.co.ke/api/ai/groq-beta', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'apikey': 'gifted'
                 },
                 body: JSON.stringify({
-                    type: "text-generation",
-                    model: "hf/meta-llama/meta-llama-3-8b-instruct",
-                    messages: messages
+                    messages: messages,
+                    model: "llama3-70b-8192" // Specify a valid model
                 })
             });
 
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API Error:', errorText);
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const responseData = await response.json();
+            
+            // Handle different response structures
+            let answer;
+            if (responseData.result && responseData.result.response) {
+                answer = responseData.result.response;
+            } else if (responseData.response) {
+                answer = responseData.response;
+            } else if (responseData.choices && responseData.choices.length > 0) {
+                answer = responseData.choices[0].message.content;
+            } else {
+                throw new Error("Unexpected API response format");
+            }
 
             await updateChatHistory(chatHistory, m.sender, { role: "user", content: prompt });
-            await updateChatHistory(chatHistory, m.sender, { role: "assistant", content: responseData.result.response });
-
-            const answer = responseData.result.response;
+            await updateChatHistory(chatHistory, m.sender, { role: "assistant", content: answer });
 
             const codeMatch = answer.match(/```([\s\S]*?)```/);
 
@@ -106,45 +120,61 @@ const mistral = async (m, Matrix) => {
                 const codeLanguage = code.split('\n')[0].trim() || 'text';
                 const codeContent = code.includes('\n') ? code.slice(code.indexOf('\n') + 1) : code;
                 
-                // Create the interactive message with copy button
-                const interactiveMsg = {
-                    body: {
-                        text: answer
-                    },
-                    footer: {
-                        text: "> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ"
-                    },
-                    header: {
-                        title: "AI Response",
-                        hasMediaAttachment: false
-                    },
-                    nativeFlowMessage: {
-                        buttons: [
-                            {
-                                name: "quick_reply",
-                                buttonParamsJson: JSON.stringify({
-                                    display_text: "Copy Code",
-                                    id: "copy_code_" + Date.now(),
-                                    copy_code: codeContent
-                                })
-                            }
-                        ]
-                    }
-                };
-
-                // Send the message with the copy button
-                await Matrix.sendMessage(m.from, {
-                    interactive: interactiveMsg
+                // For WhatsApp, we need to format code properly
+                const formattedAnswer = answer.replace(/```[\s\S]*?```/g, '```[code]```');
+                
+                // Send the message with code indicator
+                await Matrix.sendMessage(m.from, { 
+                    text: formattedAnswer + `\n\n*Code detected. Check your console for the full code.*`
+                }, { quoted: m });
+                
+                // Send the actual code in a separate message
+                await Matrix.sendMessage(m.from, { 
+                    text: `*Code:*\n\`\`\`${codeLanguage}\n${codeContent}\n\`\`\``
                 }, { quoted: m });
             } else {
-                await Matrix.sendMessage(m.from, { text: answer }, { quoted: m });
+                // Add copy button to regular responses
+                const messageOptions = {
+                    text: answer,
+                    footer: "Click the button below to copy this text",
+                    buttons: [
+                        { buttonId: `${prefix}copy`, buttonText: { displayText: "📋 Copy Text" }, type: 1 }
+                    ],
+                    headerType: 1
+                };
+                
+                await Matrix.sendMessage(m.from, messageOptions, { quoted: m });
             }
 
-            await m.React("✅");
+            if (m.React) await m.React("✅");
         } catch (err) {
-            await Matrix.sendMessage(m.from, { text: "Something went wrong" }, { quoted: m });
+            await Matrix.sendMessage(m.from, { text: "Something went wrong: " + err.message }, { quoted: m });
             console.error('Error: ', err);
-            await m.React("❌");
+            if (m.React) await m.React("❌");
+        }
+    }
+    
+    // Handle copy button interaction
+    if (m.body && m.body.startsWith(`${prefix}copy`)) {
+        try {
+            // Get the quoted message to copy
+            const quotedMsg = m.quoted ? m.quoted : m;
+            const textToCopy = quotedMsg.text;
+            
+            // Create a message with the text that can be easily copied
+            await Matrix.sendMessage(m.from, { 
+                text: `📋 *Text to copy:*\n\n${textToCopy}\n\n_You can now select and copy this text_`
+            }, { quoted: m });
+            
+            // Send a confirmation message
+            await Matrix.sendMessage(m.from, { 
+                text: "✅ Text ready for copying!"
+            });
+        } catch (err) {
+            console.error('Error handling copy request:', err);
+            await Matrix.sendMessage(m.from, { 
+                text: "❌ Failed to prepare text for copying"
+            }, { quoted: m });
         }
     }
 };
