@@ -16,9 +16,25 @@ const alive = async (m, Matrix) => {
 
   const str = `*🤖 Bot Status: Online*\n*⏳ Uptime: ${timeString}*`;
 
-  await Matrix.sendMessage(m.from, {
+  const buttons = [
+    {
+      buttonId: `${prefix}menu`,
+      buttonText: { displayText: '📋 Menu' },
+      type: 1
+    },
+    {
+      buttonId: `${prefix}ping`,
+      buttonText: { displayText: '🏓 Ping' },
+      type: 1
+    }
+  ];
+
+  const buttonMessage = {
     image: fs.readFileSync('./media/Casey.jpg'),
     caption: str,
+    footer: 'Choose an option',
+    buttons: buttons,
+    headerType: 4,
     contextInfo: {
       mentionedJid: [m.sender],
       forwardingScore: 999,
@@ -29,7 +45,9 @@ const alive = async (m, Matrix) => {
         serverMessageId: 143
       }
     }
-  }, {
+  };
+
+  await Matrix.sendMessage(m.from, buttonMessage, {
     quoted: m
   });
 };
