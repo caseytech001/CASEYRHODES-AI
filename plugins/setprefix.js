@@ -9,7 +9,21 @@ const setprefixCommand = async (m, Matrix) => {
 
     if (cmd === 'setprefix') {
         if (!isCreator) {
-            await Matrix.sendMessage(m.from, { text: "*📛 THIS IS AN OWNER COMMAND*" }, { quoted: m });
+            // Create buttons for the message
+            const buttons = [
+                {buttonId: `${prefix}menu`, buttonText: {displayText: '📋 Menu'}, type: 1},
+                {buttonId: `${prefix}ping`, buttonText: {displayText: '🏓 Ping'}, type: 1},
+                {buttonId: `${prefix}owner`, buttonText: {displayText: '👤 Owner'}, type: 1}
+            ];
+            
+            const buttonMessage = {
+                text: "*📛 THIS IS AN OWNER COMMAND*",
+                footer: "Select an option below",
+                buttons: buttons,
+                headerType: 1
+            };
+            
+            await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
             return;
         }
 
