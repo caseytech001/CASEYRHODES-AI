@@ -157,7 +157,7 @@ const menu = async (m, Matrix) => {
 
       // Send audio as a voice note
       await Matrix.sendMessage(m.from, { 
-        audio: { url: "https://files.catbox.moe/d5yxdu.mp3" },
+        audio: { url: "https://files.catbox.moe/sd3ljy.mp3" },
         mimetype: "audio/mp4", 
         ptt: true
       }, { 
