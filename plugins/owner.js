@@ -3,14 +3,16 @@ import config from '../config.cjs';
 const ownerContact = async (m, gss) => {
     const ownernumber = config.OWNER_NUMBER;
     const prefix = config.PREFIX;
-    const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-    const text = m.body.slice(prefix.length + cmd.length).trim();
+    const body = m.body || '';
+    const cmd = body.startsWith(prefix) ? body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+    const text = body.slice(prefix.length + cmd.length).trim();
 
-    if (cmd === 'owner' || cmd === 'support' || cmd === 'menu') {
+    if (cmd === 'owner' || cmd === 'support') {
         try {
             // Create buttons for the menu
             const buttons = [
                 { buttonId: `${prefix}owner`, buttonText: { displayText: '👑 Owner' }, type: 1 },
+                { buttonId: `${prefix}ping`, buttonText: { displayText: '🏓 Ping' }, type: 1 },
                 { buttonId: `${prefix}support`, buttonText: { displayText: '💬 Support' }, type: 1 }
             ];
             
@@ -24,17 +26,17 @@ const ownerContact = async (m, gss) => {
             
             // Send the button message
             await gss.sendMessage(m.from, buttonMessage);
-            await m.React("✅");
+            if (m.React) await m.React("✅");
         } catch (error) {
             console.error('Error sending menu:', error);
-            m.reply('Error sending menu.');
-            await m.React("❌");
+            if (m.reply) m.reply('Error sending menu.');
+            if (m.React) await m.React("❌");
         }
     } 
     else if (cmd === 'ping') {
         try {
             const start = Date.now();
-            await m.React("⏱️");
+            if (m.React) await m.React("⏱️");
             
             // Simulate some processing
             const latency = Date.now() - start;
@@ -43,11 +45,11 @@ const ownerContact = async (m, gss) => {
                 text: `🏓 Pong!\n⏱️ Latency: ${latency}ms\n💻 Server: Active`
             });
             
-            await m.React("✅");
+            if (m.React) await m.React("✅");
         } catch (error) {
             console.error('Error with ping command:', error);
-            m.reply('Error with ping command.');
-            await m.React("❌");
+            if (m.reply) m.reply('Error with ping command.');
+            if (m.React) await m.React("❌");
         }
     }
     else if (cmd === 'support') {
@@ -55,11 +57,11 @@ const ownerContact = async (m, gss) => {
             await gss.sendMessage(m.from, {
                 text: `💬 *SUPPORT INFORMATION*\n\nFor support, please contact:\n📞 ${ownernumber}\n\nOr join our support group: [Your Support Group Link]`
             });
-            await m.React("✅");
+            if (m.React) await m.React("✅");
         } catch (error) {
             console.error('Error sending support info:', error);
-            m.reply('Error sending support information.');
-            await m.React("❌");
+            if (m.reply) m.reply('Error sending support information.');
+            if (m.React) await m.React("❌");
         }
     }
 };
