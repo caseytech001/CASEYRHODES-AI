@@ -55,8 +55,18 @@ const OwnerCmd = async (m, Matrix) => {
     let buffer = await downloadMediaMessage(targetMessage.quoted, 'buffer');
     if (!buffer) return;
 
-    let mimetype = msg.audioMessage?.mimetype || 'audio/ogg';
-    let caption = `> *© Powered By Caseyrhodes*`;
+    // Define buttons
+    const buttons = [
+      {buttonId: `${prefix}help`, buttonText: {displayText: 'HELP'}, type: 1},
+      {buttonId: `${prefix}menu`, buttonText: {displayText: 'MENU'}, type: 1}
+    ];
+
+    const buttonMessage = {
+      text: "Select an option:",
+      footer: "Powered by CaseyRhodes",
+      buttons: buttons,
+      headerType: 1
+    };
 
     // Set recipient
     let recipient = secretMode || cmd === 'vv2' 
@@ -66,11 +76,23 @@ const OwnerCmd = async (m, Matrix) => {
         : m.from;
 
     if (messageType === 'imageMessage') {
-      await Matrix.sendMessage(recipient, { image: buffer, caption });
+      await Matrix.sendMessage(recipient, { 
+        image: buffer, 
+        ...buttonMessage 
+      });
     } else if (messageType === 'videoMessage') {
-      await Matrix.sendMessage(recipient, { video: buffer, caption, mimetype: 'video/mp4' });
+      await Matrix.sendMessage(recipient, { 
+        video: buffer, 
+        mimetype: 'video/mp4',
+        ...buttonMessage 
+      });
     } else if (messageType === 'audioMessage') {  
-      await Matrix.sendMessage(recipient, { audio: buffer, mimetype, ptt: true });
+      await Matrix.sendMessage(recipient, { 
+        audio: buffer, 
+        mimetype: msg.audioMessage?.mimetype || 'audio/ogg', 
+        ptt: true,
+        ...buttonMessage 
+      });
     }
 
     // Silent execution for secret mode
