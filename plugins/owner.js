@@ -11,7 +11,6 @@ const ownerContact = async (m, gss) => {
             // Create buttons for the menu
             const buttons = [
                 { buttonId: `${prefix}owner`, buttonText: { displayText: '👑 Owner' }, type: 1 },
-                { buttonId: `${prefix}ping`, buttonText: { displayText: '🏓 Ping' }, type: 1 },
                 { buttonId: `${prefix}support`, buttonText: { displayText: '💬 Support' }, type: 1 }
             ];
             
