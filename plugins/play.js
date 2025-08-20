@@ -106,6 +106,31 @@ const play = async (m, Matrix) => {
         
         return;
       }
+      
+      if (buttonId === 'generate_image' && userTempFiles.has(userId)) {
+        const { songTitle, songUrl } = userTempFiles.get(userId);
+        
+        // Generate song URL image
+        try {
+          // Create a simple image with song info (you can replace this with a proper image generation API)
+          const imageUrl = `https://dummyimage.com/600x400/000/fff&text=${encodeURIComponent(songTitle)}`;
+          const imageResponse = await fetch(imageUrl);
+          const imageBuffer = await imageResponse.buffer();
+          
+          // Send the image
+          await Matrix.sendMessage(m.from, {
+            image: imageBuffer,
+            caption: `🎵 ${songTitle}\n🔗 ${songUrl}`
+          }, { quoted: m });
+        } catch (imageError) {
+          console.error('Image generation error:', imageError);
+          await Matrix.sendMessage(m.from, {
+            text: `❌ Failed to generate image for: ${songTitle}\nURL: ${songUrl}`
+          }, { quoted: m });
+        }
+        
+        return;
+      }
     }
 
     if (cmd === "play") {
@@ -119,41 +144,14 @@ const play = async (m, Matrix) => {
         ];
         return Matrix.sendMessage(m.from, {
           text: `${toFancyFont("give")} ${toFancyFont("me")} ${toFancyFont("a")} ${toFancyFont("song")} ${toFancyFont("name")} ${toFancyFont("or")} ${toFancyFont("keywords")} ${toFancyFont("to")} ${toFancyFont("search")}`,
-        }, { 
-          quoted: {
-            key: {
-              fromMe: false,
-              participant: `0@s.whatsapp.net`,
-              remoteJid: "status@broadcast"
-            },
-            message: {
-              contactMessage: {
-                displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ✅",
-                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ;BOT;;;\nFN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
-              }
-            }
-          }
-        });
+          buttons: buttons
+        }, { quoted: m });
       }
       
       const searchQuery = args.join(" ");
       await Matrix.sendMessage(m.from, {
         text: `*ɴᴊᴀʙᴜʟᴏ ᴊʙ* ${toFancyFont("huntin'")} ${toFancyFont("for")} "${searchQuery}"`,
-      }, { 
-        quoted: {
-          key: {
-            fromMe: false,
-            participant: `0@s.whatsapp.net`,
-            remoteJid: "status@broadcast"
-          },
-          message: {
-            contactMessage: {
-              displayName: "✆︎NנɐႦυℓσ נႦ verified",
-              vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Njabulo-Jb;BOT;;;\nFN:Njabulo-Jb\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
-            }
-          }
-        }
-      });
+      }, { quoted: m });
 
       // Search YouTube for song info
       const searchResults = await ytSearch(searchQuery);
@@ -167,21 +165,8 @@ const play = async (m, Matrix) => {
         ];
         return Matrix.sendMessage(m.from, {
           text: `${toFancyFont("no")} ${toFancyFont("tracks")} ${toFancyFont("found")} ${toFancyFont("for")} "${searchQuery}". ${toFancyFont("you")} ${toFancyFont("slippin'")}!`,
-        }, { 
-          quoted: {
-            key: {
-              fromMe: false,
-              participant: `0@s.whatsapp.net`,
-              remoteJid: "status@broadcast"
-            },
-            message: {
-              contactMessage: {
-                displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ verified",
-                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Njabulo-Jb;BOT;;;\nFN:Njabulo-Jb\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
-              }
-            }
-          }
-        });
+          buttons: buttons
+        }, { quoted: m });
       }
 
       const song = searchResults.videos[0];
@@ -223,6 +208,11 @@ ${toFancyFont("*URL*")}: ${data.result.video_url || song.url}
             buttonId: "document_format",
             buttonText: { displayText: "📁 Document" },
             type: 1,
+          },
+          {
+            buttonId: "generate_image",
+            buttonText: { displayText: "🖼️ Generate Image" },
+            type: 1,
           }
         ];
 
@@ -230,20 +220,14 @@ ${toFancyFont("*URL*")}: ${data.result.video_url || song.url}
           text: songInfo,
           buttons: buttons,
           headerType: 1
-        }, { 
-          quoted: {
-            key: {
-              fromMe: false,
-              participant: `0@s.whatsapp.net`,
-              remoteJid: "status@broadcast"
-            },
-            message: {
-              contactMessage: {
-                displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ verified",
-                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Njabulo-Jb;BOT;;;\nFN:Njabulo-Jb\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
-              }
-            }
-          }
+        }, { quoted: m });
+
+        // Store song info for image generation
+        userTempFiles.set(m.sender, {
+          filePath,
+          songTitle: song.title,
+          safeTitle,
+          songUrl: data.result.video_url || song.url
         });
 
         // Download the audio file
@@ -253,13 +237,6 @@ ${toFancyFont("*URL*")}: ${data.result.video_url || song.url}
         }
         const fileStream = fs.createWriteStream(filePath);
         await streamPipeline(downloadResponse.body, fileStream);
-        
-        // Store file info for this user
-        userTempFiles.set(m.sender, {
-          filePath,
-          songTitle: song.title,
-          safeTitle
-        });
         
         // Set timeout to clean up after 5 minutes if not used
         setTimeout(() => {
@@ -283,22 +260,9 @@ ${toFancyFont("*URL*")}: ${data.result.video_url || song.url}
           },
         ];
         return Matrix.sendMessage(m.from, {
-          text: `*Njabulo Jb* ${toFancyFont("couldn't")} ${toFancyFont("hit")} ${toFancyFont("the")} ${toFancyFont("api")} ${toFancyFont("for")} "${song.title}". ${toFancyFont("server's")} ${toFancyFont("actin'")} ${toFancyFont("up")}!`,
-        }, { 
-          quoted: {
-            key: {
-              fromMe: false,
-              participant: `0@s.whatsapp.net`,
-              remoteJid: "status@broadcast"
-            },
-            message: {
-              contactMessage: {
-                displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪverified",
-                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ;BOT;;;\nFN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
-              }
-            }
-          }
-        });
+          text: `*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀ* ${toFancyFont("couldn't")} ${toFancyFont("hit")} ${toFancyFont("the")} ${toFancyFont("api")} ${toFancyFont("for")} "${song.title}". ${toFancyFont("server's")} ${toFancyFont("actin'")} ${toFancyFont("up")}!`,
+          buttons: buttons
+        }, { quoted: m });
       }
     }
   } catch (error) {
@@ -312,21 +276,8 @@ ${toFancyFont("*URL*")}: ${data.result.video_url || song.url}
     ];
     await Matrix.sendMessage(m.from, {
       text: `*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* ${toFancyFont("hit")} ${toFancyFont("a")} ${toFancyFont("snag")}, ${toFancyFont("fam")}! ${toFancyFont("try")} ${toFancyFont("again")} ${toFancyFont("or")} ${toFancyFont("pick")} ${toFancyFont("a")} ${toFancyFont("better")} ${toFancyFont("track")}! `,
-    }, { 
-      quoted: {
-        key: {
-          fromMe: false,
-          participant: `0@s.whatsapp.net`,
-          remoteJid: "status@broadcast"
-        },
-        message: {
-          contactMessage: {
-            displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ verified",
-            vcard: `BEGIN:VCARD\nVERSION:3.0\nN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ;BOT;;;\nFN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
-          }
-        }
-      }
-    });
+      buttons: buttons
+    }, { quoted: m });
   }
 };
 
