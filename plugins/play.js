@@ -3,10 +3,10 @@ import ytSearch from 'yt-search';
 import fs from 'fs';
 import { pipeline } from 'stream';
 import { promisify } from 'util';
-import os from 'os';
+import osCallbacks from 'os';
 import config from "../config.cjs";
-import pkg from "@whiskeysockets/baileys";
-const { generateWAMessageFromContent, proto, prepareWAMessageMedia } = pkg;
+import pkg, { prepareWAMessageMedia } from "baileys-pro";
+const { generateWAMessageFromContent, proto } = pkg;
 
 function toFancyFont(text) {
   const fonts = {
@@ -45,10 +45,7 @@ function toFancyFont(text) {
 }
 
 const streamPipeline = promisify(pipeline);
-const tmpDir = os.tmpdir();
-
-// Store temporary file paths for users
-const userTempFiles = new Map();
+const tmpDir = osCallbacks.tmpdir();
 
 const play = async (m, Matrix) => {
   try {
@@ -56,117 +53,41 @@ const play = async (m, Matrix) => {
     const cmd = m.body?.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
     const args = m.body.slice(prefix.length + cmd.length).trim().split(" ");
 
-    // Handle button responses
-    if (m.message?.buttonsResponseMessage) {
-      const buttonId = m.message.buttonsResponseMessage.selectedButtonId;
-      const userId = m.sender;
-      
-      if (buttonId === 'audio_format' && userTempFiles.has(userId)) {
-        const { filePath, songTitle, safeTitle } = userTempFiles.get(userId);
-        
-        // Send as audio
-        const audioMessage = {
-          audio: fs.readFileSync(filePath),
-          mimetype: 'audio/mpeg',
-          ptt: false,
-        };
-        await Matrix.sendMessage(m.from, audioMessage, { quoted: m });
-        
-        // Clean up
-        setTimeout(() => {
-          if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-            console.log(`Deleted temp file: ${filePath}`);
-          }
-          userTempFiles.delete(userId);
-        }, 5000);
-        
-        return;
-      }
-      
-      if (buttonId === 'document_format' && userTempFiles.has(userId)) {
-        const { filePath, songTitle, safeTitle } = userTempFiles.get(userId);
-        
-        // Send as document
-        const documentMessage = {
-          document: fs.readFileSync(filePath),
-          mimetype: 'audio/mpeg',
-          fileName: `${safeTitle}.mp3`,
-        };
-        await Matrix.sendMessage(m.from, documentMessage, { quoted: m });
-        
-        // Clean up
-        setTimeout(() => {
-          if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-            console.log(`Deleted temp file: ${filePath}`);
-          }
-          userTempFiles.delete(userId);
-        }, 5000);
-        
-        return;
-      }
-      
-      if (buttonId === 'generate_image' && userTempFiles.has(userId)) {
-        const { songTitle, songUrl } = userTempFiles.get(userId);
-        
-        // Generate song URL image
-        try {
-          // Create a simple image with song info (you can replace this with a proper image generation API)
-          const imageUrl = `https://dummyimage.com/600x400/000/fff&text=${encodeURIComponent(songTitle)}`;
-          const imageResponse = await fetch(imageUrl);
-          const imageBuffer = await imageResponse.buffer();
-          
-          // Send the image
-          await Matrix.sendMessage(m.from, {
-            image: imageBuffer,
-            caption: `🎵 ${songTitle}\n🔗 ${songUrl}`
-          }, { quoted: m });
-        } catch (imageError) {
-          console.error('Image generation error:', imageError);
-          await Matrix.sendMessage(m.from, {
-            text: `❌ Failed to generate image for: ${songTitle}\nURL: ${songUrl}`
-          }, { quoted: m });
-        }
-        
-        return;
-      }
-    }
-
-    if (cmd === "play") {
+     if (cmd === "play") {
       if (args.length === 0 || !args.join(" ")) {
-        const buttons = [
-          {
-            buttonId: `.menu`,
-            buttonText: { displayText: `📃${toFancyFont("Menu")}` },
-            type: 1,
-          },
-        ];
-        return Matrix.sendMessage(m.from, {
+        const buttonMessage = {
           text: `${toFancyFont("give")} ${toFancyFont("me")} ${toFancyFont("a")} ${toFancyFont("song")} ${toFancyFont("name")} ${toFancyFont("or")} ${toFancyFont("keywords")} ${toFancyFont("to")} ${toFancyFont("search")}`,
-          buttons: buttons
-        }, { quoted: m });
+          footer: "Njabulo Jb Music",
+          buttons: [
+            { buttonId: `${prefix}menu`, buttonText: { displayText: `📃 ${toFancyFont("Menu")}` }, type: 1 }
+          ],
+          headerType: 1,
+          viewOnce: true
+        };
+        
+        return Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
       }
-      
+
       const searchQuery = args.join(" ");
       await Matrix.sendMessage(m.from, {
-        text: `*ɴᴊᴀʙᴜʟᴏ ᴊʙ* ${toFancyFont("huntin'")} ${toFancyFont("for")} "${searchQuery}"`,
+        text: `*ɴᴊᴀʙᴜʟᴏ ᴊʙ* ${toFancyFont("huntin’")} ${toFancyFont("for")} "${searchQuery}"`,
+        viewOnce: true,
       }, { quoted: m });
 
       // Search YouTube for song info
       const searchResults = await ytSearch(searchQuery);
       if (!searchResults.videos || searchResults.videos.length === 0) {
-        const buttons = [
-          {
-            buttonId: `.menu`,
-            buttonText: { displayText: `📃${toFancyFont("Menu")}` },
-            type: 1,
-          },
-        ];
-        return Matrix.sendMessage(m.from, {
-          text: `${toFancyFont("no")} ${toFancyFont("tracks")} ${toFancyFont("found")} ${toFancyFont("for")} "${searchQuery}". ${toFancyFont("you")} ${toFancyFont("slippin'")}!`,
-          buttons: buttons
-        }, { quoted: m });
+        const buttonMessage = {
+          text: `${toFancyFont("no")} ${toFancyFont("tracks")} ${toFancyFont("found")} ${toFancyFont("for")} "${searchQuery}". ${toFancyFont("you")} ${toFancyFont("slippin’")}!`,
+          footer: "Njabulo Jb Music",
+          buttons: [
+            { buttonId: `${prefix}menu`, buttonText: { displayText: `📃 ${toFancyFont("Menu")}` }, type: 1 }
+          ],
+          headerType: 1,
+          viewOnce: true
+        };
+        
+        return Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
       }
 
       const song = searchResults.videos[0];
@@ -197,38 +118,22 @@ ${toFancyFont("*Channel*")}: ${song.author.name}
 ${toFancyFont("*Uploaded*")}: ${song.ago}
 ${toFancyFont("*URL*")}: ${data.result.video_url || song.url}
 `;
-
-        const buttons = [
-          {
-            buttonId: "audio_format",
-            buttonText: { displayText: "🎵 Audio" },
-            type: 1,
-          },
-          {
-            buttonId: "document_format",
-            buttonText: { displayText: "📁 Document" },
-            type: 1,
-          },
-          {
-            buttonId: "generate_image",
-            buttonText: { displayText: "🖼️ Generate Image" },
-            type: 1,
-          }
-        ];
-
-        await Matrix.sendMessage(m.from, {
+        
+        const buttonMessage = {
           text: songInfo,
-          buttons: buttons,
-          headerType: 1
-        }, { quoted: m });
-
-        // Store song info for image generation
-        userTempFiles.set(m.sender, {
-          filePath,
-          songTitle: song.title,
-          safeTitle,
-          songUrl: data.result.video_url || song.url
-        });
+          footer: "Njabulo Jb Music",
+          buttons: [
+            { buttonId: `${prefix}img ${searchQuery}`, buttonText: { displayText: `🖼️ ${toFancyFont("Image")}` }, type: 1 },
+            { buttonId: `${prefix}lyrics ${searchQuery}`, buttonText: { displayText: `📃 ${toFancyFont("Lyrics")}` }, type: 1 },
+            { buttonId: `${prefix}yts ${searchQuery}`, buttonText: { displayText: `📃 ${toFancyFont("YTS")}` }, type: 1 },
+            { buttonId: `${prefix}video ${searchQuery}`, buttonText: { displayText: `🎥 ${toFancyFont("Video")}` }, type: 1 },
+            { buttonId: `${prefix}song ${searchQuery}`, buttonText: { displayText: `🎧 ${toFancyFont("Get Song")}` }, type: 1 }
+          ],
+          headerType: 1,
+          viewOnce: true
+        };
+        
+        await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
 
         // Download the audio file
         const downloadResponse = await fetch(data.result.download_url);
@@ -237,47 +142,84 @@ ${toFancyFont("*URL*")}: ${data.result.video_url || song.url}
         }
         const fileStream = fs.createWriteStream(filePath);
         await streamPipeline(downloadResponse.body, fileStream);
-        
-        // Set timeout to clean up after 5 minutes if not used
-        setTimeout(() => {
-          if (userTempFiles.has(m.sender)) {
-            const { filePath } = userTempFiles.get(m.sender);
-            if (fs.existsSync(filePath)) {
-              fs.unlinkSync(filePath);
-              console.log(`Cleaned up unused temp file: ${filePath}`);
-            }
-            userTempFiles.delete(m.sender);
-          }
-        }, 5 * 60 * 1000);
-        
       } catch (apiError) {
         console.error(`API error:`, apiError.message);
-        const buttons = [
-          {
-            buttonId: `.support`,
-            buttonText: { displayText: `⚠︎${toFancyFont("support")}` },
-            type: 1,
-          },
-        ];
-        return Matrix.sendMessage(m.from, {
-          text: `*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀ* ${toFancyFont("couldn't")} ${toFancyFont("hit")} ${toFancyFont("the")} ${toFancyFont("api")} ${toFancyFont("for")} "${song.title}". ${toFancyFont("server's")} ${toFancyFont("actin'")} ${toFancyFont("up")}!`,
-          buttons: buttons
-        }, { quoted: m });
+        const buttonMessage = {
+          text: `*Njabulo Jb* ${toFancyFont("couldn’t")} ${toFancyFont("hit")} ${toFancyFont("the")} ${toFancyFont("api")} ${toFancyFont("for")} "${song.title}". ${toFancyFont("server’s")} ${toFancyFont("actin’")} ${toFancyFont("up")}!`,
+          footer: "Njabulo Jb Music",
+          buttons: [
+            { buttonId: `${prefix}support`, buttonText: { displayText: `⚠️ ${toFancyFont("Support")}` }, type: 1 }
+          ],
+          headerType: 1,
+          viewOnce: true
+        };
+        
+        return Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
       }
+
+      // Send the audio file
+      try {
+        const doc = {
+          audio: {
+            url: filePath,
+          },
+          mimetype: 'audio/mpeg',
+          ptt: false,
+          fileName: `${safeTitle}.mp3`,
+        };
+        await Matrix.sendMessage(m.from, doc, { quoted: m });
+
+        // Clean up temp file after 5 seconds
+        setTimeout(() => {
+          try {
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+              console.log(`Deleted temp file: ${filePath}`);
+            }
+          } catch (cleanupErr) {
+            console.error('Error during file cleanup:', cleanupErr);
+          }
+        }, 5000);
+      } catch (sendError) {
+        console.error(`Failed to send audio:`, sendError.message);
+        const buttonMessage = {
+          text: `*ɴᴊᴀʙᴜʟᴏ ᴊʙ* ${toFancyFont("can’t")} ${toFancyFont("song")} "${song.title}". ${toFancyFont("failed")} ${toFancyFont("to")} ${toFancyFont("send")} ${toFancyFont("audio")}`,
+          footer: "Njabulo Jb Music",
+          buttons: [
+            { buttonId: `${prefix}support`, buttonText: { displayText: `⚠️ ${toFancyFont("Support")}` }, type: 1 }
+          ],
+          headerType: 1,
+          viewOnce: true
+        };
+        
+        return Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
+      }
+
+      const buttonMessage = {
+        text: `*${song.title}* ${toFancyFont("dropped")} ${toFancyFont("by")} *Njabulo Jb*! ${toFancyFont("blast")} ${toFancyFont("it")}!`,
+        footer: "Njabulo Jb Music",
+        buttons: [
+          { buttonId: `${prefix}menu`, buttonText: { displayText: `📃 ${toFancyFont("Menu")}` }, type: 1 }
+        ],
+        headerType: 1,
+        viewOnce: true
+      };
+      
+      await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
     }
   } catch (error) {
     console.error(`❌ song error: ${error.message}`);
-    const buttons = [
-      {
-        buttonId: `.support`,
-        buttonText: { displayText: `⚠︎${toFancyFont("support")}` },
-        type: 1,
-      },
-    ];
-    await Matrix.sendMessage(m.from, {
-      text: `*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* ${toFancyFont("hit")} ${toFancyFont("a")} ${toFancyFont("snag")}, ${toFancyFont("fam")}! ${toFancyFont("try")} ${toFancyFont("again")} ${toFancyFont("or")} ${toFancyFont("pick")} ${toFancyFont("a")} ${toFancyFont("better")} ${toFancyFont("track")}! `,
-      buttons: buttons
-    }, { quoted: m });
+    const buttonMessage = {
+      text: `*ɴᴊᴀʙᴜʟᴏ ᴊʙ* ${toFancyFont("hit")} ${toFancyFont("a")} ${toFancyFont("snag")}, ${toFancyFont("fam")}! ${toFancyFont("try")} ${toFancyFont("again")} ${toFancyFont("or")} ${toFancyFont("pick")} ${toFancyFont("a")} ${toFancyFont("better")} ${toFancyFont("track")}! `,
+      footer: "Njabulo Jb Music",
+      buttons: [
+        { buttonId: `${prefix}support`, buttonText: { displayText: `⚠️ ${toFancyFont("Support")}` }, type: 1 }
+      ],
+      headerType: 1,
+      viewOnce: true
+    };
+    
+    await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
   }
 };
 
