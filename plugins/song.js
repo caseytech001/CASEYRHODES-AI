@@ -8,12 +8,12 @@ const song = async (m, gss) => {
   const args = m.body.slice(prefix.length + cmd.length).trim().split(" ");
 
   if (cmd === "song") {
-    if (args.length === 0 || !args.join(" ")) {
+    if (args.length === 0 || !args.join(" ").trim()) {
       return m.reply("*Please provide a song name or keywords to search for.*");
     }
 
     const searchQuery = args.join(" ");
-    m.reply("> *🎥 Searching for the video...*");
+    await m.reply("> *🎥 Searching for the video...*");
 
     try {
       const searchResults = await yts(searchQuery);
@@ -25,14 +25,20 @@ const song = async (m, gss) => {
       const videoUrl = firstResult.url;
 
       // Fetch video using API
-      const apiUrl = `https://apis.davidcyriltech.my.id/download/ytmp3?url=${videoUrl}`;
-      const response = await axios.get(apiUrl);
+      const apiUrl = `https://apis.davidcyriltech.my.id/download/ytmp3?url=${encodeURIComponent(videoUrl)}`;
+      const response = await axios.get(apiUrl, {
+        timeout: 30000 // 30 second timeout
+      });
 
-      if (!response.data.success) {
+      if (!response.data || !response.data.success) {
         return m.reply(`❌ Failed to fetch video for "${searchQuery}".`);
       }
 
       const { title, download_url } = response.data.result;
+
+      if (!download_url) {
+        return m.reply("❌ Download URL not found in the response.");
+      }
 
       // Send the video file
       await gss.sendMessage(
@@ -46,7 +52,16 @@ const song = async (m, gss) => {
       );
 
     } catch (error) {
-      console.error(error);
+      console.error("Error in song command:", error);
+      
+      if (error.code === 'ECONNABORTED') {
+        return m.reply("❌ Request timeout. Please try again later.");
+      }
+      
+      if (error.response) {
+        return m.reply(`❌ API error: ${error.response.status}`);
+      }
+      
       m.reply("❌ An error occurred while processing your request.");
     }
   }
