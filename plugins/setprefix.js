@@ -13,7 +13,8 @@ const setprefixCommand = async (m, Matrix) => {
             return;
         }
 
-        // If no text provided, show buttons with common prefix options
+        const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
+        
         if (!text) {
             const buttons = [
                 {buttonId: `${prefix}setprefix .`, buttonText: {displayText: '.'}, type: 1},
@@ -24,10 +25,11 @@ const setprefixCommand = async (m, Matrix) => {
             ];
             
             const buttonMessage = {
-                text: "Please specify a new prefix or choose from the options below:",
+                image: { url: imageUrl },
+                caption: "Please specify a new prefix or choose from the options below:",
                 footer: "Prefix Settings",
                 buttons: buttons,
-                headerType: 1
+                headerType: 4
             };
             
             await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
@@ -43,10 +45,11 @@ const setprefixCommand = async (m, Matrix) => {
         ];
         
         const buttonMessage = {
-            text: `✅ Prefix has been changed to '${text}'`,
+            image: { url: imageUrl },
+            caption: `✅ Prefix has been changed to '${text}'`,
             footer: "Prefix updated successfully",
             buttons: buttons,
-            headerType: 1
+            headerType: 4
         };
         
         await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
