@@ -12,6 +12,35 @@ const alive = async (m, Matrix) => {
   const prefix = config.PREFIX;
   const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
 
+  // Handle button responses
+  if (m.type === 'interactive' && m.message?.interactiveType === 'button_reply') {
+    const selectedButtonId = m.message.interactiveContent.buttonId;
+    
+    if (selectedButtonId === `${prefix}audio`) {
+      // Send audio in newsletter format when audio button is selected
+      const audioMessage = {
+        audio: { url: 'https://files.catbox.moe/dcxfi1.mp3' },
+        mimetype: 'audio/mp4',
+        ptt: true,
+        contextInfo: {
+          mentionedJid: [m.sender],
+          forwardingScore: 999,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363302677217436@newsletter',
+            newsletterName: "JINX-XMD Audio",
+            serverMessageId: Math.floor(Math.random() * 1000) // Random ID for the audio message
+          }
+        }
+      };
+      
+      await Matrix.sendMessage(m.from, audioMessage, {
+        quoted: m
+      });
+      return;
+    }
+  }
+
   if (!['alive', 'uptime', 'runtime'].includes(cmd)) return;
 
   const str = `*🤖 Bot Status: Online*\n*⏳ Uptime: ${timeString}*`;
@@ -25,6 +54,11 @@ const alive = async (m, Matrix) => {
     {
       buttonId: `${prefix}ping`,
       buttonText: { displayText: '🏓 Ping' },
+      type: 1
+    },
+    {
+      buttonId: `${prefix}audio`,
+      buttonText: { displayText: '🔊 Audio' },
       type: 1
     }
   ];
@@ -47,17 +81,8 @@ const alive = async (m, Matrix) => {
     }
   };
 
-  // First send the button message
+  // Send the button message
   await Matrix.sendMessage(m.from, buttonMessage, {
-    quoted: m
-  });
-
-  // Then send the audio
-  await Matrix.sendMessage(m.from, {
-    audio: { url: 'https://files.catbox.moe/dcxfi1.mp3' },
-    mimetype: 'audio/mp4',
-    ptt: true
-  }, {
     quoted: m
   });
 };
