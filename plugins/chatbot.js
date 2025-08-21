@@ -97,6 +97,53 @@ const chatbotHandler = async (m, Matrix) => {
       }
     }
 
+    // Handle button responses (they come as interactive messages)
+    if (m.message?.interactiveResponseMessage) {
+      const buttonId = m.message.interactiveResponseMessage?.buttonReply?.buttonId || '';
+      
+      if (buttonId === 'menu') {
+        await Matrix.sendMessage(m.key.remoteJid, { 
+          text: `📋 *BOT MENU*\n\n` +
+                `*${config.PREFIX}chatbot on* - Enable AI\n` +
+                `*${config.PREFIX}chatbot off* - Disable AI\n` +
+                `*${config.PREFIX}chatbot status* - Check status\n` +
+                `*${config.PREFIX}help* - All commands\n\n` +
+                `Click buttons below or type commands!`
+        }, { quoted: m });
+        return;
+      }
+      
+      if (buttonId === 'ai off') {
+        if (isGroup) {
+          userChatbotStates.set(m.key.remoteJid, false);
+          await Matrix.sendMessage(m.key.remoteJid, { 
+            text: "🤖 *ChatBot Disabled*\n\nAI responses are now turned off in this group!"
+          }, { quoted: m });
+        } else {
+          chatbotEnabled = false;
+          await Matrix.sendMessage(m.key.remoteJid, { 
+            text: "🤖 *ChatBot Disabled*\n\nAI responses are now turned off!"
+          }, { quoted: m });
+        }
+        return;
+      }
+      
+      if (buttonId === 'ai on') {
+        if (isGroup) {
+          userChatbotStates.set(m.key.remoteJid, true);
+          await Matrix.sendMessage(m.key.remoteJid, { 
+            text: "🤖 *ChatBot Enabled*\n\nAI responses are now active in this group!"
+          }, { quoted: m });
+        } else {
+          chatbotEnabled = true;
+          await Matrix.sendMessage(m.key.remoteJid, { 
+            text: "🤖 *ChatBot Enabled*\n\nAI responses are now active!"
+          }, { quoted: m });
+        }
+        return;
+      }
+    }
+
     // Check if chatbot is disabled (globally or for this group)
     const isChatbotDisabled = isGroup 
       ? userChatbotStates.get(m.key.remoteJid) === false 
@@ -106,8 +153,8 @@ const chatbotHandler = async (m, Matrix) => {
       return;
     }
 
-    // Ignore empty messages or commands with prefix
-    if (!messageText || messageText.startsWith(config.PREFIX)) {
+    // Ignore empty messages or commands with prefix (except those already handled)
+    if (!messageText || (messageText.startsWith(config.PREFIX) && !messageText.includes('chatbot') && !messageText.includes('ai'))) {
       return;
     }
 
@@ -117,14 +164,26 @@ const chatbotHandler = async (m, Matrix) => {
     // Get response from Groq API
     const aiResponse = await getGroqResponse(messageText);
 
-    // Send the response with a menu button
+    // Send the response with prefix-based buttons
     const buttonMessage = {
       text: aiResponse,
-      footer: `🤖 AI ChatBot | Status: ${chatbotEnabled ? 'ON' : 'OFF'}`,
+      footer: `🤖 AI ChatBot | Status: ${isGroup ? (userChatbotStates.get(m.key.remoteJid) !== false ? 'ON' : 'OFF') : (chatbotEnabled ? 'ON' : 'OFF')} | Prefix: ${config.PREFIX}`,
       buttons: [
-        { buttonId: 'menu', buttonText: { displayText: '📋 Menu' }, type: 1 },
-        { buttonId: 'ai off', buttonText: { displayText: '❌ AI Off' }, type: 1 },
-        { buttonId: 'ai on', buttonText: { displayText: '✅ AI On' }, type: 1 }
+        { 
+          buttonId: `${config.PREFIX}menu`, 
+          buttonText: { displayText: '📋 Menu' }, 
+          type: 1 
+        },
+        { 
+          buttonId: `${config.PREFIX}chatbot off`, 
+          buttonText: { displayText: '❌ AI Off' }, 
+          type: 1 
+        },
+        { 
+          buttonId: `${config.PREFIX}chatbot on`, 
+          buttonText: { displayText: '✅ AI On' }, 
+          type: 1 
+        }
       ],
       headerType: 1
     };
