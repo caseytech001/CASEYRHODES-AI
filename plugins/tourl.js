@@ -3,6 +3,7 @@ import FormData from 'form-data';
 import { fileTypeFromBuffer } from 'file-type';
 
 const MAX_FILE_SIZE_MB = 200;
+
 async function uploadMedia(buffer) {
   try {
     const { ext } = await fileTypeFromBuffer(buffer);
@@ -61,12 +62,12 @@ const tourl = async (m, bot) => {
         }
       };
 
-      // Create buttons
+      // Create buttons with copy functionality
       const buttons = [
         {
-          buttonId: `${prefix}copy ${mediaUrl}`,
+          buttonId: `id-copy-${Date.now()}`,
           buttonText: { displayText: '📋 Copy URL' },
-          type: 1
+          type: 2  // Type 2 is for URL buttons which can copy to clipboard
         },
         {
           buttonId: `${prefix}download`,
@@ -75,6 +76,7 @@ const tourl = async (m, bot) => {
         }
       ];
 
+      // For the copy button, we need to use a URL button with the copy action
       const buttonMessage = {
         text: `*Hey ${m.pushName} Here Is Your Media URL*\n\n*URL:* ${mediaUrl}`,
         footer: 'Click the buttons below to interact',
@@ -100,6 +102,29 @@ const tourl = async (m, bot) => {
     } catch (error) {
       console.error('Error processing media:', error);
       m.reply('Error processing media.');
+    }
+  }
+};
+
+// Handle the copy button callback
+export const handleCopyButton = async (m, bot) => {
+  if (m.type === 'buttonsResponseMessage' && m.body.startsWith('id-copy-')) {
+    try {
+      // Extract the URL from the message text
+      const urlMatch = m.message.conversation.match(/\*URL:\* (\S+)/) || 
+                       m.message.extendedTextMessage?.text.match(/\*URL:\* (\S+)/);
+      
+      if (urlMatch && urlMatch[1]) {
+        const mediaUrl = urlMatch[1];
+        
+        // Create a message with the URL that can be easily copied
+        await bot.sendMessage(m.from, {
+          text: `Here's your URL to copy:\n${mediaUrl}\n\nLong press to copy the text.`,
+          mentions: [m.sender]
+        }, { quoted: m });
+      }
+    } catch (error) {
+      console.error('Error handling copy button:', error);
     }
   }
 };
