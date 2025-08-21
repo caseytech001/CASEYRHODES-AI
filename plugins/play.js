@@ -4,8 +4,9 @@ import config from '../config.cjs';
 
 const play = async (m, gss) => {
   const prefix = config.PREFIX;
-  const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
-  const args = m.body.slice(prefix.length + cmd.length).trim().split(" ");
+  const body = m.body || "";
+  const cmd = body.startsWith(prefix) ? body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
+  const args = body.slice(prefix.length + cmd.length).trim().split(" ");
 
   if (cmd === "play") {
     if (args.length === 0 || !args.join(" ")) {
@@ -28,7 +29,7 @@ const play = async (m, gss) => {
       const formattedViews = parseInt(firstResult.views.replace(/,/g, '')).toLocaleString();
       
       // Calculate time since publication
-      const publishedDate = new Date(firstResult.ago);
+      const publishedDate = new Date(firstResult.uploadDate);
       const currentDate = new Date();
       const yearsAgo = currentDate.getFullYear() - publishedDate.getFullYear();
 
@@ -47,8 +48,7 @@ const play = async (m, gss) => {
         footer: "SONG DOWNLOADER",
         buttons: [
           { buttonId: `${prefix}playmp3 ${firstResult.videoId}`, buttonText: { displayText: '🎵 Audio (Play)' }, type: 1 },
-          { buttonId: `${prefix}playdoc ${firstResult.videoId}`, buttonText: { displayText: '📄 Document (Save)' }, type: 1 },
-          { buttonId: `${prefix}playmp4 ${firstResult.videoId}`, buttonText: { displayText: '🎥 Video' }, type: 1 }
+          { buttonId: `${prefix}playdoc ${firstResult.videoId}`, buttonText: { displayText: '📄 Document (Save)' }, type: 1 }
         ],
         headerType: 4
       };
@@ -63,7 +63,7 @@ const play = async (m, gss) => {
   }
 
   // Handle the button selections
-  if (cmd === "playmp3" || cmd === "playmp4" || cmd === "playdoc") {
+  if (cmd === "playmp3" || cmd === "playdoc") {
     if (args.length === 0) {
       return m.reply("*Please provide a video ID.*");
     }
@@ -74,7 +74,7 @@ const play = async (m, gss) => {
     m.reply("*⬇️ Downloading your media...*");
 
     try {
-      let apiUrl, mimetype, fileName, messageOptions;
+      let apiUrl, fileName;
       
       if (cmd === "playmp3") {
         // MP3 Audio
@@ -103,42 +103,6 @@ const play = async (m, gss) => {
               externalAdReply: {
                 title: title,
                 body: "Audio Download",
-                thumbnail: videoInfo.thumbnail,
-                mediaType: 2,
-                mediaUrl: videoUrl,
-                sourceUrl: videoUrl
-              }
-            }
-          },
-          { quoted: m }
-        );
-        
-      } else if (cmd === "playmp4") {
-        // MP4 Video
-        apiUrl = `https://api.davidcyriltech.my.id/download/ytmp4?url=${videoUrl}`;
-        const response = await axios.get(apiUrl);
-        
-        if (!response.data.success) {
-          return m.reply(`❌ Failed to fetch video.`);
-        }
-
-        const { title, download_url } = response.data.result;
-        
-        // Get video info for thumbnail
-        const searchResults = await yts({ videoId });
-        const videoInfo = searchResults.videos[0];
-        
-        // Send as video message
-        await gss.sendMessage(
-          m.from,
-          {
-            video: { url: download_url },
-            caption: title,
-            mimetype: "video/mp4",
-            contextInfo: {
-              externalAdReply: {
-                title: title,
-                body: "Video Download",
                 thumbnail: videoInfo.thumbnail,
                 mediaType: 2,
                 mediaUrl: videoUrl,
