@@ -4,8 +4,8 @@ import config from '../config.cjs';
 
 const acr = new acrcloud({
   host: 'identify-eu-west-1.acrcloud.com',
-  access_key: '716b4ddfa557144ce0a459344fe0c2c9',
-  access_secret: 'Lz75UbI8g6AzkLRQgTgHyBlaQq9YT5wonr3xhFkf'
+  access_key: '2631ab98e77b49509e3edcf493757300',
+  access_secret: 'KKbVWlTNCL3JjxjrWnywMdvQGanyhKRN0fpQxyUo'
 });
 
 const shazam = async (m, gss) => {
