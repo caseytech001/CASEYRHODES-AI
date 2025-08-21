@@ -47,7 +47,17 @@ const alive = async (m, Matrix) => {
     }
   };
 
+  // First send the button message
   await Matrix.sendMessage(m.from, buttonMessage, {
+    quoted: m
+  });
+
+  // Then send the audio
+  await Matrix.sendMessage(m.from, {
+    audio: { url: 'https://files.catbox.moe/dcxfi1.mp3' },
+    mimetype: 'audio/mp4',
+    ptt: true
+  }, {
     quoted: m
   });
 };
