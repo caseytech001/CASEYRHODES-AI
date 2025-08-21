@@ -63,29 +63,41 @@ const menu = async (m, Matrix) => {
   const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
   const mode = config.MODE === 'public' ? 'public' : 'private';
   const pref = config.PREFIX;
-  const pushname = m.pushName || 'User'; // Added fallback for pushname
 
-  const validCommands = ['list', 'help', 'menu2'];
+  const validCommands = ['list', 'help', 'menu'];
 
   if (validCommands.includes(cmd)) {
-    const mainMenu = `_🌟 *Good ${
-  new Date().getHours() < 12 ? 'Morning' : 
-  (new Date().getHours() < 18 ? 'Afternoon' : 'Evening')
-}, ${pushname}!* 🌟_
-*╭───────────────┈⊷*
-*┊• 🖼️ ɢʀᴇᴇᴛ :-* ${pushwish}
-*┊• ⏰ ᴛɪᴍᴇ :-* *${xtime}*
-*┊• 📅 ᴅᴀᴛᴇ :-* *${xdate}*
-*┊• 🎭 ʙᴏᴛ ᴘᴏᴡᴇʀᴇᴅ :-* *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ᴢᴏɴᴇ*
-*┊• 📍 ᴀᴄᴛɪᴠᴇ ꜱᴇꜱꜱɪᴏɴꜱ :-* *${Matrix.user.id}*
-*╰───────────────┈⊷*
+    const mainMenu = `
+╭━━━〔 *${config.BOT_NAME}* 〕━━━┈⊷
+┃★╭──────────────
+┃★│ Owner : *${config.OWNER_NAME}*
+┃★│ User : *${m.pushName}*
+┃★│ Baileys : *Multi Device*
+┃★│ Type : *NodeJs*
+┃★│ Mode : *${mode}*
+┃★│ Platform : *${os.platform()}*
+┃★│ Prefix : [${prefix}]
+┃★│ Version : *3.1.0*
+┃★╰──────────────
+╰━━━━━━━━━━━━━━━┈⊷
 
-*ʜᴇʟʟᴏ ʙʀᴏ ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ ☃️ , ᴀ ᴍᴜʟᴛɪ ᴅᴇᴠɪᴄᴇ ᴘᴏᴡᴇʀꜰᴜʟ ꜰʀᴇᴇ ʙᴏᴛ. ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ᴢᴏɴᴇ ᴛᴇᴀᴍ*📬
+> ${pushwish} *${m.pushName}*!
 
-*🌐 CASEYRHODES MINI BOT Website :*
-> 
-
-*© ᴄʀᴇᴀᴛᴇᴅ ʙʏ ᴛʜᴇ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ᴢᴏɴᴇ*`;
+╭━━〔 *Menu List* 〕━━┈⊷
+┃◈╭─────────────·๏
+┃◈┃• 1. Download Menu      
+┃◈┃• 2. Converter Menu        
+┃◈┃• 3. AI Menu  
+┃◈┃• 4. Tools Menu  
+┃◈┃• 5. Group Menu 
+┃◈┃• 6. Search Menu   
+┃◈┃• 7. Main Menu
+┃◈┃• 8. Owner Menu 
+┃◈┃• 9. Stalk Menu     
+┃◈┃• update
+┃◈└───────────┈⊷
+╰──────────────┈⊷
+> *Click the button below to select a menu*`;
 
     // Function to get menu image
     const getMenuImage = async () => {
@@ -95,78 +107,32 @@ const menu = async (m, Matrix) => {
           return Buffer.from(response.data, 'binary');
         } catch (error) {
           console.error('Error fetching menu image from URL, falling back to local image:', error);
-          try {
-            return fs.readFileSync('./media/Casey.jpg');
-          } catch (err) {
-            console.error('Error reading local image file:', err);
-            return null;
-          }
+          return fs.readFileSync('./media/khan.jpg');
         }
       } else {
-        try {
-          return fs.readFileSync('./media/Casey.jpg');
-        } catch (err) {
-          console.error('Error reading local image file:', err);
-          return null;
-        }
+        return fs.readFileSync('./media/khan.jpg');
       }
     };
 
     const menuImage = await getMenuImage();
     
-    // Create buttons for menu selection in 3x3 grid like the image
+    // Create buttons for menu selection
     const buttons = [
-      {
-        buttonId: `${prefix}menu 1`, 
-        buttonText: {displayText: '📥 DOWNLOAD'}, 
-        type: 1
-      },
-      {
-        buttonId: `${prefix}menu 2`, 
-        buttonText: {displayText: '🔄 CONVERTER'}, 
-        type: 1
-      },
-      {
-        buttonId: `${prefix}menu 3`, 
-        buttonText: {displayText: '🤖 AI MENU'}, 
-        type: 1
-      },
-      {
-        buttonId: `${prefix}menu 4`, 
-        buttonText: {displayText: '🛠️ TOOLS'}, 
-        type: 1
-      },
-      {
-        buttonId: `${prefix}menu 5`, 
-        buttonText: {displayText: '👥 GROUP'}, 
-        type: 1
-      },
-      {
-        buttonId: `${prefix}menu 6`, 
-        buttonText: {displayText: '🔍 SEARCH'}, 
-        type: 1
-      },
-      {
-        buttonId: `${prefix}menu 7`, 
-        buttonText: {displayText: '🏠 MAIN'}, 
-        type: 1
-      },
-      {
-        buttonId: `${prefix}menu 8`, 
-        buttonText: {displayText: '👑 OWNER'}, 
-        type: 1
-      },
-      {
-        buttonId: `${prefix}menu 9`, 
-        buttonText: {displayText: '👀 STALK'}, 
-        type: 1
-      }
+      {buttonId: `${prefix}menu 1`, buttonText: {displayText: '📥 Download'}, type: 1},
+      {buttonId: `${prefix}menu 2`, buttonText: {displayText: '🔄 Converter'}, type: 1},
+      {buttonId: `${prefix}menu 3`, buttonText: {displayText: '🤖 AI'}, type: 1},
+      {buttonId: `${prefix}menu 4`, buttonText: {displayText: '🛠️ Tools'}, type: 1},
+      {buttonId: `${prefix}menu 5`, buttonText: {displayText: '👥 Group'}, type: 1},
+      {buttonId: `${prefix}menu 6`, buttonText: {displayText: '🔍 Search'}, type: 1},
+      {buttonId: `${prefix}menu 7`, buttonText: {displayText: '🏠 Main'}, type: 1},
+      {buttonId: `${prefix}menu 8`, buttonText: {displayText: '👑 Owner'}, type: 1},
+      {buttonId: `${prefix}menu 9`, buttonText: {displayText: '👀 Stalk'}, type: 1}
     ];
 
     const buttonMessage = {
       image: menuImage,
       caption: mainMenu,
-      footer: `CHOOSE MENU TAB`,
+      footer: config.BOT_NAME,
       buttons: buttons,
       headerType: 4,
       contextInfo: {
@@ -174,8 +140,8 @@ const menu = async (m, Matrix) => {
         forwardingScore: 999,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
-          newsletterJid: '120363302677217436@newsletter',
-          newsletterName: "CASEYRHODES-XMD 👻",
+          newsletterJid: '120363398040175935@newsletter',
+          newsletterName: "JawadTechX",
           serverMessageId: 143
         }
       }
@@ -184,15 +150,11 @@ const menu = async (m, Matrix) => {
     await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
 
     // Send audio after sending the menu
-    try {
-      await Matrix.sendMessage(m.from, {
-        audio: { url: 'https://files.catbox.moe/m0xfku.mp3' },
-        mimetype: 'audio/mp4',
-        ptt: true
-      }, { quoted: m });
-    } catch (error) {
-      console.error('Error sending audio:', error);
-    }
+    await Matrix.sendMessage(m.from, {
+      audio: { url: 'https://github.com/XdTechPro/KHAN-DATA/raw/refs/heads/main/autovoice/menunew.m4a' },
+      mimetype: 'audio/mp4',
+      ptt: true
+    }, { quoted: m });
   }
 };
 
@@ -379,10 +341,10 @@ const handleMenuButton = async (m, Matrix) => {
 
     // Format the full response with title and description
     const fullResponse = `
-╭━━━〔 *${config.BOT_NAME || 'CASEYRHODES BOT'} - ${menuTitle}* 〕━━━┈⊷
+╭━━━〔 *${config.BOT_NAME} - ${menuTitle}* 〕━━━┈⊷
 ┃★╭──────────────
-┃★│• Owner : *${config.OWNER_NAME || 'CaseyRhodes'}*
-┃★│• User : *${m.pushName || 'User'}*
+┃★│• Owner : *${config.OWNER_NAME}*
+┃★│• User : *${m.pushName}*
 ┃★│• Prefix : [${prefix}]
 ┃★│• Version : *3.1.0*
 ┃★╰──────────────
@@ -390,7 +352,7 @@ const handleMenuButton = async (m, Matrix) => {
 
 ${menuResponse}
 
-> *${config.DESCRIPTION || 'Powered by CaseyRhodes Tech Zone'}*`;
+> *${config.DESCRIPTION}*`;
 
     // Function to get menu image
     const getMenuImage = async () => {
@@ -400,20 +362,10 @@ ${menuResponse}
           return Buffer.from(response.data, 'binary');
         } catch (error) {
           console.error('Error fetching menu image from URL, falling back to local image:', error);
-          try {
-            return fs.readFileSync('./media/Casey.jpg');
-          } catch (err) {
-            console.error('Error reading local image file:', err);
-            return null;
-          }
+          return fs.readFileSync('./media/khan.jpg');
         }
       } else {
-        try {
-          return fs.readFileSync('./media/Casey.jpg');
-        } catch (err) {
-          console.error('Error reading local image file:', err);
-          return null;
-        }
+        return fs.readFileSync('./media/khan.jpg');
       }
     };
 
@@ -421,13 +373,13 @@ ${menuResponse}
 
     // Create back button
     const backButton = [
-      {buttonId: `${prefix}menu`, buttonText: {displayText: '🔙 BACK TO MAIN MENU'}, type: 1}
+      {buttonId: `${prefix}menu`, buttonText: {displayText: '🔙 Back to Main Menu'}, type: 1}
     ];
 
     const buttonMessage = {
       image: menuImage,
       caption: fullResponse,
-      footer: `CHOOSE MENU TAB`,
+      footer: config.BOT_NAME,
       buttons: backButton,
       headerType: 4,
       contextInfo: {
@@ -435,8 +387,8 @@ ${menuResponse}
         forwardingScore: 999,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
-          newsletterJid: '120363302677217436@newsletter',
-          newsletterName: "CASEYRHODES-XMD 👻",
+          newsletterJid: '120363398040175935@newsletter',
+          newsletterName: "JawadTechX",
           serverMessageId: 143
         }
       }
