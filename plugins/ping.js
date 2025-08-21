@@ -1,4 +1,3 @@
-
 import config from '../config.cjs';
 
 const ping = async (m, Matrix) => {
