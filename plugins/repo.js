@@ -8,6 +8,7 @@ const repo = async (m, gss) => {
 
   if (["repo", "sc", "script", "info"].includes(cmd)) {
     const githubRepoURL = "https://github.com/caseyweb/CASEYRHODES-XMD";
+    const channelURL = "https://whatsapp.com/channel/0029VakUEfb4o7qVdkwPk83E"; // Replace with your actual channel URL
 
     try {
       // Extract username and repo name from the URL
@@ -41,6 +42,11 @@ const repo = async (m, gss) => {
           buttonId: `${prefix}repo`,
           buttonText: { displayText: "📁 Repository Info" },
           type: 1
+        },
+        {
+          buttonId: `${channelURL}`,
+          buttonText: { displayText: "📢 Join Channel" },
+          type: 4 // Type 4 is for URL/link buttons
         }
       ];
 
@@ -48,20 +54,10 @@ const repo = async (m, gss) => {
       await gss.sendMessage(
         m.from,
         {
-          image: { url: "https://files.catbox.moe/57e80f.jpg" },
+          image: { url: "https://files.catbox.moe/y3j3kl.jpg" },
           caption: formattedInfo,
           buttons: buttons,
-          headerType: 1,
-          contextInfo: {
-            mentionedJid: [m.sender],
-            forwardingScore: 999,
-            isForwarded: true,
-            forwardedNewsletterMessageInfo: {
-              newsletterJid: "120363302677217436@newsletter",
-              newsletterName: "Caseyrhodes Tech👻",
-              serverMessageId: 143,
-            },
-          },
+          headerType: 1
         },
         { quoted: m }
       );
@@ -77,23 +73,13 @@ const repo = async (m, gss) => {
     const selectedButtonId = m.message.buttonsResponseMessage.selectedButtonId;
     
     if (selectedButtonId === `${prefix}sendaudio`) {
-      // Send the audio file with context info
+      // Send the audio file
       await gss.sendMessage(
         m.from,
         {
           audio: { url: "https://files.catbox.moe/a95ye6.aac" },
           mimetype: "audio/mp4",
-          ptt: true,
-          contextInfo: {
-            mentionedJid: [m.sender],
-            forwardingScore: 999,
-            isForwarded: true,
-            forwardedNewsletterMessageInfo: {
-              newsletterJid: "120363302677217436@newsletter",
-              newsletterName: "Caseyrhodes Tech👻",
-              serverMessageId: 143,
-            },
-          },
+          ptt: true
         },
         { quoted: m }
       );
@@ -120,6 +106,8 @@ const repo = async (m, gss) => {
       m.body = `${prefix}repo`;
       await repo(m, gss);
     }
+    // Note: URL buttons (type 4) are handled automatically by WhatsApp
+    // and don't trigger the buttonsResponseMessage event
   }
 };
 
