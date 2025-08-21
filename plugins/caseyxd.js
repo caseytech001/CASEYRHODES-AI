@@ -41,31 +41,22 @@ function toFancyFont(text, isUpperCase = false) {
     .join("");
 }
 
-// Image fetch utility with better error handling
+// Image fetch utility
 async function fetchMenuImage() {
   const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
-  
-  try {
-    // Add timeout to prevent hanging requests
-    const response = await axios.get(imageUrl, { 
-      responseType: "arraybuffer",
-      timeout: 10000 // 10 second timeout
-    });
-    return Buffer.from(response.data, "binary");
-  } catch (error) {
-    console.error("❌ Failed to fetch image, using fallback:", error.message);
-    
-    // Use a fallback local image if available or return null
+  for (let i = 0; i < 3; i++) {
     try {
-      // Check if a local fallback image exists
-      if (fs.existsSync('./assets/menu-fallback.jpg')) {
-        return fs.readFileSync('./assets/menu-fallback.jpg');
+      const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
+      return Buffer.from(response.data, "binary");
+    } catch (error) {
+      if (error.response?.status === 429 && i < 2) {
+        console.log(`Rate limit hit, retrying in 2s...`);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        continue;
       }
-    } catch (readError) {
-      console.error("❌ Could not read fallback image:", readError.message);
+      console.error("❌ Failed to fetch image:", error);
+      return null;
     }
-    
-    return null;
   }
 }
 
@@ -84,25 +75,21 @@ const menu = async (m, Matrix) => {
       "reactions-menu"
     ];
 
-    // Fetch image with error handling
-    let menuImage = null;
-    try {
-      menuImage = await fetchMenuImage();
-    } catch (imageError) {
-      console.error("❌ Error in image fetch:", imageError.message);
-      menuImage = null;
-    }
+    // Fetch image for all cases
+    const menuImage = await fetchMenuImage();
 
     // Handle main menu
     if (validCommands.includes(cmd)) {
       const mainMenu = `
-┏──────────────⊷
-┊ ɴᴀᴍᴇ :  *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ*
-┊ ᴍᴏᴅᴇ : *[ ${mode} ]*
-┊ ᴘʀᴇғɪx : * [ ${prefix} ]*
-┊ ᴠᴇʀsɪᴏɴ : *.0.0.12 ʙᴇᴛᴀ*
-┗──────────────⊷
-┏           *【 ᴍᴇɴᴜ ʟɪsᴛ 】⇳︎*
+      *HI 👋* *${pushwish}*
+*╭───────────────┈⊷*
+*┊• 🌟 ʙᴏᴛ ɴᴀᴍᴇ :* *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ*
+*┊• ⏰ ᴛɪᴍᴇ :* *${xtime}*
+*┊• 📅 ᴅᴀᴛᴇ :* *${xdate}*
+*┊• 🎭 ᴅᴇᴠ :* *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ᴢᴏɴᴇ*
+*┊• 📍 ᴘʀᴇғɪx :*  * [ ${prefix} ]*
+*╰───────────────┈⊷*
+┏        *【 ᴍᴇɴᴜ ʟɪsᴛ 】⇳︎*
 - . ①  *ᴅᴏᴡɴʟᴏᴀᴅ ᴍᴇɴᴜ*
 - . ②  *ɢʀᴏᴜᴘ ᴍᴇɴᴜ*
 - . ③  *ғᴜɴ ᴍᴇɴᴜ*
@@ -114,15 +101,15 @@ const menu = async (m, Matrix) => {
 - . ⑨  *ʀᴇᴀᴄᴛɪᴏɴs ᴍᴇɴᴜ*
 - . ⑩  *ᴍᴀɪɴ ᴍᴇɴᴜ*
 ┗
-┏──────────────⊷
+╭─────────────────⊷
 ┊*Hallo my family ${pushwish}*
-┗──────────────⊷
+╰─────────────────⊷
 `;
 
       const messageOptions = {
         viewOnce: true,
         buttons: [
-          { buttonId: `${prefix}download-menu`, buttonText: { displayText: `① ᴅᴏᴡɴʟᴏᴀᴅ` }, type: 1 },
+          { buttonId: `${prefix}download-menu`, buttonText: { displayText: `① ᴅᴏᴡɴʟᴏᴀᴅ ` }, type: 1 },
           { buttonId: `${prefix}group-menu`, buttonText: { displayText: `② ɢʀᴏᴜᴘ` }, type: 1 },
           { buttonId: `${prefix}fun-menu`, buttonText: { displayText: `③ ғᴜɴ` }, type: 1 },
           { buttonId: `${prefix}owner-menu`, buttonText: { displayText: `④ ᴏᴡɴᴇʀ` }, type: 1 },
@@ -133,7 +120,6 @@ const menu = async (m, Matrix) => {
           { buttonId: `${prefix}reactions-menu`, buttonText: { displayText: `⑨ ʀᴇᴀᴄᴛɪᴏɴs` }, type: 1 },
           { buttonId: `${prefix}main-menu`, buttonText: { displayText: `⑩ ᴍᴀɪɴ` }, type: 1 }
         ],
-        headerType: 1,
         contextInfo: {
           mentionedJid: [m.sender],
           forwardingScore: 999,
@@ -153,31 +139,44 @@ const menu = async (m, Matrix) => {
           caption: mainMenu,
           ...messageOptions
         }, { 
-          quoted: m
+          quoted: {
+            key: {
+              fromMe: false,
+              participant: `0@s.whatsapp.net`,
+              remoteJid: "status@broadcast"
+            },
+            message: {
+              contactMessage: {
+                displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
+                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟;BOT;;;\nFN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
+              }
+            }
+          }
         });
       } else {
-        // Send without image if fetch failed
-        await Matrix.sendMessage(m.from, { 
-          text: mainMenu, 
-          ...messageOptions 
-        }, { 
-          quoted: m 
-        });
+        await Matrix.sendMessage(m.from, { text: mainMenu, ...messageOptions }, { quoted: m });
       }
 
-      // Send audio as a voice note with error handling
-      try {
-        await Matrix.sendMessage(m.from, { 
-          audio: { url: "https://files.catbox.moe/sd3ljy.mp3" },
-          mimetype: "audio/mp4", 
-          ptt: true
-        }, { 
-          quoted: m
-        });
-      } catch (audioError) {
-        console.error("❌ Failed to send audio:", audioError.message);
-        // Continue without audio if there's an error
-      }
+      // Send audio as a voice note
+      await Matrix.sendMessage(m.from, { 
+        audio: { url: "https://files.catbox.moe/sd3ljy.mp3" },
+        mimetype: "audio/mp4", 
+        ptt: true
+      }, { 
+        quoted: {
+          key: {
+            fromMe: false,
+            participant: `0@s.whatsapp.net`,
+            remoteJid: "status@broadcast"
+          },
+          message: {
+            contactMessage: {
+              displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
+              vcard: `BEGIN:VCARD\nVERSION:3.0\nN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟;BOT;;;\nFN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
+            }
+          }
+        }
+      });
     }
   
     // Handle sub-menu commands
@@ -408,15 +407,10 @@ ${menuResponse}
         buttons: [
           { buttonId: `${prefix}menu`, buttonText: { displayText: `🔙 Back to Main Menu` }, type: 1 }
         ],
-        headerType: 1,
         contextInfo: {
-          mentionedJid: [m.sender],
           isForwarded: true,
-          forwardingScore: 999,
           forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363302677217436@newsletter',
-            newsletterName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
-            serverMessageId: 143
+            serverMessageId: 143,          
           },
         },
       };
