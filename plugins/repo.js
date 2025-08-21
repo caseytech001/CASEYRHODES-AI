@@ -9,6 +9,7 @@ const repo = async (m, gss) => {
   if (["repo", "sc", "script", "info"].includes(cmd)) {
     const githubRepoURL = "https://github.com/caseyweb/CASEYRHODES-XMD";
     const channelURL = "https://whatsapp.com/channel/0029VakUEfb4o7qVdkwPk83E"; // Replace with your actual channel URL
+    const supportURL = "https://chat.whatsapp.com/GbpVWoHH0XLHOHJsYLtbjH?mode=ac_t"; // Replace with your actual support group URL
 
     try {
       // Extract username and repo name from the URL
@@ -26,7 +27,7 @@ const repo = async (m, gss) => {
       // Format the repository information
       const formattedInfo = `*BOT NAME:*\n> ${repoData.name}\n\n*OWNER NAME:*\n> ${repoData.owner.login}\n\n*STARS:*\n> ${repoData.stargazers_count}\n\n*FORKS:*\n> ${repoData.forks_count}\n\n*GITHUB LINK:*\n> ${repoData.html_url}\n\n*DESCRIPTION:*\n> ${repoData.description || "No description"}\n\n*Don't Forget To Star and Fork Repository*\n\n> *© ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🖤*`;
 
-      // Create buttons
+      // Create buttons - Join Channel, Send Audio, and Support
       const buttons = [
         {
           buttonId: `${prefix}sendaudio`,
@@ -34,18 +35,13 @@ const repo = async (m, gss) => {
           type: 1
         },
         {
-          buttonId: `${prefix}menu`,
-          buttonText: { displayText: "📋 Menu" },
-          type: 1
-        },
-        {
-          buttonId: `${prefix}repo`,
-          buttonText: { displayText: "📁 Repository Info" },
-          type: 1
-        },
-        {
           buttonId: `${channelURL}`,
           buttonText: { displayText: "📢 Join Channel" },
+          type: 4 // Type 4 is for URL/link buttons
+        },
+        {
+          buttonId: `${supportURL}`,
+          buttonText: { displayText: "join group🚀" },
           type: 4 // Type 4 is for URL/link buttons
         }
       ];
@@ -83,28 +79,6 @@ const repo = async (m, gss) => {
         },
         { quoted: m }
       );
-    } else if (selectedButtonId === `${prefix}menu`) {
-      // Send menu options
-      const menuMessage = `
-*🤖 BOT MENU*
-
-🔹 *${prefix}repo* - Show repository info
-🔹 *${prefix}audio* - Send audio file
-🔹 *${prefix}help* - Show help information
-🔹 *${prefix}sticker* - Create sticker from image
-
-*More commands available! Type ${prefix}help for full list.*
-      `.trim();
-      
-      await gss.sendMessage(
-        m.from,
-        { text: menuMessage },
-        { quoted: m }
-      );
-    } else if (selectedButtonId === `${prefix}repo`) {
-      // Trigger the repo command again
-      m.body = `${prefix}repo`;
-      await repo(m, gss);
     }
     // Note: URL buttons (type 4) are handled automatically by WhatsApp
     // and don't trigger the buttonsResponseMessage event
