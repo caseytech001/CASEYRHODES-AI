@@ -9,16 +9,23 @@ const setprefixCommand = async (m, Matrix) => {
 
     if (cmd === 'setprefix') {
         if (!isCreator) {
-            // Create buttons for the message
+            await Matrix.sendMessage(m.from, { text: "*📛 THIS IS AN OWNER COMMAND*" }, { quoted: m });
+            return;
+        }
+
+        // If no text provided, show buttons with common prefix options
+        if (!text) {
             const buttons = [
-                {buttonId: `${prefix}menu`, buttonText: {displayText: '📋 Menu'}, type: 1},
-                {buttonId: `${prefix}ping`, buttonText: {displayText: '🏓 Ping'}, type: 1},
-                {buttonId: `${prefix}owner`, buttonText: {displayText: '👤 Owner'}, type: 1}
+                {buttonId: `${prefix}setprefix .`, buttonText: {displayText: '.'}, type: 1},
+                {buttonId: `${prefix}setprefix #`, buttonText: {displayText: '#'}, type: 1},
+                {buttonId: `${prefix}setprefix !`, buttonText: {displayText: '!'}, type: 1},
+                {buttonId: `${prefix}setprefix /`, buttonText: {displayText: '/'}, type: 1},
+                {buttonId: `${prefix}setprefix -`, buttonText: {displayText: '-'}, type: 1}
             ];
             
             const buttonMessage = {
-                text: "*📛 THIS IS AN OWNER COMMAND*",
-                footer: "Select an option below",
+                text: "Please specify a new prefix or choose from the options below:",
+                footer: "Prefix Settings",
                 buttons: buttons,
                 headerType: 1
             };
@@ -27,12 +34,22 @@ const setprefixCommand = async (m, Matrix) => {
             return;
         }
 
-        if (text) {
-            config.PREFIX = text;
-            m.reply(`Prefix has been changed to '${text}'.`);
-        } else {
-            m.reply("Please specify a new prefix.");
-        }
+        // If text is provided, set the new prefix
+        config.PREFIX = text;
+        
+        // Send confirmation with button to revert
+        const buttons = [
+            {buttonId: `${text}setprefix ${prefix}`, buttonText: {displayText: 'Revert to old prefix'}, type: 1}
+        ];
+        
+        const buttonMessage = {
+            text: `✅ Prefix has been changed to '${text}'`,
+            footer: "Prefix updated successfully",
+            buttons: buttons,
+            headerType: 1
+        };
+        
+        await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
     }
 };
 
