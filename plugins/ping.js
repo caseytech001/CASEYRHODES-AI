@@ -1,3 +1,4 @@
+
 import config from '../config.cjs';
 
 const ping = async (m, Matrix) => {
@@ -23,14 +24,13 @@ const ping = async (m, Matrix) => {
     const end = new Date().getTime();
     const responseTime = (end - start) / 1000;
     const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
-    
-    // Modified text to remove "Pong!" and show only the speed
-    const text = `Select an option below:`;
+    const text = `*CASEYRHODES SPEED: ${responseTime.toFixed(2)}ms ${reactionEmoji}*\n\n` +
+                 `Select an option below:`;
 
     const buttons = [
       {
         buttonId: `${prefix}status`,
-        buttonText: { displayText: `📊 ${responseTime.toFixed(2)}ms` }, // Show latency in button
+        buttonText: { displayText: '📊 Bot Status' },
         type: 1
       },
       {
