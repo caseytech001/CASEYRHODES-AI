@@ -1,91 +1,67 @@
-import config from "../config.cjs";
-import pkg, { prepareWAMessageMedia } from "@whiskeysockets/baileys";
-const { generateWAMessageFromContent, proto } = pkg;
+import config from '../config.cjs';
 
 const ping = async (m, Matrix) => {
-  const prefix = config.PREFIX || ".";
-  const cmd = m.body.startsWith(prefix)
-    ? m.body.slice(prefix.length).trim().split(" ")[0].toLowerCase()
-    : "";
-  
-  // Get sender's display name
-  const sender = m.sender;
-  let displayName = "User";
-  try {
-    const contact = await Matrix.getContact(sender);
-    displayName = contact.notify || contact.name || "User";
-  } catch (error) {
-    console.error("Error getting contact:", error);
-  }
-  
+  const prefix = config.PREFIX;
+  const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+
   if (cmd === "ping") {
     const start = new Date().getTime();
-    await m.React("🌟");
+
+    const reactionEmojis = ['🔥', '⚡', '🚀', '💨', '🎯', '🎉', '🌟', '💥', '🕐', '🔹'];
+    const textEmojis = ['💎', '🏆', '⚡️', '🚀', '🎶', '🌠', '🌀', '🔱', '🛡️', '✨'];
+
+    const reactionEmoji = reactionEmojis[Math.floor(Math.random() * reactionEmojis.length)];
+    let textEmoji = textEmojis[Math.floor(Math.random() * textEmojis.length)];
+
+    // Ensure reaction and text emojis are different
+    while (textEmoji === reactionEmoji) {
+      textEmoji = textEmojis[Math.floor(Math.random() * textEmojis.length)];
+    }
+
+    await m.React(textEmoji);
+
     const end = new Date().getTime();
     const responseTime = (end - start) / 1000;
-    const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
-    const text = `*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ* : ${responseTime.toFixed(2)} s\n\n*User:* ${displayName}`;
-    
+
+    const text = `*CASEYRHODES SPEED: ${responseTime.toFixed(2)}ms ${reactionEmoji}*\n\n` +
+                 `Select an option below:`;
+
     const buttons = [
       {
-        buttonId: "action",
-        buttonText: { displayText: "📂 ᴍᴇɴᴜ ᴏᴘᴛɪᴏɴꜱ" },
-        type: 4,
-        nativeFlowInfo: {
-          name: "single_select",
-          paramsJson: JSON.stringify({
-            title: "📂 𝗧𝗮𝗽 𝗛𝗲𝗿𝗲 𝗙𝗿𝗶𝗲𝗻𝗱",
-            sections: [
-              {
-                title: "📁 ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ",
-                highlight_label: "",
-                rows: [
-                  {
-                    title: ".menu  📂",
-                    description: "ᴏᴘᴇɴ ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅꜱ",
-                    id: `${prefix}menu`,  // Fixed: added prefix
-                  },
-                  {
-                    title: ".owner  👑",
-                    description: "ᴄᴏɴᴛᴀᴄᴛ ʙᴏᴛ ᴏᴡɴᴇʀ",
-                    id: `${prefix}owner`,  // Fixed: added prefix
-                  },
-                  {
-                    title: ".ping  📶",
-                    description: "ᴛᴇꜱᴛ ʙᴏᴛ ꜱᴘᴇᴇᴅ",
-                    id: `${prefix}ping`,  // Fixed: added prefix
-                  },
-                  {
-                    title: "🖥️  ꜱʏꜱᴛᴇᴍ",
-                    description: "ꜱʏꜱᴛᴇᴍ ɪɴꜰᴏʀᴍᴀᴛɪᴏɴ",
-                    id: `${prefix}system`,
-                  },
-                  {
-                    title: ".repo  🛠️",
-                    description: "ɢɪᴛʜᴜʙ ʀᴇᴘᴏꜱɪᴛᴏʀʏ",
-                    id: `${prefix}repo`,
-                  },
-                ],
-              },
-            ],
-          }),
-        },
+        buttonId: `${prefix}status`,
+        buttonText: { displayText: '📊 Bot Status' },
+        type: 1
       },
+      {
+        buttonId: `${prefix}help`,
+        buttonText: { displayText: '❓ Help Menu' },
+        type: 1
+      },
+      {
+        buttonId: `${prefix}speedtest`,
+        buttonText: { displayText: '⚡ Speed Test' },
+        type: 1
+      }
     ];
-    
-    const messageOptions = {
-      viewOnce: true,
-      buttons,
+
+    const buttonMessage = {
+      text: text,
+      footer: "Caseyrhodes Performance Menu",
+      buttons: buttons,
+      headerType: 1,
       contextInfo: {
         mentionedJid: [m.sender],
-      },
+        forwardingScore: 999,
+        isForwarded: true,
+        forwardedNewsletterMessageInfo: {
+          newsletterJid: '120363302677217436@newsletter',
+          newsletterName: "Caseyrhodes Xtech",
+          serverMessageId: 143
+        }
+      }
     };
-    
-    await Matrix.sendMessage(m.from, { 
-      image: { url: imageUrl },
-      caption: text, 
-      ...messageOptions 
-    }, { quoted: m });
+
+    await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
   }
 };
 
