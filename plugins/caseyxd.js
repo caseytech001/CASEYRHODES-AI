@@ -41,22 +41,31 @@ function toFancyFont(text, isUpperCase = false) {
     .join("");
 }
 
-// Image fetch utility
+// Image fetch utility with better error handling
 async function fetchMenuImage() {
   const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
-  for (let i = 0; i < 3; i++) {
+  
+  try {
+    // Add timeout to prevent hanging requests
+    const response = await axios.get(imageUrl, { 
+      responseType: "arraybuffer",
+      timeout: 10000 // 10 second timeout
+    });
+    return Buffer.from(response.data, "binary");
+  } catch (error) {
+    console.error("❌ Failed to fetch image, using fallback:", error.message);
+    
+    // Use a fallback local image if available or return null
     try {
-      const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
-      return Buffer.from(response.data, "binary");
-    } catch (error) {
-      if (error.response?.status === 429 && i < 2) {
-        console.log(`Rate limit hit, retrying in 2s...`);
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        continue;
+      // Check if a local fallback image exists
+      if (fs.existsSync('./assets/menu-fallback.jpg')) {
+        return fs.readFileSync('./assets/menu-fallback.jpg');
       }
-      console.error("❌ Failed to fetch image:", error);
-      return null;
+    } catch (readError) {
+      console.error("❌ Could not read fallback image:", readError.message);
     }
+    
+    return null;
   }
 }
 
@@ -75,8 +84,14 @@ const menu = async (m, Matrix) => {
       "reactions-menu"
     ];
 
-    // Fetch image for all cases
-    const menuImage = await fetchMenuImage();
+    // Fetch image with error handling
+    let menuImage = null;
+    try {
+      menuImage = await fetchMenuImage();
+    } catch (imageError) {
+      console.error("❌ Error in image fetch:", imageError.message);
+      menuImage = null;
+    }
 
     // Handle main menu
     if (validCommands.includes(cmd)) {
@@ -88,66 +103,81 @@ const menu = async (m, Matrix) => {
 ┊ ᴠᴇʀsɪᴏɴ : *.0.0.12 ʙᴇᴛᴀ*
 ┗──────────────⊷
 ┏           *【 ᴍᴇɴᴜ ʟɪsᴛ 】⇳︎*
-- . ①  *ᴅᴏᴡɴʟᴏᴀᴅ ᴍᴇɴᴜ* (${prefix}download-menu)
-- . ②  *ɢʀᴏᴜᴘ ᴍᴇɴᴜ* (${prefix}group-menu)
-- . ③  *ғᴜɴ ᴍᴇɴᴜ* (${prefix}fun-menu)
-- . ④  *ᴏᴡɴᴇʀ ᴍᴇɴᴜ* (${prefix}owner-menu)
-- . ⑤  *ᴀɪ ᴍᴇɴᴜ* (${prefix}ai-menu)
-- . ⑥  *ᴀɴɪᴍᴇ ᴍᴇɴᴜ* (${prefix}anime-menu)
-- . ⑦  *ᴄᴏɴᴠᴇʀᴛ ᴍᴇɴᴜ* (${prefix}converter-menu)
-- . ⑧  *ᴏᴛʜᴇʀ ᴍᴇɴᴜ* (${prefix}other-menu)
-- . ⑨  *ʀᴇᴀᴄᴛɪᴏɴs ᴍᴇɴᴜ* (${prefix}reactions-menu)
-- . ⑩  *ᴍᴀɪɴ ᴍᴇɴᴜ* (${prefix}main-menu)
+- . ①  *ᴅᴏᴡɴʟᴏᴀᴅ ᴍᴇɴᴜ*
+- . ②  *ɢʀᴏᴜᴘ ᴍᴇɴᴜ*
+- . ③  *ғᴜɴ ᴍᴇɴᴜ*
+- . ④  *ᴏᴡɴᴇʀ ᴍᴇɴᴜ*
+- . ⑤  *ᴀɪ ᴍᴇɴᴜ*
+- . ⑥  *ᴀɴɪᴍᴇ ᴍᴇɴᴜ*
+- . ⑦  *ᴄᴏɴᴠᴇʀᴛ ᴍᴇɴᴜ*
+- . ⑧  *ᴏᴛʜᴇʀ ᴍᴇɴᴜ*
+- . ⑨  *ʀᴇᴀᴄᴛɪᴏɴs ᴍᴇɴᴜ*
+- . ⑩  *ᴍᴀɪɴ ᴍᴇɴᴜ*
 ┗
 ┏──────────────⊷
 ┊*Hallo my family ${pushwish}*
 ┗──────────────⊷
 `;
 
+      const messageOptions = {
+        viewOnce: true,
+        buttons: [
+          { buttonId: `${prefix}download-menu`, buttonText: { displayText: `① ᴅᴏᴡɴʟᴏᴀᴅ` }, type: 1 },
+          { buttonId: `${prefix}group-menu`, buttonText: { displayText: `② ɢʀᴏᴜᴘ` }, type: 1 },
+          { buttonId: `${prefix}fun-menu`, buttonText: { displayText: `③ ғᴜɴ` }, type: 1 },
+          { buttonId: `${prefix}owner-menu`, buttonText: { displayText: `④ ᴏᴡɴᴇʀ` }, type: 1 },
+          { buttonId: `${prefix}ai-menu`, buttonText: { displayText: `⑤ ᴀɪ` }, type: 1 },
+          { buttonId: `${prefix}anime-menu`, buttonText: { displayText: `⑥ ᴀɴɪᴍᴇ` }, type: 1 },
+          { buttonId: `${prefix}converter-menu`, buttonText: { displayText: `⑦ ᴄᴏɴᴠᴇʀᴛᴇʀ` }, type: 1 },
+          { buttonId: `${prefix}other-menu`, buttonText: { displayText: `⑧ ᴏᴛʜᴇʀ` }, type: 1 },
+          { buttonId: `${prefix}reactions-menu`, buttonText: { displayText: `⑨ ʀᴇᴀᴄᴛɪᴏɴs` }, type: 1 },
+          { buttonId: `${prefix}main-menu`, buttonText: { displayText: `⑩ ᴍᴀɪɴ` }, type: 1 }
+        ],
+        headerType: 1,
+        contextInfo: {
+          mentionedJid: [m.sender],
+          forwardingScore: 999,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363302677217436@newsletter',
+            newsletterName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
+            serverMessageId: 143
+          },
+        },
+      };
+
       // Send menu with or without image
       if (menuImage) {
         await Matrix.sendMessage(m.from, { 
           image: menuImage,
-          caption: mainMenu
+          caption: mainMenu,
+          ...messageOptions
         }, { 
-          quoted: {
-            key: {
-              fromMe: false,
-              participant: `0@s.whatsapp.net`,
-              remoteJid: "status@broadcast"
-            },
-            message: {
-              contactMessage: {
-                displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
-                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟;BOT;;;\nFN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
-              }
-            }
-          }
+          quoted: m
         });
       } else {
-        await Matrix.sendMessage(m.from, { text: mainMenu }, { quoted: m });
+        // Send without image if fetch failed
+        await Matrix.sendMessage(m.from, { 
+          text: mainMenu, 
+          ...messageOptions 
+        }, { 
+          quoted: m 
+        });
       }
 
-      // Send audio as a voice note
-      await Matrix.sendMessage(m.from, { 
-        audio: { url: "https://files.catbox.moe/sd3ljy.mp3" },
-        mimetype: "audio/mp4", 
-        ptt: true
-      }, { 
-        quoted: {
-          key: {
-            fromMe: false,
-            participant: `0@s.whatsapp.net`,
-            remoteJid: "status@broadcast"
-          },
-          message: {
-            contactMessage: {
-              displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
-              vcard: `BEGIN:VCARD\nVERSION:3.0\nN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟;BOT;;;\nFN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
-            }
-          }
-        }
-      });
+      // Send audio as a voice note with error handling
+      try {
+        await Matrix.sendMessage(m.from, { 
+          audio: { url: "https://files.catbox.moe/sd3ljy.mp3" },
+          mimetype: "audio/mp4", 
+          ptt: true
+        }, { 
+          quoted: m
+        });
+      } catch (audioError) {
+        console.error("❌ Failed to send audio:", audioError.message);
+        // Continue without audio if there's an error
+      }
     }
   
     // Handle sub-menu commands
@@ -371,20 +401,37 @@ ${menuResponse}
 *⚙️ Prefix*: ${prefix}
 *🌐 Mode*: ${mode}
 
-Type *${prefix}menu* to return to the main menu
-
 > ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
 `;
+
+      const backButton = {
+        buttons: [
+          { buttonId: `${prefix}menu`, buttonText: { displayText: `🔙 Back to Main Menu` }, type: 1 }
+        ],
+        headerType: 1,
+        contextInfo: {
+          mentionedJid: [m.sender],
+          isForwarded: true,
+          forwardingScore: 999,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363302677217436@newsletter',
+            newsletterName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
+            serverMessageId: 143
+          },
+        },
+      };
 
       // Send sub-menu with image
       if (menuImage) {
         await Matrix.sendMessage(m.from, { 
           image: menuImage,
-          caption: fullResponse
+          caption: fullResponse,
+          ...backButton
         }, { quoted: m });
       } else {
         await Matrix.sendMessage(m.from, {
-          text: fullResponse
+          text: fullResponse,
+          ...backButton
         }, { quoted: m });
       }
     }
