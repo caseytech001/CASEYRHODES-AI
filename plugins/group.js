@@ -7,13 +7,15 @@ let scheduledTasks = {};
 const groupSetting = async (m, gss) => {
   try {
     const prefix = config.PREFIX;
-const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-const text = m.body.slice(prefix.length + cmd.length).trim();
+    const body = m.body || m.message?.conversation || '';
+    const cmd = body.startsWith(prefix) ? body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+    const text = body.slice(prefix.length + cmd.length).trim();
 
     const validCommands = ['group'];
     if (!validCommands.includes(cmd)) return;
 
     if (!m.isGroup) return m.reply("*📛 THIS COMMAND CAN ONLY BE USED IN GROUPS*");
+    
     const groupMetadata = await gss.groupMetadata(m.from);
     const participants = groupMetadata.participants;
     const botNumber = await gss.decodeJid(gss.user.id);
@@ -23,7 +25,7 @@ const text = m.body.slice(prefix.length + cmd.length).trim();
     if (!botAdmin) return m.reply("*📛 BOT MUST BE AN ADMIN TO USE THIS COMMAND*");
     if (!senderAdmin) return m.reply("*📛 YOU MUST BE AN ADMIN TO USE THIS COMMAND*");
 
-    const args = m.body.slice(prefix.length + cmd.length).trim().split(/\s+/);
+    const args = body.slice(prefix.length + cmd.length).trim().split(/\s+/);
     if (args.length < 1) return m.reply(`Please specify a setting (open/close) and optionally a time.\n\nExample:\n*${prefix + cmd} open* or *${prefix + cmd} open 04:00 PM*`);
 
     const groupSetting = args[0].toLowerCase();
@@ -48,7 +50,12 @@ const text = m.body.slice(prefix.length + cmd.length).trim();
     }
 
     // Convert time to 24-hour format
-    const [hour, minute] = moment(time, ['h:mm A', 'hh:mm A']).format('HH:mm').split(':').map(Number);
+    const timeMoment = moment(time, ['h:mm A', 'hh:mm A']);
+    if (!timeMoment.isValid()) {
+      return m.reply(`Invalid time format. Use HH:mm AM/PM format.\n\nExample:\n*${prefix + cmd} open 04:00 PM*`);
+    }
+    
+    const [hour, minute] = timeMoment.format('HH:mm').split(':').map(Number);
     const cronTime = `${minute} ${hour} * * *`;
 
     console.log(`Scheduling ${groupSetting} at ${cronTime} IST`);
@@ -61,7 +68,7 @@ const text = m.body.slice(prefix.length + cmd.length).trim();
 
     scheduledTasks[m.from] = cron.schedule(cronTime, async () => {
       try {
-        console.log(`Executing scheduled task for ${groupSetting} at ${moment().format('HH:mm')} IST`);
+        console.log(`Executing scheduled task for ${groupSetting} at ${moment().tz("Asia/Kolkata").format('HH:mm')} IST`);
         if (groupSetting === 'close') {
           await gss.groupSettingUpdate(m.from, 'announcement');
           await gss.sendMessage(m.from, { text: "Group successfully closed." });
@@ -74,9 +81,11 @@ const text = m.body.slice(prefix.length + cmd.length).trim();
         await gss.sendMessage(m.from, { text: 'An error occurred while updating the group setting.' });
       }
     }, {
-      timezone: "Asia/Kolkata"
+      timezone: "Asia/Kolkata",
+      scheduled: true
     });
 
+    scheduledTasks[m.from].start();
     m.reply(`Group will be set to "${groupSetting}" at ${time} IST.`);
   } catch (error) {
     console.error('Error:', error);
