@@ -23,7 +23,7 @@ import pkg from './lib/autoreact.cjs';
 const { emojis, doReact } = pkg;
 
 // Chatbot Configuration
-let CHATBOT_ENABLED = true; // Default state
+let CHATBOT_ENABLED = false; // Default state
 const GROQ_API_URL = 'https://api.giftedtech.co.ke/api/ai/groq-beta?apikey=gifted';
 const chatbotCache = new NodeCache({ stdTTL: 60, checkperiod: 120 }); // Cache for 1 minute
 
