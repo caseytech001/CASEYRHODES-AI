@@ -14,44 +14,33 @@ const config = await import(configPath).then(m => m.default || m).catch(() => ({
 
 const update = async (m, Matrix) => {
     const prefix = config.PREFIX || '.'; // Default prefix if not in config
-    const cmd = m.body.startsWith(prefix)
-        ? m.body.slice(prefix.length).split(" ")[0].toLowerCase()
+    const body = m.body || "";
+    const cmd = body.startsWith(prefix)
+        ? body.slice(prefix.length).trim().split(" ")[0].toLowerCase()
         : "";
 
     if (cmd === "update") {
         // Only allow the bot itself to use this command
         const botNumber = await Matrix.decodeJid(Matrix.user.id);
-        if (m.sender !== botNumber) {
+        const sender = m.sender || "";
+        if (sender !== botNumber) {
             return Matrix.sendMessage(m.from, { text: "❌ *Only the bot itself can use this command!*" }, { quoted: m });
         }
 
-        await m.React("⏳");
-        let statusMessage = null;
-
         try {
+            // Add reaction if available
+            if (m.React) await m.React("⏳");
+            
             console.log("🔄 Checking for updates...");
-            
-            // Create initial message with menu button
-            const buttons = [
-                { buttonId: 'menu', buttonText: { displayText: '📋 Menu' }, type: 1 }
-            ];
-            
-            statusMessage = await Matrix.sendMessage(m.from, { 
-                text: "```🔍 Checking for updates...```",
-                buttons: buttons,
-                headerType: 1
-            }, { quoted: m });
+            const msg = await Matrix.sendMessage(m.from, { text: "```🔍 Checking for updates...```" }, { quoted: m });
 
             const editMessage = async (newText) => {
                 try {
-                    await Matrix.sendMessage(m.from, { 
-                        text: newText,
-                        buttons: buttons,
-                        headerType: 1,
-                        edit: statusMessage.key 
-                    });
+                    await Matrix.sendMessage(m.from, { text: newText, edit: msg.key });
                 } catch (error) {
                     console.error("Message edit failed:", error);
+                    // Fallback to sending a new message if edit fails
+                    await Matrix.sendMessage(m.from, { text: newText }, { quoted: m });
                 }
             };
 
@@ -67,8 +56,10 @@ const update = async (m, Matrix) => {
             const currentHash = packageJson.commitHash || "unknown";
 
             if (latestCommitHash === currentHash) {
-                await m.React("✅");
-                return editMessage("```✅ Bot is already up to date!```");
+                if (m.React) await m.React("✅");
+                await editMessage("```✅ Bot is already up to date! Restarting...```");
+                setTimeout(() => process.exit(0), 2000);
+                return;
             }
 
             await editMessage("```🚀 New update found! Downloading...```");
@@ -111,23 +102,16 @@ const update = async (m, Matrix) => {
             fs.unlinkSync(zipPath);
             fs.rmSync(extractPath, { recursive: true, force: true });
 
-            await editMessage("```♻️ Restarting to apply updates...```");
+            await editMessage("```♻️ Update complete! Restarting to apply changes...```");
             setTimeout(() => process.exit(0), 2000);
 
         } catch (error) {
             console.error("❌ Update error:", error);
-            await m.React("❌");
-            
-            // Send error message with menu button
-            const buttons = [
-                { buttonId: 'menu', buttonText: { displayText: '📋 Menu' }, type: 1 }
-            ];
-            
-            await Matrix.sendMessage(m.from, { 
-                text: `❌ Update failed:\n${error.message}`,
-                buttons: buttons,
-                headerType: 1
-            }, { quoted: m });
+            if (m.React) await m.React("❌");
+            await Matrix.sendMessage(m.from, 
+                { text: `❌ Update failed:\n${error.message}` }, 
+                { quoted: m }
+            );
         }
     }
 };
