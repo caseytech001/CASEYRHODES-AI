@@ -22,11 +22,6 @@ import config from './config.cjs';
 import pkg from './lib/autoreact.cjs';
 const { emojis, doReact } = pkg;
 
-// Chatbot Configuration
-let CHATBOT_ENABLED = false; // Default state
-const GROQ_API_URL = 'https://api.giftedtech.co.ke/api/ai/groq-beta?apikey=gifted';
-const chatbotCache = new NodeCache({ stdTTL: 60, checkperiod: 120 }); // Cache for 1 minute
-
 const prefix = process.env.PREFIX || config.PREFIX;
 const sessionName = "session";
 const app = express();
@@ -52,57 +47,6 @@ const credsPath = path.join(sessionDir, 'creds.json');
 
 if (!fs.existsSync(sessionDir)) {
     fs.mkdirSync(sessionDir, { recursive: true });
-}
-
-// Chatbot Functions
-async function handleChatbotToggle(m, Matrix) {
-    const buttons = [
-        {
-            buttonId: 'enable_chatbot',
-            buttonText: { displayText: CHATBOT_ENABLED ? '❌ Disable' : '✅ Enable' },
-            type: 1
-        },
-        {
-            buttonId: 'chatbot_status',
-            buttonText: { displayText: '📊 Status' },
-            type: 1
-        }
-    ];
-
-    await Matrix.sendMessage(m.key.remoteJid, {
-        text: `🤖 *Chatbot Status:* ${CHATBOT_ENABLED ? '🟢 ACTIVE' : '🔴 DISABLED'}\n\n_Powered by Groq AI_`,
-        buttons,
-        footer: config.BOT_NAME || 'Mercedes'
-    }, { quoted: m });
-}
-
-async function handleChatbotResponse(m, Matrix) {
-    try {
-        const messageText = m.message?.conversation || 
-                          m.message?.extendedTextMessage?.text || 
-                          '';
-        
-        if (!messageText || messageText.startsWith(prefix)) return;
-
-        // Check cache to avoid duplicate processing
-        if (chatbotCache.has(m.key.id)) return;
-        chatbotCache.set(m.key.id, true);
-
-        await Matrix.sendPresenceUpdate('composing', m.key.remoteJid);
-        
-        const response = await axios.get(`${GROQ_API_URL}&q=${encodeURIComponent(messageText)}`);
-        const aiResponse = response.data?.result || "I couldn't process that request.";
-
-        await Matrix.sendMessage(m.key.remoteJid, {
-            text: aiResponse,
-            mentions: [m.key.participant || m.key.remoteJid]
-        }, { quoted: m });
-
-    } catch (error) {
-        console.error('Chatbot error:', error);
-        // Optionally send an error message
-        // await Matrix.sendMessage(m.key.remoteJid, { text: "⚠️ Error processing your message" });
-    }
 }
 
 async function downloadSessionData() {
@@ -169,7 +113,7 @@ async function start() {
                 if (initialConnection) {
                     console.log(chalk.green("Connected Successfully JINX-XMD 🤍"));
                     
-                    // Send welcome message after successful connection
+                    // Send welcome message after successful connection with button
                     const startMess = {
                         image: { url: "https://files.catbox.moe/eh0h1x.jpg" }, 
                         caption: `*Hello there JINX-XMD User! 👋🏻* 
@@ -187,6 +131,14 @@ Don't forget to give a star to the repo ⬇️
 https://github.com/caseyweb/JINX-MD
 
 > © Powered BY CASEYRHODES TECH 🍀 🖤`,
+                        buttons: [
+                            {
+                                buttonId: 'help',
+                                buttonText: { displayText: '📋 HELP' },
+                                type: 1
+                            }
+                        ],
+                        headerType: 1,
                         contextInfo: {
                             forwardingScore: 5,
                             isForwarded: true,
@@ -213,27 +165,15 @@ https://github.com/caseyweb/JINX-MD
             const m = chatUpdate.messages[0];
             if (!m.message) return;
 
-            // Handle chatbot toggle command
-            if (m.message.conversation?.toLowerCase() === prefix + 'chatbot') {
-                await handleChatbotToggle(m, Matrix);
-                return;
-            }
-
             // Handle button responses
             if (m.message.buttonsResponseMessage) {
                 const selected = m.message.buttonsResponseMessage.selectedButtonId;
-                if (selected === 'enable_chatbot') {
-                    CHATBOT_ENABLED = !CHATBOT_ENABLED;
+                if (selected === 'help') {
                     await Matrix.sendMessage(m.key.remoteJid, { 
-                        text: `Chatbot ${CHATBOT_ENABLED ? 'ENABLED ✅' : 'DISABLED ❌'}` 
+                        text: `📋 *JINX-XMD HELP MENU*\n\nUse ${prefix}menu to see all available commands.\nUse ${prefix}list to see command categories.` 
                     });
                     return;
                 }
-            }
-
-            // Process chatbot responses if enabled
-            if (CHATBOT_ENABLED && !m.key.fromMe) {
-                await handleChatbotResponse(m, Matrix);
             }
 
             // Existing handlers
