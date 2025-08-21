@@ -23,13 +23,14 @@ const ping = async (m, Matrix) => {
     const end = new Date().getTime();
     const responseTime = (end - start) / 1000;
     const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
-    const text = `*CASEYRHODES SPEED: ${responseTime.toFixed(2)}ms ${reactionEmoji}*\n\n` +
-                 `Select an option below:`;
+    
+    // Modified text to remove "Pong!" and show only the speed
+    const text = `Select an option below:`;
 
     const buttons = [
       {
         buttonId: `${prefix}status`,
-        buttonText: { displayText: '📊 Bot Status' },
+        buttonText: { displayText: `📊 ${responseTime.toFixed(2)}ms` }, // Show latency in button
         type: 1
       },
       {
