@@ -81,10 +81,7 @@ const menu = async (m, Matrix) => {
     // Handle main menu
     if (validCommands.includes(cmd)) {
       const mainMenu = `
-_🌟 *Good ${
-  new Date().getHours() < 12 ? 'Morning' : 
-  (new Date().getHours() < 18 ? 'Afternoon' : 'Evening')
-}, ${pushname}!* 🌟_
+_WELCOME TO CASEYRHODES AI🌟_
 *╭───────────────┈⊷*
 *┊• 🖼️ ɢʀᴇᴇᴛ :-* ${pushwish}
 *┊• ⏰ ᴛɪᴍᴇ :-* *${xtime}*
