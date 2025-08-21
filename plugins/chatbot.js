@@ -52,10 +52,9 @@ const chatbotHandler = async (m, Matrix) => {
     // Get response from Groq API
     const aiResponse = await getGroqResponse(messageText);
 
-    // Send the response with image
+    // Send the response without image, maintaining newsletter context
     await Matrix.sendMessage(m.key.remoteJid, { 
-      image: { url: 'https://i.ibb.co/wN6Gw0ZF/lordcasey.jpg' },
-      caption: aiResponse,
+      text: aiResponse,
       contextInfo: {
         mentionedJid: [m.participant || m.key.participant],
         forwardingScore: 999,
