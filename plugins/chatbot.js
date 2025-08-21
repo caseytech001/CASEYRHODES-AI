@@ -52,21 +52,17 @@ const chatbotHandler = async (m, Matrix) => {
     // Get response from Groq API
     const aiResponse = await getGroqResponse(messageText);
 
-    // Send the response with newsletter formatting
-    await Matrix.sendMessage(m.key.remoteJid, { 
+    // Send the response with a menu button
+    const buttonMessage = {
       text: aiResponse,
-      contextInfo: {
-        mentionedJid: [m.participant || m.key.participant],
-        stanzaId: m.key.id,
-        forwardingScore: 999,
-        isForwarded: true,
-        forwardedNewsletterMessageInfo: {
-          newsletterJid: '120363302677217436@newsletter',
-          newsletterName: "𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒-𝐗",
-          serverMessageId: 143
-        }
-      }
-    }, { quoted: m });
+      footer: "Need more options?",
+      buttons: [
+        { buttonId: 'menu', buttonText: { displayText: '📋 Menu' }, type: 1 }
+      ],
+      headerType: 1
+    };
+
+    await Matrix.sendMessage(m.key.remoteJid, buttonMessage, { quoted: m });
 
   } catch (error) {
     console.error('Chatbot Error:', error);
