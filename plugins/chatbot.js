@@ -5,7 +5,7 @@ const { generateWAMessageFromContent, proto } = pkg;
 
 // Groq API configuration
 const GROQ_API_KEY = 'gifted'; // Replace with your actual API key if different
-const GROQ_API_URL = 'https://api.giftedtech.co.ke/api/ai/deepseek-v3';
+const GROQ_API_URL = 'https://api.giftedtech.co.ke/api/ai/groq-beta';
 
 // Response cache to avoid duplicate processing
 const messageCache = new Set();
@@ -52,16 +52,17 @@ const chatbotHandler = async (m, Matrix) => {
     // Get response from Groq API
     const aiResponse = await getGroqResponse(messageText);
 
-    // Send the response without image, maintaining newsletter context
+    // Send the response with newsletter formatting
     await Matrix.sendMessage(m.key.remoteJid, { 
       text: aiResponse,
       contextInfo: {
         mentionedJid: [m.participant || m.key.participant],
+        stanzaId: m.key.id,
         forwardingScore: 999,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
           newsletterJid: '120363302677217436@newsletter',
-          newsletterName: "CASEYRHODES TECH 🌟",
+          newsletterName: "𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒-𝐗",
           serverMessageId: 143
         }
       }
