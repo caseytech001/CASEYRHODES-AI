@@ -24,22 +24,28 @@ const ringtone = async (m, Matrix) => {
     }
 
     const randomRingtone = data.result[Math.floor(Math.random() * data.result.length)];
-
-    await Matrix.sendMessage(m.from, {
-      audio: { url: randomRingtone.dl_link },
-      mimetype: "audio/mpeg",
-      fileName: `${randomRingtone.title}.mp3`,
+    
+    // Send buttons to choose between audio or document
+    const buttonMessage = {
+      text: `🎵 Found: *${randomRingtone.title}*\n\nChoose how you want to receive it:`,
+      footer: "Ringtone Downloader",
+      buttons: [
+        { buttonId: 'audio', buttonText: { displayText: '🎧 Audio (Play)' }, type: 1 },
+        { buttonId: 'document', buttonText: { displayText: '📁 Document (Save)' }, type: 1 }
+      ],
+      headerType: 1,
       contextInfo: {
-        mentionedJid: [m.sender],
-        forwardingScore: 999,
-        isForwarded: true,
-        forwardedNewsletterMessageInfo: {
-          newsletterJid: '120363302677217436@newsletter',
-          newsletterName: "CASEYRHODES TECH👻",
-          serverMessageId: 143
-        }
+        mentionedJid: [m.sender]
       }
-    }, { quoted: m });
+    };
+    
+    // Store the ringtone data temporarily for button response
+    // This assumes you have a way to store temporary data (like a simple object or database)
+    // For this example, I'll use a simple in-memory store
+    if (!global.ringtoneData) global.ringtoneData = {};
+    global.ringtoneData[m.sender] = randomRingtone;
+    
+    await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
 
   } catch (error) {
     console.error("Error in ringtone command:", error);
@@ -47,4 +53,67 @@ const ringtone = async (m, Matrix) => {
   }
 };
 
-export default ringtone;
+// Handle button responses
+const handleRingtoneButton = async (m, Matrix) => {
+  if (!m.message?.buttonsResponseMessage) return;
+  
+  const buttonId = m.message.buttonsResponseMessage.selectedButtonId;
+  const sender = m.sender;
+  
+  if (!global.ringtoneData || !global.ringtoneData[sender]) return;
+  
+  const ringtone = global.ringtoneData[sender];
+  
+  try {
+    if (buttonId === 'audio') {
+      // Send as audio
+      await Matrix.sendMessage(m.from, {
+        audio: { url: ringtone.dl_link },
+        mimetype: "audio/mpeg",
+        fileName: `${ringtone.title}.mp3`,
+        contextInfo: {
+          mentionedJid: [m.sender],
+          forwardingScore: 999,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363302677217436@newsletter',
+            newsletterName: "CASEYRHODES TECH👻",
+            serverMessageId: 143
+          }
+        }
+      }, { quoted: m });
+    } else if (buttonId === 'document') {
+      // Send as document
+      await Matrix.sendMessage(m.from, {
+        document: { url: ringtone.dl_link },
+        mimetype: "audio/mpeg",
+        fileName: `${ringtone.title}.mp3`,
+        contextInfo: {
+          mentionedJid: [m.sender],
+          forwardingScore: 999,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363302677217436@newsletter',
+            newsletterName: "CASEYRHODES TECH👻",
+            serverMessageId: 143
+          }
+        }
+      }, { quoted: m });
+    }
+    
+    // Clean up stored data
+    delete global.ringtoneData[sender];
+    
+  } catch (error) {
+    console.error("Error handling ringtone button:", error);
+    Matrix.sendMessage(m.from, { text: "❌ Something went wrong while processing your request." }, { quoted: m });
+    
+    // Clean up stored data even if there's an error
+    if (global.ringtoneData && global.ringtoneData[sender]) {
+      delete global.ringtoneData[sender];
+    }
+  }
+};
+
+// Export both functions
+export { ringtone, handleRingtoneButton };
