@@ -61,16 +61,37 @@ const tourl = async (m, bot) => {
         }
       };
 
+      // Create buttons
+      const buttons = [
+        {
+          buttonId: `${prefix}copy ${mediaUrl}`,
+          buttonText: { displayText: '📋 Copy URL' },
+          type: 1
+        },
+        {
+          buttonId: `${prefix}download`,
+          buttonText: { displayText: '⬇️ Download' },
+          type: 1
+        }
+      ];
+
+      const buttonMessage = {
+        text: `*Hey ${m.pushName} Here Is Your Media URL*\n\n*URL:* ${mediaUrl}`,
+        footer: 'Click the buttons below to interact',
+        buttons: buttons,
+        headerType: 1,
+        contextInfo: contextInfo
+      };
+
       if (mediaType === 'audio') {
-        const message = {
-          text: `*Hey ${m.pushName} Here Is Your Audio URL*\n*Url:* ${mediaUrl}`,
-          contextInfo: contextInfo
-        };
-        await bot.sendMessage(m.from, message, { quoted: m });
+        await bot.sendMessage(m.from, buttonMessage, { quoted: m });
       } else {
         const message = {
           [mediaType]: { url: mediaUrl },
-          caption: `*Hey ${m.pushName} Here Is Your Media*\n*Url:* ${mediaUrl}`,
+          caption: `*Hey ${m.pushName} Here Is Your Media*\n*URL:* ${mediaUrl}`,
+          footer: 'Click the buttons below to interact',
+          buttons: buttons,
+          headerType: 4,
           contextInfo: contextInfo
         };
         await bot.sendMessage(m.from, message, { quoted: m });
