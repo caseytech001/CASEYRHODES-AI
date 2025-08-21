@@ -44,10 +44,12 @@ const ping = async (m, Matrix) => {
       }
     ];
 
-    // Send image first
-    const imageMessage = {
+    // Combined image with buttons in a single message
+    const combinedMessage = {
       image: { url: imageUrl },
       caption: text,
+      footer: "Caseyrhodes Performance Menu",
+      buttons: buttons,
       headerType: 4, // For image message
       contextInfo: {
         mentionedJid: [m.sender],
@@ -61,17 +63,7 @@ const ping = async (m, Matrix) => {
       }
     };
 
-    await Matrix.sendMessage(m.from, imageMessage, { quoted: m });
-    
-    // Then send buttons
-    const buttonMessage = {
-      text: "Please select an option:",
-      footer: "Caseyrhodes Performance Menu",
-      buttons: buttons,
-      headerType: 1
-    };
-    
-    await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
+    await Matrix.sendMessage(m.from, combinedMessage, { quoted: m });
   }
 };
 
