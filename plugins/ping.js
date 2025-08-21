@@ -22,7 +22,7 @@ const ping = async (m, Matrix) => {
 
     const end = new Date().getTime();
     const responseTime = (end - start) / 1000;
-
+    const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
     const text = `*CASEYRHODES SPEED: ${responseTime.toFixed(2)}ms ${reactionEmoji}*\n\n` +
                  `Select an option below:`;
 
@@ -44,11 +44,11 @@ const ping = async (m, Matrix) => {
       }
     ];
 
-    const buttonMessage = {
-      text: text,
-      footer: "Caseyrhodes Performance Menu",
-      buttons: buttons,
-      headerType: 1,
+    // Send image first
+    const imageMessage = {
+      image: { url: imageUrl },
+      caption: text,
+      headerType: 4, // For image message
       contextInfo: {
         mentionedJid: [m.sender],
         forwardingScore: 999,
@@ -61,6 +61,16 @@ const ping = async (m, Matrix) => {
       }
     };
 
+    await Matrix.sendMessage(m.from, imageMessage, { quoted: m });
+    
+    // Then send buttons
+    const buttonMessage = {
+      text: "Please select an option:",
+      footer: "Caseyrhodes Performance Menu",
+      buttons: buttons,
+      headerType: 1
+    };
+    
     await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
   }
 };
