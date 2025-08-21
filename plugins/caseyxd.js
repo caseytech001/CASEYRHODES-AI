@@ -63,8 +63,9 @@ const menu = async (m, Matrix) => {
   const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
   const mode = config.MODE === 'public' ? 'public' : 'private';
   const pref = config.PREFIX;
+  const pushname = m.pushName || 'User'; // Added fallback for pushname
 
-  const validCommands = ['list', 'help', 'menu'];
+  const validCommands = ['list', 'help', 'menu2'];
 
   if (validCommands.includes(cmd)) {
     const mainMenu = `_🌟 *Good ${
@@ -72,11 +73,11 @@ const menu = async (m, Matrix) => {
   (new Date().getHours() < 18 ? 'Afternoon' : 'Evening')
 }, ${pushname}!* 🌟_
 *╭───────────────┈⊷*
-*┊• 🖼️ ɢʀᴇᴇᴛ :-* 
-*┊• ⏰ ᴛɪᴍᴇ :-* * *${new Date().toLocaleTimeString()}**
-*┊• 📅 ᴅᴀᴛᴇ :-* *2025/8/16*
+*┊• 🖼️ ɢʀᴇᴇᴛ :-* ${pushwish}
+*┊• ⏰ ᴛɪᴍᴇ :-* *${xtime}*
+*┊• 📅 ᴅᴀᴛᴇ :-* *${xdate}*
 *┊• 🎭 ʙᴏᴛ ᴘᴏᴡᴇʀᴇᴅ :-* *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ᴢᴏɴᴇ*
-*┊• 📍 ᴀᴄᴛɪᴠᴇ ꜱᴇꜱꜱɪᴏɴꜱ :-
+*┊• 📍 ᴀᴄᴛɪᴠᴇ ꜱᴇꜱꜱɪᴏɴꜱ :-* *${Matrix.user.id}*
 *╰───────────────┈⊷*
 
 *ʜᴇʟʟᴏ ʙʀᴏ ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ ☃️ , ᴀ ᴍᴜʟᴛɪ ᴅᴇᴠɪᴄᴇ ᴘᴏᴡᴇʀꜰᴜʟ ꜰʀᴇᴇ ʙᴏᴛ. ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ᴢᴏɴᴇ ᴛᴇᴀᴍ*📬
@@ -94,10 +95,20 @@ const menu = async (m, Matrix) => {
           return Buffer.from(response.data, 'binary');
         } catch (error) {
           console.error('Error fetching menu image from URL, falling back to local image:', error);
-          return fs.readFileSync('./media/Casey.jpg');
+          try {
+            return fs.readFileSync('./media/Casey.jpg');
+          } catch (err) {
+            console.error('Error reading local image file:', err);
+            return null;
+          }
         }
       } else {
-        return fs.readFileSync('./media/Casey.jpg');
+        try {
+          return fs.readFileSync('./media/Casey.jpg');
+        } catch (err) {
+          console.error('Error reading local image file:', err);
+          return null;
+        }
       }
     };
 
@@ -173,11 +184,15 @@ const menu = async (m, Matrix) => {
     await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
 
     // Send audio after sending the menu
-    await Matrix.sendMessage(m.from, {
-      audio: { url: 'https://files.catbox.moe/m0xfku.mp3' },
-      mimetype: 'audio/mp4',
-      ptt: true
-    }, { quoted: m });
+    try {
+      await Matrix.sendMessage(m.from, {
+        audio: { url: 'https://files.catbox.moe/m0xfku.mp3' },
+        mimetype: 'audio/mp4',
+        ptt: true
+      }, { quoted: m });
+    } catch (error) {
+      console.error('Error sending audio:', error);
+    }
   }
 };
 
@@ -364,10 +379,10 @@ const handleMenuButton = async (m, Matrix) => {
 
     // Format the full response with title and description
     const fullResponse = `
-╭━━━〔 *${config.BOT_NAME} - ${menuTitle}* 〕━━━┈⊷
+╭━━━〔 *${config.BOT_NAME || 'CASEYRHODES BOT'} - ${menuTitle}* 〕━━━┈⊷
 ┃★╭──────────────
-┃★│• Owner : *${config.OWNER_NAME}*
-┃★│• User : *${m.pushName}*
+┃★│• Owner : *${config.OWNER_NAME || 'CaseyRhodes'}*
+┃★│• User : *${m.pushName || 'User'}*
 ┃★│• Prefix : [${prefix}]
 ┃★│• Version : *3.1.0*
 ┃★╰──────────────
@@ -375,7 +390,7 @@ const handleMenuButton = async (m, Matrix) => {
 
 ${menuResponse}
 
-> *${config.DESCRIPTION}*`;
+> *${config.DESCRIPTION || 'Powered by CaseyRhodes Tech Zone'}*`;
 
     // Function to get menu image
     const getMenuImage = async () => {
@@ -385,10 +400,20 @@ ${menuResponse}
           return Buffer.from(response.data, 'binary');
         } catch (error) {
           console.error('Error fetching menu image from URL, falling back to local image:', error);
-          return fs.readFileSync('./media/Casey.jpg');
+          try {
+            return fs.readFileSync('./media/Casey.jpg');
+          } catch (err) {
+            console.error('Error reading local image file:', err);
+            return null;
+          }
         }
       } else {
-        return fs.readFileSync('./media/Casey.jpg');
+        try {
+          return fs.readFileSync('./media/Casey.jpg');
+        } catch (err) {
+          console.error('Error reading local image file:', err);
+          return null;
+        }
       }
     };
 
