@@ -111,20 +111,37 @@ const menu = async (m, Matrix) => {
 ╰─────────────────⊷
 `;
 
+      // Categorized buttons in rows
       const messageOptions = {
         viewOnce: true,
         buttons: [
-          { buttonId: `${prefix}download-menu`, buttonText: { displayText: `① ᴅᴏᴡɴʟᴏᴀᴅ ` }, type: 1 },
-          { buttonId: `${prefix}group-menu`, buttonText: { displayText: `② ɢʀᴏᴜᴘ` }, type: 1 },
-          { buttonId: `${prefix}fun-menu`, buttonText: { displayText: `③ ғᴜɴ` }, type: 1 },
-          { buttonId: `${prefix}owner-menu`, buttonText: { displayText: `④ ᴏᴡɴᴇʀ` }, type: 1 },
-          { buttonId: `${prefix}ai-menu`, buttonText: { displayText: `⑤ ᴀɪ` }, type: 1 },
-          { buttonId: `${prefix}anime-menu`, buttonText: { displayText: `⑥ ᴀɴɪᴍᴇ` }, type: 1 },
-          { buttonId: `${prefix}converter-menu`, buttonText: { displayText: `⑦ ᴄᴏɴᴠᴇʀᴛᴇʀ` }, type: 1 },
-          { buttonId: `${prefix}other-menu`, buttonText: { displayText: `⑧ ᴏᴛʜᴇʀ` }, type: 1 },
-          { buttonId: `${prefix}reactions-menu`, buttonText: { displayText: `⑨ ʀᴇᴀᴄᴛɪᴏɴs` }, type: 1 },
-          { buttonId: `${prefix}main-menu`, buttonText: { displayText: `⑩ ᴍᴀɪɴ` }, type: 1 }
+          // Row 1: Download & Group
+          [
+            { buttonId: `${prefix}download-menu`, buttonText: { displayText: `📥 ᴅᴏᴡɴʟᴏᴀᴅ` }, type: 1 },
+            { buttonId: `${prefix}group-menu`, buttonText: { displayText: `👥 ɢʀᴏᴜᴘ` }, type: 1 }
+          ],
+          // Row 2: Fun & Owner
+          [
+            { buttonId: `${prefix}fun-menu`, buttonText: { displayText: `🎉 ғᴜɴ` }, type: 1 },
+            { buttonId: `${prefix}owner-menu`, buttonText: { displayText: `👑 ᴏᴡɴᴇʀ` }, type: 1 }
+          ],
+          // Row 3: AI & Anime
+          [
+            { buttonId: `${prefix}ai-menu`, buttonText: { displayText: `🤖 ᴀɪ` }, type: 1 },
+            { buttonId: `${prefix}anime-menu`, buttonText: { displayText: `🌸 ᴀɴɪᴍᴇ` }, type: 1 }
+          ],
+          // Row 4: Converter & Other
+          [
+            { buttonId: `${prefix}converter-menu`, buttonText: { displayText: `🔄 ᴄᴏɴᴠᴇʀᴛᴇʀ` }, type: 1 },
+            { buttonId: `${prefix}other-menu`, buttonText: { displayText: `📌 ᴏᴛʜᴇʀ` }, type: 1 }
+          ],
+          // Row 5: Reactions & Main
+          [
+            { buttonId: `${prefix}reactions-menu`, buttonText: { displayText: `🎭 ʀᴇᴀᴄᴛɪᴏɴs` }, type: 1 },
+            { buttonId: `${prefix}main-menu`, buttonText: { displayText: `🏠 ᴍᴀɪɴ` }, type: 1 }
+          ]
         ],
+        headerType: 1,
         contextInfo: {
           mentionedJid: [m.sender],
           forwardingScore: 999,
