@@ -4,12 +4,25 @@ const ownerContact = async (m, gss) => {
     const ownernumber = config.OWNER_NUMBER;
     const prefix = config.PREFIX;
     
-    // Check if message starts with prefix or is a button response
-    if (!m.body.startsWith(prefix) && !m.body.startsWith(`${prefix}whatsappowner`)) return;
+    // Check if message starts with prefix OR is a button response (which won't have prefix)
+    const isButtonResponse = m.body && !m.body.startsWith(prefix) && 
+                           (m.body === `${prefix}callowner` || m.body === `${prefix}whatsappowner`);
     
-    const bodyText = m.body.startsWith(prefix) ? m.body : `${prefix}${m.body}`;
-    const cmd = bodyText.slice(prefix.length).split(' ')[0].toLowerCase();
-    const text = bodyText.slice(prefix.length + cmd.length).trim();
+    if (!m.body.startsWith(prefix) && !isButtonResponse) return;
+    
+    let cmd;
+    let text;
+    
+    if (isButtonResponse) {
+        // Handle button responses (they come without prefix but contain the full command)
+        cmd = m.body.slice(prefix.length).toLowerCase();
+        text = '';
+    } else {
+        // Handle regular prefixed commands
+        const bodyText = m.body.startsWith(prefix) ? m.body : `${prefix}${m.body}`;
+        cmd = bodyText.slice(prefix.length).split(' ')[0].toLowerCase();
+        text = bodyText.slice(prefix.length + cmd.length).trim();
+    }
 
     // Handle owner command
     if (cmd === 'owner') {
