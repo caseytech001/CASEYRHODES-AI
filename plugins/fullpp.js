@@ -3,7 +3,7 @@ import Jimp from 'jimp';
 import config from '../config.cjs';
 
 const setProfilePicture = async (m, sock) => {
-  const botNumber = await sock.decodeJid(sock.user.id);
+  const botNumber = sock.user.id;
   const isBot = m.sender === botNumber;
   const prefix = config.PREFIX;
   const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
@@ -12,28 +12,32 @@ const setProfilePicture = async (m, sock) => {
 
   // Only bot can use this command
   if (!isBot) {
-    return m.reply("❌ This command can only be used by the bot itself.");
+    return sock.sendMessage(m.from, { text: "❌ This command can only be used by the bot itself." }, { quoted: m });
   }
 
   // Check if the replied message is an image
-  if (!m.quoted?.message?.imageMessage) {
-    return m.reply("⚠️ Please *reply to an image* to set as profile picture.");
+  if (!m.quoted || !m.quoted.message || !m.quoted.message.imageMessage) {
+    return sock.sendMessage(m.from, { text: "⚠️ Please *reply to an image* to set as profile picture." }, { quoted: m });
   }
 
-  await m.React('⏳'); // Loading reaction
-
   try {
+    await sock.sendReaction(m.from, m.key.id, '⏳');
+
     // Download the image with retry mechanism
     let media;
-    for (let i = 0; i < 3; i++) {
+    let retries = 3;
+    
+    while (retries > 0) {
       try {
-        media = await downloadMediaMessage(m.quoted, 'buffer');
+        media = await downloadMediaMessage(m.quoted, 'buffer', {}, { logger: console, reuploadRequest: sock.updateMediaMessage });
         if (media) break;
       } catch (error) {
-        if (i === 2) {
-          await m.React('❌');
-          return m.reply("❌ Failed to download image. Try again.");
+        retries--;
+        if (retries === 0) {
+          await sock.sendReaction(m.from, m.key.id, '❌');
+          return sock.sendMessage(m.from, { text: "❌ Failed to download image. Try again." }, { quoted: m });
         }
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
       }
     }
 
@@ -45,8 +49,10 @@ const setProfilePicture = async (m, sock) => {
     const size = Math.max(image.bitmap.width, image.bitmap.height);
     if (image.bitmap.width !== image.bitmap.height) {
       const squareImage = new Jimp(size, size, 0x000000FF);
-      squareImage.composite(image, (size - image.bitmap.width) / 2, (size - image.bitmap.height) / 2);
-      image.clone(squareImage);
+      const x = (size - image.bitmap.width) / 2;
+      const y = (size - image.bitmap.height) / 2;
+      squareImage.composite(image, x, y);
+      image = squareImage;
     }
 
     // Resize to WhatsApp requirements
@@ -54,8 +60,8 @@ const setProfilePicture = async (m, sock) => {
     const buffer = await image.getBufferAsync(Jimp.MIME_JPEG);
 
     // Update profile picture
-    await sock.updateProfilePicture(botNumber, buffer); // Always set bot's own PP
-    await m.React('✅');
+    await sock.updateProfilePicture(botNumber, buffer);
+    await sock.sendReaction(m.from, m.key.id, '✅');
 
     // Success response with menu buttons
     const buttons = [
@@ -68,23 +74,14 @@ const setProfilePicture = async (m, sock) => {
       footer: config.FOOTER_TEXT || "Powered by CaseyRhodes-XMD",
       buttons: buttons,
       headerType: 1,
-      contextInfo: {
-        mentionedJid: [m.sender],
-        forwardingScore: 999,
-        isForwarded: true,
-        forwardedNewsletterMessageInfo: {
-          newsletterJid: '120363302677217436@newsletter',
-          newsletterName: "CASEYRHODES-XMD 👻",
-          serverMessageId: 143
-        }
-      }
+      mentions: [m.sender]
     };
 
     return sock.sendMessage(m.from, buttonMessage, { quoted: m });
   } catch (error) {
     console.error("Error setting profile picture:", error);
-    await m.React('❌');
-    return m.reply("❌ An error occurred while updating the profile picture.");
+    await sock.sendReaction(m.from, m.key.id, '❌');
+    return sock.sendMessage(m.from, { text: "❌ An error occurred while updating the profile picture." }, { quoted: m });
   }
 };
 
