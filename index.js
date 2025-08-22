@@ -1,3 +1,4 @@
+remove the menu button in the index 
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -103,7 +104,7 @@ async function start() {
                 if (initialConnection) {
                     console.log(chalk.green("Connected Successfully JINX-XMD 🤍"));
                     
-                    // Send welcome message after successful connection with buttons
+                    // Send welcome message after successful connection with buttons (menu button removed)
                     const startMess = {
                         image: { url: "https://files.catbox.moe/eh0h1x.jpg" }, 
                         caption: `*Hello there JINX-XMD User! 👋🏻* 
@@ -125,11 +126,6 @@ https://github.com/caseyweb/JINX-MD
                             {
                                 buttonId: 'help',
                                 buttonText: { displayText: '📋 HELP' },
-                                type: 1
-                            },
-                            {
-                                buttonId: 'menu',
-                                buttonText: { displayText: '📱 MENU' },
                                 type: 1
                             },
                             {
@@ -162,11 +158,6 @@ https://github.com/caseyweb/JINX-MD
                 if (selected === 'help') {
                     await Matrix.sendMessage(m.key.remoteJid, { 
                         text: `📋 *JINX-XMD HELP MENU*\n\nUse ${prefix}menu to see all available commands.\nUse ${prefix}list to see command categories.` 
-                    });
-                    return;
-                } else if (selected === 'menu') {
-                    await Matrix.sendMessage(m.key.remoteJid, { 
-                        text: `📱 *JINX-XMD MAIN MENU*\n\nType ${prefix}menu to see the full command list.\nType ${prefix}all to see all features.` 
                     });
                     return;
                 } else if (selected === 'source') {
