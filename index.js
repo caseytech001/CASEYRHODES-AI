@@ -3,7 +3,6 @@ dotenv.config();
 
 import {
     makeWASocket,
-    Browsers,
     fetchLatestBaileysVersion,
     DisconnectReason,
     useMultiFileAuthState,
@@ -16,26 +15,19 @@ import { File } from 'megajs';
 import NodeCache from 'node-cache';
 import path from 'path';
 import chalk from 'chalk';
-import moment from 'moment-timezone';
-import axios from 'axios';
 import config from './config.cjs';
 import pkg from './lib/autoreact.cjs';
 const { emojis, doReact } = pkg;
 
 const prefix = process.env.PREFIX || config.PREFIX;
-const sessionName = "session";
 const app = express();
-const orange = chalk.bold.hex("#FFA500");
-const lime = chalk.bold.hex("#32CD32");
 let useQR = false;
 let initialConnection = true;
 const PORT = process.env.PORT || 3000;
 
-const MAIN_LOGGER = pino({
-    timestamp: () => `,"time":"${new Date().toJSON()}"`
-});
+const MAIN_LOGGER = pino({ level: 'silent' });
 const logger = MAIN_LOGGER.child({});
-logger.level = "trace";
+logger.level = "silent";
 
 const msgRetryCounterCache = new NodeCache();
 
@@ -50,8 +42,6 @@ if (!fs.existsSync(sessionDir)) {
 }
 
 async function downloadSessionData() {
-    console.log("Debugging SESSION_ID:", config.SESSION_ID);
-
     if (!config.SESSION_ID) {
         console.error('❌ Please add your session to SESSION_ID env !!');
         return false;
@@ -98,7 +88,7 @@ async function start() {
             printQRInTerminal: useQR,
             browser: ["JINX-MD", "safari", "3.3"],
             auth: state,
-            getMessage: async (key) => {
+            getMessage: async () => {
                 return { conversation: "JINX-MD whatsapp user bot" };
             }
         });
@@ -113,7 +103,7 @@ async function start() {
                 if (initialConnection) {
                     console.log(chalk.green("Connected Successfully JINX-XMD 🤍"));
                     
-                    // Send welcome message after successful connection with button
+                    // Send welcome message after successful connection with buttons
                     const startMess = {
                         image: { url: "https://files.catbox.moe/eh0h1x.jpg" }, 
                         caption: `*Hello there JINX-XMD User! 👋🏻* 
@@ -136,21 +126,22 @@ https://github.com/caseyweb/JINX-MD
                                 buttonId: 'help',
                                 buttonText: { displayText: '📋 HELP' },
                                 type: 1
+                            },
+                            {
+                                buttonId: 'menu',
+                                buttonText: { displayText: '📱 MENU' },
+                                type: 1
+                            },
+                            {
+                                buttonId: 'source',
+                                buttonText: { displayText: '⚙️ SOURCE' },
+                                type: 1
                             }
                         ],
-                        headerType: 1,
-                        contextInfo: {
-                            forwardingScore: 5,
-                            isForwarded: true,
-                            forwardedNewsletterMessageInfo: {
-                                newsletterJid: '120363302677217436@newsletter', 
-                                newsletterName: "CASEYRHODES-XMD",
-                                serverMessageId: 143
-                            }
-                        }
+                        headerType: 1
                     };
 
-                    Matrix.sendMessage(Matrix.user.id, startMess).catch(console.error);
+                    Matrix.sendMessage(Matrix.user.id, startMess).catch(() => {});
                     initialConnection = false;
                 } else {
                     console.log(chalk.blue("♻️ Connection reestablished after restart."));
@@ -173,15 +164,42 @@ https://github.com/caseyweb/JINX-MD
                         text: `📋 *JINX-XMD HELP MENU*\n\nUse ${prefix}menu to see all available commands.\nUse ${prefix}list to see command categories.` 
                     });
                     return;
+                } else if (selected === 'menu') {
+                    await Matrix.sendMessage(m.key.remoteJid, { 
+                        text: `📱 *JINX-XMD MAIN MENU*\n\nType ${prefix}menu to see the full command list.\nType ${prefix}all to see all features.` 
+                    });
+                    return;
+                } else if (selected === 'source') {
+                    await Matrix.sendMessage(m.key.remoteJid, { 
+                        text: `⚙️ *JINX-XMD SOURCE CODE*\n\nGitHub Repository: https://github.com/caseyweb/JINX-MD\n\nGive it a star ⭐ if you like it!` 
+                    });
+                    return;
                 }
             }
 
-            // Existing handlers
-            await Handler(chatUpdate, Matrix, logger);
+            // Existing handlers - silent mode
+            try {
+                await Handler(chatUpdate, Matrix, logger);
+            } catch (error) {
+                // Silent error handling
+            }
         });
 
-        Matrix.ev.on("call", async (json) => await Callupdate(json, Matrix));
-        Matrix.ev.on("group-participants.update", async (messag) => await GroupUpdate(Matrix, messag));
+        Matrix.ev.on("call", async (json) => {
+            try {
+                await Callupdate(json, Matrix);
+            } catch (error) {
+                // Silent error handling
+            }
+        });
+        
+        Matrix.ev.on("group-participants.update", async (messag) => {
+            try {
+                await GroupUpdate(Matrix, messag);
+            } catch (error) {
+                // Silent error handling
+            }
+        });
         
         if (config.MODE === "public") {
             Matrix.public = true;
@@ -194,7 +212,6 @@ https://github.com/caseyweb/JINX-MD
                 const mek = chatUpdate.messages[0];
                 if (!mek || !mek.key) return;
                 
-                console.log(mek);
                 if (!mek.key.fromMe && config.AUTO_REACT) {
                     if (mek.message) {
                         const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
@@ -202,7 +219,7 @@ https://github.com/caseyweb/JINX-MD
                     }
                 }
             } catch (err) {
-                console.error('Error during auto reaction:', err);
+                // Silent error handling
             }
         });
         
@@ -236,7 +253,7 @@ https://github.com/caseyweb/JINX-MD
                     }
                 }
             } catch (err) {
-                console.error('Error handling messages.upsert event:', err);
+                // Silent error handling
             }
         });
 
