@@ -45,12 +45,6 @@ const alive = async (m, Matrix) => {
         text: "👤 *Owner Information*\n\nName: Your Name\nContact: your@contact.info" 
       }, { quoted: m });
       return;
-    } else if (selectedButtonId === `${prefix}menu`) {
-      // Handle menu button - you might want to trigger your menu command here
-      await Matrix.sendMessage(m.from, { 
-        text: "📋 *Bot Menu*\n\nUse commands to interact with me!" 
-      }, { quoted: m });
-      return;
     }
   }
   
@@ -62,11 +56,6 @@ const alive = async (m, Matrix) => {
   const str = `*🤖 Bot Status: Online*\n*⏳ Uptime: ${timeString}*`;
 
   const buttons = [
-    {
-      buttonId: `${prefix}menu`,
-      buttonText: { displayText: '📋 Menu' },
-      type: 1
-    },
     {
       buttonId: `${prefix}owner`,
       buttonText: { displayText: '👤 Owner' },
