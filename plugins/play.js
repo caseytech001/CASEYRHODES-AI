@@ -46,8 +46,9 @@ const tmpDir = os.tmpdir();
 const play = async (message, client) => {
   try {
     const prefix = config.Prefix || config.PREFIX || '.';
-    const command = message.body?.startsWith(prefix) ? message.body.slice(prefix.length).split(" ")[0].toLowerCase() : '';
-    const args = message.body.slice(prefix.length + command.length).trim().split(" ");
+    const body = message.body || '';
+    const command = body.startsWith(prefix) ? body.slice(prefix.length).split(" ")[0].toLowerCase() : '';
+    const args = body.slice(prefix.length + command.length).trim().split(" ");
     
     if (command === "play") {
       if (args.length === 0 || !args.join(" ")) {
@@ -96,20 +97,21 @@ const play = async (message, client) => {
         }
         
         // Format duration correctly
-        const minutes = Math.floor(video.duration / 60);
-        const seconds = video.duration % 60;
+        const minutes = Math.floor(video.duration.seconds / 60);
+        const seconds = video.duration.seconds % 60;
         const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         
-        // Create the song info display similar to the image
-        const songInfo = `${video.title.toUpperCase()}*\n\n` +
-          `*Title:* ${apiData.result.title || video.title}\n` +
-          `*Author:* ${video.author.name}\n` +
-          `*Duration:* ${video.timestamp}\n` +
-          `*Views:* ${video.views.toLocaleString()}\n` +
-          `*Published:* ${video.ago}\n\n` +
-          `*Powered By Mr ᴄᴀsᴇʏʀʜᴏᴅᴇs*\n` +
-          `${formattedDuration}` +
-          ` > *ɢᴇɴᴇʀᴀᴛᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ*🌟`;
+        // Create the song info display
+        const songInfo = `
+ ━❍ *SONG*❍━
+🎵 *Title:* ${video.title}
+
+👤 *Artist:* ${video.author.name}
+⏱️ *Duration:* ${formattedDuration}
+📅 *Published:* ${video.ago}
+👁️ *Views:* ${video.views.toLocaleString()}
+📥 *Format:* MP3
+        `.trim();
         
         // Create buttons matching the image design
         const buttons = [
@@ -192,8 +194,8 @@ const play = async (message, client) => {
     await client.sendMessage(message.from, {
       text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("encountered an error. Please try again"),
       viewOnce: true,
-          mentions: [message.sender]
-        }, { quoted: message });
+      mentions: [message.sender]
+    }, { quoted: message });
   }
 };
 
