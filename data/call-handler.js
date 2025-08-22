@@ -4,7 +4,7 @@ const Callupdate = async (json, sock) => {
    for (const id of json) {
       if (id.status === 'offer' && config.REJECT_CALL) {
          let msg = await sock.sendMessage(id.from, {
-            text: `*ICall Manager*\n\n📵 *Auto Call Rejection Enabled*\n\nType .list to see all commands\n\n© GURU-AI | ${new Date().getFullYear()}`,
+            text: `*ICall Manager*\n\n📵 *Auto Call Rejection Enabled*\n\nType .list to see all commands\n\n© CASEYRHODES-AI | ${new Date().getFullYear()}`,
             footer: 'Commands  Ping  GitHub  YouTube  Telegram',
             templateButtons: [
                { index: 1, urlButton: { displayText: '⭐ GitHub', url: 'https://github.com/caseyweb' } },
