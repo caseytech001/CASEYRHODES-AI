@@ -40,8 +40,6 @@ const ringtone = async (m, Matrix) => {
     };
     
     // Store the ringtone data temporarily for button response
-    // This assumes you have a way to store temporary data (like a simple object or database)
-    // For this example, I'll use a simple in-memory store
     if (!global.ringtoneData) global.ringtoneData = {};
     global.ringtoneData[m.sender] = randomRingtone;
     
@@ -74,12 +72,7 @@ const handleRingtoneButton = async (m, Matrix) => {
         contextInfo: {
           mentionedJid: [m.sender],
           forwardingScore: 999,
-          isForwarded: true,
-          forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363302677217436@newsletter',
-            newsletterName: "CASEYRHODES TECH👻",
-            serverMessageId: 143
-          }
+          isForwarded: true
         }
       }, { quoted: m });
     } else if (buttonId === 'document') {
@@ -91,12 +84,7 @@ const handleRingtoneButton = async (m, Matrix) => {
         contextInfo: {
           mentionedJid: [m.sender],
           forwardingScore: 999,
-          isForwarded: true,
-          forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363302677217436@newsletter',
-            newsletterName: "CASEYRHODES TECH👻",
-            serverMessageId: 143
-          }
+          isForwarded: true
         }
       }, { quoted: m });
     }
