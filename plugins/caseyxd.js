@@ -41,20 +41,25 @@ function toFancyFont(text, isUpperCase = false) {
     .join("");
 }
 
-// Image fetch utility
+// Image fetch utility - FIXED
 async function fetchMenuImage() {
   const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
   for (let i = 0; i < 3; i++) {
     try {
-      const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
-      return Buffer.from(response.data, "binary");
+      const response = await axios.get(imageUrl, { 
+        responseType: "arraybuffer",
+        timeout: 10000 // Add timeout to prevent hanging
+      });
+      
+      // Properly convert ArrayBuffer to Buffer
+      return Buffer.from(response.data);
     } catch (error) {
       if (error.response?.status === 429 && i < 2) {
         console.log(`Rate limit hit, retrying in 2s...`);
         await new Promise((resolve) => setTimeout(resolve, 2000));
         continue;
       }
-      console.error("❌ Failed to fetch image:", error);
+      console.error("❌ Failed to fetch image:", error.message);
       return null;
     }
   }
@@ -154,29 +159,35 @@ const menu = async (m, Matrix) => {
           }
         });
       } else {
+        // Fallback to text-only if image fails
         await Matrix.sendMessage(m.from, { text: mainMenu, ...messageOptions }, { quoted: m });
       }
 
       // Send audio as a voice note
-      await Matrix.sendMessage(m.from, { 
-        audio: { url: "https://files.catbox.moe/sd3ljy.mp3" },
-        mimetype: "audio/mp4", 
-        ptt: true
-      }, { 
-        quoted: {
-          key: {
-            fromMe: false,
-            participant: `0@s.whatsapp.net`,
-            remoteJid: "status@broadcast"
-          },
-          message: {
-            contactMessage: {
-              displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
-              vcard: `BEGIN:VCARD\nVERSION:3.0\nN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟;BOT;;;\nFN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
+      try {
+        await Matrix.sendMessage(m.from, { 
+          audio: { url: "https://files.catbox.moe/sd3ljy.mp3" },
+          mimetype: "audio/mp4", 
+          ptt: true
+        }, { 
+          quoted: {
+            key: {
+              fromMe: false,
+              participant: `0@s.whatsapp.net`,
+              remoteJid: "status@broadcast"
+            },
+            message: {
+              contactMessage: {
+                displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
+                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟;BOT;;;\nFN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
+              }
             }
           }
-        }
-      });
+        });
+      } catch (audioError) {
+        console.error("❌ Failed to send audio:", audioError.message);
+        // Continue without audio if it fails
+      }
     }
   
     // Handle sub-menu commands
