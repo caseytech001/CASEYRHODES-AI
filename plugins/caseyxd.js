@@ -41,17 +41,16 @@ function toFancyFont(text, isUpperCase = false) {
     .join("");
 }
 
-// Image fetch utility - FIXED
+// Image fetch utility
 async function fetchMenuImage() {
   const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
   for (let i = 0; i < 3; i++) {
     try {
       const response = await axios.get(imageUrl, { 
         responseType: "arraybuffer",
-        timeout: 10000 // Add timeout to prevent hanging
+        timeout: 10000
       });
       
-      // Properly convert ArrayBuffer to Buffer
       return Buffer.from(response.data);
     } catch (error) {
       if (error.response?.status === 429 && i < 2) {
@@ -70,14 +69,13 @@ const menu = async (m, Matrix) => {
     const prefix = config.PREFIX;
     const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
     const mode = config.MODE === "public" ? "public" : "private";
-    const totalCommands = 70;
 
     const validCommands = ["list", "help", "menu"];
     const subMenuCommands = [
-      "download-menu", "converter-menu", "ai-menu", "tools-menu",
-      "group-menu", "search-menu", "main-menu", "owner-menu",
-      "stalk-menu", "fun-menu", "anime-menu", "other-menu",
-      "reactions-menu"
+      "download-menu", "converter-menu", "ai-menu", 
+      "group-menu", "fun-menu", "owner-menu",
+      "anime-menu", "other-menu", "reactions-menu",
+      "main-menu"
     ];
 
     // Fetch image for all cases
@@ -86,7 +84,7 @@ const menu = async (m, Matrix) => {
     // Handle main menu
     if (validCommands.includes(cmd)) {
       const mainMenu = `
-      *HI 👋* *${pushwish}*
+*HI 👋* *${pushwish}*
 *╭───────────────┈⊷*
 *┊• 🌟 ʙᴏᴛ ɴᴀᴍᴇ :* *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ*
 *┊• ⏰ ᴛɪᴍᴇ :* *${xtime}*
@@ -161,49 +159,11 @@ const menu = async (m, Matrix) => {
           caption: mainMenu,
           ...messageOptions
         }, { 
-          quoted: {
-            key: {
-              fromMe: false,
-              participant: `0@s.whatsapp.net`,
-              remoteJid: "status@broadcast"
-            },
-            message: {
-              contactMessage: {
-                displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
-                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟;BOT;;;\nFN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
-              }
-            }
-          }
+          quoted: m
         });
       } else {
         // Fallback to text-only if image fails
         await Matrix.sendMessage(m.from, { text: mainMenu, ...messageOptions }, { quoted: m });
-      }
-
-      // Send audio as a voice note
-      try {
-        await Matrix.sendMessage(m.from, { 
-          audio: { url: "https://files.catbox.moe/sd3ljy.mp3" },
-          mimetype: "audio/mp4", 
-          ptt: true
-        }, { 
-          quoted: {
-            key: {
-              fromMe: false,
-              participant: `0@s.whatsapp.net`,
-              remoteJid: "status@broadcast"
-            },
-            message: {
-              contactMessage: {
-                displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
-                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟;BOT;;;\nFN:ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ\nitem1.TEL;waid=254700000000:+254 700 000000\nitem1.X-ABLabel:Bot\nEND:VCARD`
-              }
-            }
-          }
-        });
-      } catch (audioError) {
-        console.error("❌ Failed to send audio:", audioError.message);
-        // Continue without audio if it fails
       }
     }
   
