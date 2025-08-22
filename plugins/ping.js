@@ -47,7 +47,7 @@ const ping = async (m, Matrix) => {
 
     // Create the button message with image
     const buttonMessage = {
-      image: { url: "https://files.catbox.moe/wklbg4.jpg" },
+      image: { url: "https://files.catbox.moe/y3j3kl.jpg" },
       caption: text,
       footer: "Caseyrhodes Performance Menu",
       buttons: buttons,
