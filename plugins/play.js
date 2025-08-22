@@ -91,31 +91,35 @@ const play = async (message, client) => {
         
         const apiData = await apiResponse.json();
         
-        if (!apiData.status || !apiData.result.download_url) {
+        if (!apiData.status || !apiData.result?.download_url) {
           throw new Error("API response missing download URL or failed");
         }
         
+        // Format duration correctly
+        const minutes = Math.floor(video.duration / 60);
+        const seconds = video.duration % 60;
+        const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        
         // Create the song info display similar to the image
-        const songInfo = `*𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒 𝐌𝐔𝐒𝐈𝐂🎵🎶*
-        *${video.title.toUpperCase()}*\n\n` +
+        const songInfo = `${video.title.toUpperCase()}*\n\n` +
           `*Title:* ${apiData.result.title || video.title}\n` +
           `*Author:* ${video.author.name}\n` +
           `*Duration:* ${video.timestamp}\n` +
           `*Views:* ${video.views.toLocaleString()}\n` +
           `*Published:* ${video.ago}\n\n` +
           `*Powered By Mr ᴄᴀsᴇʏʀʜᴏᴅᴇs*\n` +
-          `> *ɢᴇɴᴇʀᴀᴛᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ*\n` +
-          `${video.duration.toString().padStart(2, '0')}:${(video.duration % 60).toString().padStart(2, '0')}`;
+          `${formattedDuration}` +
+          ` > *ɢᴇɴᴇʀᴀᴛᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ*🌟`;
         
         // Create buttons matching the image design
         const buttons = [
           {
-            buttonId: '.audio ' + args.join(" "),
+            buttonId: prefix + 'audio ' + query,
             buttonText: { displayText: "🎵 Audio (Play)" },
             type: 1
           },
           {
-            buttonId: '.document ' + args.join(" "),
+            buttonId: prefix + 'document ' + query,
             buttonText: { displayText: "📄 Document (Save)" },
             type: 1
           }
@@ -176,7 +180,7 @@ const play = async (message, client) => {
         console.error("Failed to send audio:", sendError.message);
         
         return await client.sendMessage(message.from, {
-          text: "*caseytech* " + toFancyFont("failed to send audio file"),
+          text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("failed to send audio file"),
           viewOnce: true,
           mentions: [message.sender]
         }, { quoted: message });
@@ -188,8 +192,8 @@ const play = async (message, client) => {
     await client.sendMessage(message.from, {
       text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("encountered an error. Please try again"),
       viewOnce: true,
-      mentions: [message.sender]
-    }, { quoted: message });
+          mentions: [message.sender]
+        }, { quoted: message });
   }
 };
 
