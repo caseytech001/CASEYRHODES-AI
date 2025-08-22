@@ -53,12 +53,16 @@ const ringtone = async (m, Matrix) => {
 
 // Handle button responses
 const handleRingtoneButton = async (m, Matrix) => {
+  // Check if it's a button response
   if (!m.message?.buttonsResponseMessage) return;
   
   const buttonId = m.message.buttonsResponseMessage.selectedButtonId;
   const sender = m.sender;
   
-  if (!global.ringtoneData || !global.ringtoneData[sender]) return;
+  // Check if we have stored ringtone data for this user
+  if (!global.ringtoneData || !global.ringtoneData[sender]) {
+    return Matrix.sendMessage(m.from, { text: "❌ No ringtone request found. Please search for a ringtone first." }, { quoted: m });
+  }
   
   const ringtone = global.ringtoneData[sender];
   
@@ -70,9 +74,7 @@ const handleRingtoneButton = async (m, Matrix) => {
         mimetype: "audio/mpeg",
         fileName: `${ringtone.title}.mp3`,
         contextInfo: {
-          mentionedJid: [m.sender],
-          forwardingScore: 999,
-          isForwarded: true
+          mentionedJid: [m.sender]
         }
       }, { quoted: m });
     } else if (buttonId === 'document') {
@@ -82,11 +84,12 @@ const handleRingtoneButton = async (m, Matrix) => {
         mimetype: "audio/mpeg",
         fileName: `${ringtone.title}.mp3`,
         contextInfo: {
-          mentionedJid: [m.sender],
-          forwardingScore: 999,
-          isForwarded: true
+          mentionedJid: [m.sender]
         }
       }, { quoted: m });
+    } else {
+      // Handle unknown button ID
+      return Matrix.sendMessage(m.from, { text: "❌ Invalid selection. Please try again." }, { quoted: m });
     }
     
     // Clean up stored data
