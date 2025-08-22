@@ -10,72 +10,96 @@ const alive = async (m, Matrix) => {
   const timeString = `${days}d ${hours}h ${minutes}m ${seconds}s`;
 
   const prefix = config.PREFIX;
-  const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-
-  // Handle button responses
-  if (m.type === 'interactive' && m.message?.interactiveType === 'button_reply') {
-    const selectedButtonId = m.message.interactiveContent.buttonId;
-    
-    if (selectedButtonId === `${prefix}menu`) {
-      // Handle menu button
-      await Matrix.sendMessage(m.from, { 
-        text: `📋 *Menu Options*\n\n• ${prefix}help - Show all commands\n• ${prefix}sticker - Create stickers\n• ${prefix}download - Download media\n• ${prefix}ai - AI features` 
-      }, { quoted: m });
-      return;
-    }
-    
-    if (selectedButtonId === `${prefix}github`) {
-      // Handle GitHub button
-      await Matrix.sendMessage(m.from, { 
-        text: '🌐 *GitHub Repository*\n\nCheck out our GitHub for updates and source code:\nhttps://github.com/caseyweb/CASEYRHODES-XMD' 
-      }, { quoted: m });
-      return;
-    }
+  
+  // Check if it's a button response
+  const isButtonResponse = m.message?.buttonsResponseMessage;
+  
+  if (isButtonResponse) {
+    const selectedButtonId = m.message.buttonsResponseMessage.selectedButtonId;
     
     if (selectedButtonId === `${prefix}audio`) {
-      // Handle audio button - send without newsletter formatting
-      const audioMessage = {
-        audio: { url: 'https://files.catbox.moe/dcxfi1.mp3' },
-        mimetype: 'audio/mp4',
-        ptt: true,
-        caption: '🔊 Audio sent from JINX-XMD Bot'
-      };
+      const audioUrls = [
+        'https://files.catbox.moe/m0xfku.mp3',
+        'https://files.catbox.moe/8stziq.mp3',
+        'https://files.catbox.moe/3au05j.m4a',
+        'https://files.catbox.moe/dcxfi1.mp3',
+        'https://files.catbox.moe/ebkzu5.mp3',
+        'https://files.catbox.moe/xsa1ig.mp3',
+        'https://files.catbox.moe/iq4ouj.mp3',
+        'https://files.catbox.moe/wtux78.mp3'
+      ];
+
+      const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
       
-      await Matrix.sendMessage(m.from, audioMessage, { quoted: m });
+      // Send audio
+      await Matrix.sendMessage(m.from, {
+        audio: { url: randomAudioUrl },
+        mimetype: 'audio/mp4',
+        ptt: true
+      }, { quoted: m });
+      
+      return; // Exit after sending audio
+    } else if (selectedButtonId === `${prefix}owner`) {
+      // Handle owner button - replace with your owner info
+      await Matrix.sendMessage(m.from, { 
+        text: "👤 *Owner Information*\n\nName: Your Name\nContact: your@contact.info" 
+      }, { quoted: m });
+      return;
+    } else if (selectedButtonId === `${prefix}menu`) {
+      // Handle menu button - you might want to trigger your menu command here
+      await Matrix.sendMessage(m.from, { 
+        text: "📋 *Bot Menu*\n\nUse commands to interact with me!" 
+      }, { quoted: m });
       return;
     }
   }
+  
+  // Regular command handling
+  const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
 
   if (!['alive', 'uptime', 'runtime'].includes(cmd)) return;
 
-  const str = `*🤖 Bot Status: Online*\n*⏳ Uptime: ${timeString}*\n\n*Choose an option:*`;
+  const str = `*🤖 Bot Status: Online*\n*⏳ Uptime: ${timeString}*`;
 
-  // Create a single message with all buttons (removed ping, added GitHub)
+  const buttons = [
+    {
+      buttonId: `${prefix}menu`,
+      buttonText: { displayText: '📋 Menu' },
+      type: 1
+    },
+    {
+      buttonId: `${prefix}owner`,
+      buttonText: { displayText: '👤 Owner' },
+      type: 1
+    },
+    {
+      buttonId: `${prefix}audio`,
+      buttonText: { displayText: '🎵 Random Audio' },
+      type: 1
+    }
+  ];
+
   const buttonMessage = {
-    text: str,
-    footer: 'Caseyrhodes-AI | 2025',
-    buttons: [
-      {
-        buttonId: `${prefix}menu`,
-        buttonText: { displayText: '📋 Menu' },
-        type: 1
-      },
-      {
-        buttonId: `${prefix}github`,
-        buttonText: { displayText: '🌐 GitHub' },
-        type: 1
-      },
-      {
-        buttonId: `${prefix}audio`,
-        buttonText: { displayText: '🔊 Audio' },
-        type: 1
+    image: fs.readFileSync('./media/Casey.jpg'),
+    caption: str,
+    footer: 'Choose an option',
+    buttons: buttons,
+    headerType: 4,
+    contextInfo: {
+      mentionedJid: [m.sender],
+      forwardingScore: 999,
+      isForwarded: true,
+      forwardedNewsletterMessageInfo: {
+        newsletterJid: '120363302677217436@newsletter',
+        newsletterName: "JINX-XMD",
+        serverMessageId: 143
       }
-    ],
-    headerType: 1
+    }
   };
 
-  // Send the button message
-  await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
+  await Matrix.sendMessage(m.from, buttonMessage, {
+    quoted: m
+  });
 };
 
 export default alive;
