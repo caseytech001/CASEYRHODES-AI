@@ -57,19 +57,54 @@ const stickerCommand = async (m, gss) => {
     try {
       const media = await quoted.download();
       if (!media) throw new Error('Failed to download media.');
+      
       if (quoted.mtype === 'imageMessage') {
         await gss.sendImageAsSticker(m.from, media, m, { packname, author });
-        m.reply('Sticker created successfully!');
-      }
-      else if (quoted.mtype === 'videoMessage' && quoted.msg.seconds <= 11) {
+        
+        // Success message with buttons
+        const buttonMessage = {
+          text: "✅ Sticker created successfully!\n\nWhat would you like to do next?",
+          footer: "Caseyrhodes-MD",
+          buttons: [
+            { buttonId: `${prefix}sticker`, buttonText: { displayText: "🎨 Make Another" }, type: 1 },
+            { buttonId: `${prefix}help`, buttonText: { displayText: "📖 Help" }, type: 1 }
+          ],
+          headerType: 1
+        };
+        await gss.sendMessage(m.from, buttonMessage, { quoted: m });
+        
+      } else if (quoted.mtype === 'videoMessage' && quoted.msg.seconds <= 11) {
         await gss.sendVideoAsSticker(m.from, media, m, { packname, author });
-        m.reply('Sticker created successfully!');
+        
+        // Success message with buttons
+        const buttonMessage = {
+          text: "✅ Video sticker created successfully!\n\nWhat would you like to do next?",
+          footer: "Caseyrhodes-MD",
+          buttons: [
+            { buttonId: `${prefix}sticker`, buttonText: { displayText: "🎬 Make Another" }, type: 1 },
+            { buttonId: `${prefix}help`, buttonText: { displayText: "📖 Help" }, type: 1 },
+            { buttonId: `${prefix}tools`, buttonText: { displayText: "⚙️ Tools" }, type: 1 }
+          ],
+          headerType: 1
+        };
+        await gss.sendMessage(m.from, buttonMessage, { quoted: m });
+        
       } else {
         m.reply('Video too long. Please send a video that is less than 11 seconds.');
       }
     } catch (error) {
       console.error(error);
-      m.reply(`Error: ${error.message}`);
+      
+      // Error message with button
+      const errorButtonMessage = {
+        text: `❌ Error: ${error.message}\n\nNeed help?`,
+        footer: "Caseyrhodes-MD",
+        buttons: [
+          { buttonId: `${prefix}help`, buttonText: { displayText: "📖 Get Help" }, type: 1 }
+        ],
+        headerType: 1
+      };
+      await gss.sendMessage(m.from, errorButtonMessage, { quoted: m });
     }
   }
 };
