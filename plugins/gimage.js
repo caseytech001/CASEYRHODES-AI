@@ -3,101 +3,121 @@ import config from '../config.cjs';
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+// Store user sessions to remember their queries
+const userSessions = new Map();
+
 const imageCommand = async (m, sock) => {
   const prefix = config.PREFIX;
-  const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-  let query = m.body.slice(prefix.length + cmd.length).trim();
+  const body = m.messages ? m.messages[0]?.message : m;
+  const text = body?.conversation || body?.extendedTextMessage?.text || '';
+  
+  const cmd = text.startsWith(prefix) ? text.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+  let query = text.slice(prefix.length + cmd.length).trim();
+
+  // Handle button interactions
+  if (body?.templateButtonReplyMessage) {
+    const buttonId = body.templateButtonReplyMessage.selectedId;
+    const userId = m.key.remoteJid;
+    
+    if (buttonId === 'img_next' && userSessions.has(userId)) {
+      const session = userSessions.get(userId);
+      query = session.query;
+      session.page += 1;
+    } else if (buttonId === 'img_new') {
+      userSessions.delete(userId);
+      return sock.sendMessage(m.from, { text: `Please send a new search query. Example: ${prefix + cmd} black cats` });
+    } else if (buttonId === 'img_download') {
+      // Download functionality would go here
+      return sock.sendMessage(m.from, { text: 'Download feature coming soon!' });
+    } else if (buttonId === 'img_retry' && userSessions.has(userId)) {
+      const session = userSessions.get(userId);
+      query = session.query;
+    }
+  }
 
   const validCommands = ['image', 'img', 'gimage'];
 
-  if (validCommands.includes(cmd)) {
+  if (validCommands.includes(cmd) || (body?.templateButtonReplyMessage && query)) {
   
-    if (!query && !(m.quoted && m.quoted.text)) {
+    if (!query && !(m.messages && m.messages[0]?.message?.extendedTextMessage?.contextInfo?.quotedMessage)) {
       return sock.sendMessage(m.from, { text: `Please provide some text, Example usage: ${prefix + cmd} black cats` });
     }
   
-    if (!query && m.quoted && m.quoted.text) {
-      query = m.quoted.text;
+    if (!query && m.messages && m.messages[0]?.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
+      const quotedMsg = m.messages[0].message.extendedTextMessage.contextInfo.quotedMessage;
+      query = quotedMsg.conversation || quotedMsg.extendedTextMessage?.text || '';
     }
 
-    const numberOfImages = 3; // Changed from 5 to 3
+    const numberOfImages = 1;
 
     try {
-      await sock.sendMessage(m.from, { text: '*Please wait, generating your images...*' });
+      await sock.sendMessage(m.from, { text: '*Please wait, generating your image...*' });
 
-      const images = [];
-
-      for (let i = 0; i < numberOfImages; i++) {
-        const endpoint = `https://apis.davidcyriltech.my.id/googleimage?query=${encodeURIComponent(query)}`;
-        const response = await axios.get(endpoint, { responseType: 'arraybuffer' });
-
-        if (response.status === 200) {
-          const imageBuffer = Buffer.from(response.data, 'binary');
-          images.push(imageBuffer);
-        } else {
-          throw new Error('Image generation failed');
-        }
-        
-        // Add a small delay between requests to avoid rate limiting
-        await sleep(300);
+      // Get or create user session
+      const userId = m.key.remoteJid;
+      if (!userSessions.has(userId)) {
+        userSessions.set(userId, { query, page: 1 });
       }
+      
+      const session = userSessions.get(userId);
+      const page = session.page;
 
-      // Send all images with navigation buttons
-      for (let i = 0; i < images.length; i++) {
-        await sleep(500);
+      const endpoint = `https://apis.davidcyriltech.my.id/googleimage?query=${encodeURIComponent(query)}&page=${page}`;
+      const response = await axios.get(endpoint, { 
+        responseType: 'arraybuffer',
+        timeout: 30000
+      });
+
+      if (response.status === 200) {
+        const imageBuffer = Buffer.from(response.data, 'binary');
         
-        // Create buttons for navigation
-        const buttons = [
-          {
-            buttonId: `img_prev_${i}`,
-            buttonText: { displayText: '⬅️ Previous' },
-            type: 1,
-            disabled: i === 0 // Disable previous button on first image
-          },
-          {
-            buttonId: `img_next_${i}`,
-            buttonText: { displayText: 'Next ➡️' },
-            type: 1,
-            disabled: i === images.length - 1 // Disable next button on last image
-          }
-        ];
-        
-        // Add additional action buttons to the first image
-        if (i === 0) {
-          buttons.push(
-            {
-              buttonId: 'img_download',
-              buttonText: { displayText: '📥 Download All' },
-              type: 1
-            },
-            {
-              buttonId: 'img_new',
-              buttonText: { displayText: '🔄 New Search' },
-              type: 1
-            }
-          );
-        }
-        
+        // Send the image with buttons
         await sock.sendMessage(
           m.from, 
           { 
-            image: images[i], 
-            caption: `Image ${i+1}/${images.length} for "${query}"`,
-            buttons: buttons,
+            image: imageBuffer, 
+            caption: `Image for "${query}" (Page ${page})`,
+            buttons: [
+              {
+                buttonId: 'img_next',
+                buttonText: { displayText: '➡️ Next' },
+                type: 1
+              },
+              {
+                buttonId: 'img_new',
+                buttonText: { displayText: '🔄 New Search' },
+                type: 1
+              },
+              {
+                buttonId: 'img_download',
+                buttonText: { displayText: '📥 Download' },
+                type: 1
+              }
+            ],
             footer: config.BOT_NAME || 'Image Bot',
             headerType: 4
-          }, 
-          { quoted: m }
+          }
         );
+        
+        // React to the message if possible
+        if (m.key) {
+          await sock.sendMessage(m.from, { 
+            react: { 
+              text: "✅", 
+              key: m.key 
+            } 
+          });
+        }
+      } else {
+        throw new Error('Image generation failed');
       }
       
-      await m.React("✅");
     } catch (error) {
       console.error("Error fetching images:", error);
       await sock.sendMessage(
         m.from, 
         { 
-          text: '*Oops! Something went wrong while generating images. Please try again later.*',
+          text: '*Oops! Something went wrong while generating the image. Please try again later.*',
           buttons: [
             { buttonId: 'img_retry', buttonText: { displayText: '🔄 Try Again' }, type: 1 },
             { buttonId: 'img_help', buttonText: { displayText: '❓ Help' }, type: 1 }
