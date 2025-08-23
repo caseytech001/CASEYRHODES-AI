@@ -43,6 +43,26 @@ function toFancyFont(text) {
 const streamPipeline = promisify(pipeline);
 const tmpDir = os.tmpdir();
 
+// Function to get YouTube thumbnail URL
+function getYouTubeThumbnail(videoId, quality = 'hqdefault') {
+  const qualities = {
+    'default': 'default.jpg',
+    'mqdefault': 'mqdefault.jpg',
+    'hqdefault': 'hqdefault.jpg',
+    'sddefault': 'sddefault.jpg',
+    'maxresdefault': 'maxresdefault.jpg'
+  };
+  
+  return `https://i.ytimg.com/vi/${videoId}/${qualities[quality] || qualities['hqdefault']}`;
+}
+
+// Function to extract YouTube video ID from URL
+function extractYouTubeId(url) {
+  const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[7].length === 11) ? match[7] : false;
+}
+
 const play = async (message, client) => {
   try {
     const prefix = config.Prefix || config.PREFIX || '.';
@@ -96,6 +116,12 @@ const play = async (message, client) => {
           throw new Error("API response missing download URL or failed");
         }
         
+        // Extract YouTube video ID from URL
+        const videoId = extractYouTubeId(video.url) || video.videoId;
+        
+        // Get YouTube thumbnail URL
+        const thumbnailUrl = getYouTubeThumbnail(videoId, 'maxresdefault');
+        
         // Format duration correctly
         const minutes = Math.floor(video.duration.seconds / 60);
         const seconds = video.duration.seconds % 60;
@@ -127,15 +153,41 @@ const play = async (message, client) => {
           }
         ];
         
-        const buttonMessage = {
-          text: songInfo,
-          buttons: buttons,
-          headerType: 1,
-          viewOnce: true,
-          mentions: [message.sender]
-        };
+        // Download thumbnail image
+        let imageBuffer = null;
+        try {
+          const imageResponse = await fetch(thumbnailUrl);
+          if (imageResponse.ok) {
+            const arrayBuffer = await imageResponse.arrayBuffer();
+            imageBuffer = Buffer.from(arrayBuffer);
+          }
+        } catch (imageError) {
+          console.error("Failed to download thumbnail:", imageError.message);
+        }
         
-        await client.sendMessage(message.from, buttonMessage, { quoted: message });
+        // Send message with image if available, otherwise text only
+        if (imageBuffer) {
+          const imageMessage = {
+            image: imageBuffer,
+            caption: songInfo,
+            buttons: buttons,
+            headerType: 4,
+            viewOnce: true,
+            mentions: [message.sender]
+          };
+          
+          await client.sendMessage(message.from, imageMessage, { quoted: message });
+        } else {
+          const buttonMessage = {
+            text: songInfo,
+            buttons: buttons,
+            headerType: 1,
+            viewOnce: true,
+            mentions: [message.sender]
+          };
+          
+          await client.sendMessage(message.from, buttonMessage, { quoted: message });
+        }
         
         const audioResponse = await fetch(apiData.result.download_url);
         
