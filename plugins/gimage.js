@@ -3,59 +3,50 @@ import config from '../config.cjs';
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-// Store user sessions for image navigation
-const userSessions = new Map();
-
 const imageCommand = async (m, sock) => {
   const prefix = config.PREFIX;
-  const body = m.messages ? m.messages[0]?.message : m;
-  const text = body?.conversation || body?.extendedTextMessage?.text || '';
-  const cmd = text.startsWith(prefix) ? text.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-  let query = text.startsWith(prefix) ? text.slice(prefix.length + cmd.length).trim() : '';
+  const body = m.message?.conversation || m.message?.extendedTextMessage?.text || '';
+  const cmd = body.startsWith(prefix) ? body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+  let query = body.slice(prefix.length + cmd.length).trim();
 
   const validCommands = ['image', 'img', 'gimage'];
 
   if (validCommands.includes(cmd)) {
-    // Check if this is a navigation command (next image)
-    if (text.toLowerCase().includes('next') || text === '1') {
-      const userId = m.sender || m.key.remoteJid;
-      if (userSessions.has(userId)) {
-        const session = userSessions.get(userId);
-        if (session.currentIndex < session.images.length - 1) {
-          session.currentIndex++;
-          await sock.sendMessage(m.key.remoteJid, { 
-            image: session.images[session.currentIndex], 
-            caption: `Image ${session.currentIndex + 1} of ${session.images.length}\n\nType "next" or "1" for next image\n\nPOWERED BY SULA MD`
-          }, { quoted: m });
-          userSessions.set(userId, session);
-          return;
-        } else {
-          await sock.sendMessage(m.key.remoteJid, { 
-            text: "No more images available for this search." 
-          }, { quoted: m });
-          userSessions.delete(userId);
-          return;
-        }
-      }
+  
+    if (!query && m.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
+      const quotedMsg = m.message.extendedTextMessage.contextInfo.quotedMessage;
+      query = quotedMsg.conversation || quotedMsg.extendedTextMessage?.text || '';
     }
 
-    // Handle new image search
     if (!query) {
-      // Check if there's quoted message text
-      const quotedMsg = m.messages?.[0]?.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-      const quotedText = quotedMsg?.conversation || quotedMsg?.extendedTextMessage?.text;
+      const buttonMessage = {
+        text: `Please provide some text, Example usage: ${prefix + cmd} black cats\n\nOr reply to a message with text to generate images.`,
+        footer: 'Image Search Bot',
+        buttons: [
+          { buttonId: `${prefix}image cats`, buttonText: { displayText: 'Example: Cats' } },
+          { buttonId: `${prefix}image dogs`, buttonText: { displayText: 'Example: Dogs' } }
+        ],
+        headerType: 1
+      };
       
-      if (quotedText) {
-        query = quotedText;
-      } else {
-        return sock.sendMessage(m.key.remoteJid, { text: `Please provide some text, Example usage: ${prefix + cmd} black cats` });
-      }
+      return sock.sendMessage(m.key.remoteJid, buttonMessage);
     }
 
     const numberOfImages = 5;
 
     try {
-      await sock.sendMessage(m.key.remoteJid, { text: '*Please wait*' });
+      // Send initial message with buttons
+      const loadingMessage = {
+        text: `🔍 *Searching for images:* ${query}\n\nPlease wait while I generate your images...`,
+        footer: 'Generating 5 images',
+        buttons: [
+          { buttonId: `${prefix}image ${query}`, buttonText: { displayText: '🔄 Refresh Search' } },
+          { buttonId: `${prefix}help image`, buttonText: { displayText: '❓ Help' } }
+        ],
+        headerType: 1
+      };
+      
+      await sock.sendMessage(m.key.remoteJid, loadingMessage);
 
       const images = [];
 
@@ -71,38 +62,80 @@ const imageCommand = async (m, sock) => {
         }
       }
 
-      // Store the images in user session
-      const userId = m.sender || m.key.remoteJid;
-      userSessions.set(userId, {
-        images: images,
-        currentIndex: 0,
-        query: query,
-        timestamp: Date.now()
-      });
+      // Send images with navigation buttons
+      for (let i = 0; i < images.length; i++) {
+        await sleep(500);
+        
+        const imageMessage = {
+          image: images[i],
+          caption: `🖼️ *Image ${i + 1}/${images.length}*\n📝 Query: ${query}`,
+          footer: 'Image Search Results',
+          buttons: [
+            { 
+              buttonId: `${prefix}image ${query}`, 
+              buttonText: { displayText: '🔄 Get More' } 
+            },
+            { 
+              buttonId: `${prefix}download`, 
+              buttonText: { displayText: '📥 Download' } 
+            }
+          ],
+          headerType: 4
+        };
+        
+        await sock.sendMessage(m.key.remoteJid, imageMessage, { quoted: m });
+      }
 
-      // Send only the first image with navigation instructions
-      await sock.sendMessage(m.key.remoteJid, { 
-        image: images[0], 
-        caption: `Image 1 of ${images.length}\n\nType "next" or "1" for next image\n\nPOWERED BY SULA MD`
-      }, { quoted: m });
+      // Send completion message with options
+      const completionMessage = {
+        text: `✅ *Image generation complete!*\n\nGenerated ${images.length} images for: *${query}*`,
+        footer: 'What would you like to do next?',
+        buttons: [
+          { 
+            buttonId: `${prefix}image ${query}`, 
+            buttonText: { displayText: '🔄 Generate More' } 
+          },
+          { 
+            buttonId: `${prefix}image`, 
+            buttonText: { displayText: '🎨 New Search' } 
+          },
+          { 
+            buttonId: `${prefix}help`, 
+            buttonText: { displayText: '❓ Help' } 
+          }
+        ],
+        headerType: 1
+      };
       
-      // Clean up old sessions periodically
-      cleanUpSessions();
+      await sock.sendMessage(m.key.remoteJid, completionMessage);
+      
+      // React to the message
+      if (sock.sendReaction) {
+        await sock.sendReaction(m.key.remoteJid, m.key, "✅");
+      }
+      
     } catch (error) {
       console.error("Error fetching images:", error);
-      await sock.sendMessage(m.key.remoteJid, { text: '*Oops! Something went wrong while generating images. Please try again later.*' });
+      
+      const errorMessage = {
+        text: '*❌ Oops! Something went wrong while generating images.*\n\nPlease try again later or try a different search term.',
+        footer: 'Error occurred',
+        buttons: [
+          { 
+            buttonId: `${prefix}image ${query}`, 
+            buttonText: { displayText: '🔄 Try Again' } 
+          },
+          { 
+            buttonId: `${prefix}support`, 
+            buttonText: { displayText: '🆘 Support' } 
+          }
+        ],
+        headerType: 1
+      };
+      
+      await sock.sendMessage(m.key.remoteJid, errorMessage);
     }
   }
 };
-
-// Clean up old sessions to prevent memory leaks
-function cleanUpSessions() {
-  const now = Date.now();
-  for (const [userId, session] of userSessions.entries()) {
-    if (now - session.timestamp > 30 * 60 * 1000) { // 30 minutes
-      userSessions.delete(userId);
-    }
-  }
-}
 
 export default imageCommand;
