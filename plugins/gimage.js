@@ -1,111 +1,104 @@
 import axios from 'axios';
 import config from '../config.cjs';
 
-// Store user sessions to remember their queries
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// Store user sessions for image navigation
 const userSessions = new Map();
 
 const imageCommand = async (m, sock) => {
   const prefix = config.PREFIX;
-  const body = m.messages ? m.messages[0]?.message : m;
-  const text = body?.conversation || body?.extendedTextMessage?.text || '';
-  
-  const cmd = text.startsWith(prefix) ? text.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-  let query = text.slice(prefix.length + cmd.length).trim();
-
-  // Handle button interactions
-  if (body?.templateButtonReplyMessage) {
-    const buttonId = body.templateButtonReplyMessage.selectedId;
-    const userId = m.key.remoteJid;
-    
-    if (buttonId === 'img_next' && userSessions.has(userId)) {
-      const session = userSessions.get(userId);
-      query = session.query;
-      session.page += 1; // Increment page to get a different image
-    } else if (buttonId === 'img_retry' && userSessions.has(userId)) {
-      const session = userSessions.get(userId);
-      query = session.query;
-    }
-  }
+  const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+  let query = m.body.slice(prefix.length + cmd.length).trim();
 
   const validCommands = ['image', 'img', 'gimage'];
 
-  if (validCommands.includes(cmd) || (body?.templateButtonReplyMessage && query)) {
-  
-    if (!query && !(m.messages && m.messages[0]?.message?.extendedTextMessage?.contextInfo?.quotedMessage)) {
-      return sock.sendMessage(m.key.remoteJid, { text: `Please provide some text, Example usage: ${prefix + cmd} black cats` });
+  if (validCommands.includes(cmd)) {
+    // Check if this is a navigation command (next image)
+    if (m.body.toLowerCase().includes('next') || m.body === '1') {
+      const userId = m.sender;
+      if (userSessions.has(userId)) {
+        const session = userSessions.get(userId);
+        if (session.currentIndex < session.images.length - 1) {
+          session.currentIndex++;
+          await sock.sendMessage(m.from, { 
+            image: session.images[session.currentIndex], 
+            caption: `Image ${session.currentIndex + 1} of ${session.images.length}\n\nType "next" or "1" for next image\n\nPOWERED BY SULA MD`
+          }, { quoted: m });
+          userSessions.set(userId, session);
+          return;
+        } else {
+          await sock.sendMessage(m.from, { 
+            text: "No more images available for this search." 
+          }, { quoted: m });
+          userSessions.delete(userId);
+          return;
+        }
+      }
+    }
+
+    // Handle new image search
+    if (!query && !(m.quoted && m.quoted.text)) {
+      return sock.sendMessage(m.from, { text: `Please provide some text, Example usage: ${prefix + cmd} black cats` });
     }
   
-    if (!query && m.messages && m.messages[0]?.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
-      const quotedMsg = m.messages[0].message.extendedTextMessage.contextInfo.quotedMessage;
-      query = quotedMsg.conversation || quotedMsg.extendedTextMessage?.text || '';
+    if (!query && m.quoted && m.quoted.text) {
+      query = m.quoted.text;
     }
+
+    const numberOfImages = 5;
 
     try {
-      await sock.sendMessage(m.key.remoteJid, { text: '*Please wait, generating your image...*' });
+      await sock.sendMessage(m.from, { text: '*Please wait*' });
 
-      // Get or create user session
-      const userId = m.key.remoteJid;
-      if (!userSessions.has(userId)) {
-        userSessions.set(userId, { query, page: 1 });
+      const images = [];
+
+      for (let i = 0; i < numberOfImages; i++) {
+        const endpoint = `https://api.guruapi.tech/api/googleimage?text=${encodeURIComponent(query)}`;
+        const response = await axios.get(endpoint, { responseType: 'arraybuffer' });
+
+        if (response.status === 200) {
+          const imageBuffer = Buffer.from(response.data, 'binary');
+          images.push(imageBuffer);
+        } else {
+          throw new Error('Image generation failed');
+        }
       }
-      
-      const session = userSessions.get(userId);
-      const page = session.page;
 
-      // API endpoint with query and page parameters
-      const endpoint = `https://apis.davidcyriltech.my.id/googleimage?query=${encodeURIComponent(query)}&page=${page}`;
-      const response = await axios.get(endpoint, { 
-        responseType: 'arraybuffer',
-        timeout: 30000
+      // Store the images in user session
+      const userId = m.sender;
+      userSessions.set(userId, {
+        images: images,
+        currentIndex: 0,
+        query: query,
+        timestamp: Date.now()
       });
 
-      if (response.status === 200) {
-        const imageBuffer = Buffer.from(response.data, 'binary');
-        
-        // Send the image with only the Next button
-        await sock.sendMessage(
-          m.key.remoteJid, 
-          { 
-            image: imageBuffer, 
-            caption: `Image for "${query}" (Page ${page})`,
-            buttons: [
-              {
-                buttonId: 'img_next',
-                buttonText: { displayText: '➡️ Next Image' },
-                type: 1
-              }
-            ],
-            footer: config.BOT_NAME || 'Image Bot',
-            headerType: 4
-          }
-        );
-        
-        // React to the message if possible
-        if (m.key) {
-          await sock.sendMessage(m.key.remoteJid, { 
-            react: { 
-              text: "✅", 
-              key: m.key 
-            } 
-          });
-        }
-      } else {
-        throw new Error(`API returned status code: ${response.status}`);
-      }
+      // Send only the first image with navigation instructions
+      await sock.sendMessage(m.from, { 
+        image: images[0], 
+        caption: `Image 1 of ${images.length}\n\nType "next" or "1" for next image\n\nPOWERED BY SULA MD`
+      }, { quoted: m });
       
+      await m.React("✅");
+      
+      // Clean up old sessions periodically (optional)
+      cleanUpSessions();
     } catch (error) {
       console.error("Error fetching images:", error);
-      await sock.sendMessage(
-        m.key.remoteJid, 
-        { 
-          text: '*Oops! Something went wrong while generating the image. Please try again later.*',
-          buttons: [
-            { buttonId: 'img_retry', buttonText: { displayText: '🔄 Try Again' }, type: 1 }
-          ]
-        }
-      );
+      await sock.sendMessage(m.from, { text: '*Oops! Something went wrong while generating images. Please try again later.*' });
     }
   }
 };
+
+// Clean up old sessions to prevent memory leaks
+function cleanUpSessions() {
+  const now = Date.now();
+  for (const [userId, session] of userSessions.entries()) {
+    if (now - session.timestamp > 30 * 60 * 1000) { // 30 minutes
+      userSessions.delete(userId);
+    }
+  }
+}
 
 export default imageCommand;
