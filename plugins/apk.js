@@ -1,6 +1,6 @@
 import axios from "axios";
 import config from "../config.cjs";
-import { generateWAMessageFromContent, proto, prepareWAMessageMedia } from "baileys";
+import { generateWAMessageFromContent, proto, prepareWAMessageMedia } from "@whiskeysockets/baileys";
 
 function toFancyFont(text, isUpperCase = false) {
   const fonts = {
@@ -47,18 +47,19 @@ const apkDownloader = async (m, Matrix) => {
   if (!query) {
     const buttons = [
       {
-        buttonId: `.menu`,
+        buttonId: `${prefix}menu`,
         buttonText: { displayText: `${toFancyFont("Menu")}` },
         type: 1,
       },
     ];
-    const messageOptions = {
-      buttons,
-      contextInfo: {
-        mentionedJid: [m.sender],
-      },
+    const buttonMessage = {
+      text: "❌ *Usage:* `.apk <App Name>`",
+      footer: "APK Downloader",
+      buttons: buttons,
+      headerType: 1,
+      mentions: [m.sender]
     };
-    return Matrix.sendMessage(m.from, { text: "❌ *Usage:* `.apk <App Name>`", ...messageOptions }, { quoted: m });
+    return await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
   }
 
   try {
@@ -70,23 +71,24 @@ const apkDownloader = async (m, Matrix) => {
     if (!data?.datalist?.list?.length) {
       const buttons = [
         {
-          buttonId: `.menu`,
+          buttonId: `${prefix}menu`,
           buttonText: { displayText: `${toFancyFont("Menu")}` },
           type: 1,
         },
         {
-          buttonId: `.search ${query}`,
+          buttonId: `${prefix}search ${query}`,
           buttonText: { displayText: `${toFancyFont("Search Again")}` },
           type: 1,
         },
       ];
-      const messageOptions = {
-        buttons,
-        contextInfo: {
-          mentionedJid: [m.sender],
-        },
+      const buttonMessage = {
+        text: "⚠️ *No results found for the given app name.*",
+        footer: "APK Downloader",
+        buttons: buttons,
+        headerType: 1,
+        mentions: [m.sender]
       };
-      return Matrix.sendMessage(m.from, { text: "⚠️ *No results found for the given app name.*", ...messageOptions }, { quoted: m });
+      return await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
     }
 
     const app = data.datalist.list[0];
@@ -110,16 +112,16 @@ const apkDownloader = async (m, Matrix) => {
     };
 
     // Create message with buttons
-    const message = {
+    const buttonMessage = {
       text: caption,
       footer: "APK Downloader",
       buttons: [
-        { buttonId: `.menu`, buttonText: { displayText: `${toFancyFont("Menu")}` } },
-        { buttonId: `.search ${query}`, buttonText: { displayText: `${toFancyFont("Search Again")}` } }
+        { buttonId: `${prefix}menu`, buttonText: { displayText: `${toFancyFont("Menu")}` } },
+        { buttonId: `${prefix}search ${query}`, buttonText: { displayText: `${toFancyFont("Search Again")}` } }
       ],
       headerType: 1,
+      mentions: [m.sender],
       contextInfo: {
-        mentionedJid: [m.sender],
         forwardingScore: 999,
         isForwarded: true
       }
@@ -127,11 +129,29 @@ const apkDownloader = async (m, Matrix) => {
 
     await Matrix.sendMessage(m.from, { react: { text: "⬆️", key: m.key } });
 
-    // Send document first
-    await Matrix.sendMessage(m.from, documentMessage, { quoted: m });
+    // Prepare and send the document
+    const docMedia = await prepareWAMessageMedia(
+      { document: { url: app.file.path_alt }, fileName: `${app.name}.apk` },
+      { upload: Matrix.waUploadToServer }
+    );
     
-    // Then send the button message
-    await Matrix.sendMessage(m.from, message, { quoted: m });
+    const docMsg = generateWAMessageFromContent(
+      m.from,
+      {
+        documentMessage: {
+          ...docMedia.documentMessage,
+          caption: caption,
+          fileName: `${app.name}.apk`,
+          mimetype: "application/vnd.android.package-archive",
+        }
+      },
+      { quoted: m }
+    );
+    
+    await Matrix.relayMessage(m.from, docMsg.message, { messageId: docMsg.key.id });
+
+    // Send the button message
+    await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
 
     await Matrix.sendMessage(m.from, { react: { text: "✅", key: m.key } });
 
@@ -139,18 +159,19 @@ const apkDownloader = async (m, Matrix) => {
     console.error("APK Downloader Error:", error);
     const buttons = [
       {
-        buttonId: `.menu`,
+        buttonId: `${prefix}menu`,
         buttonText: { displayText: `${toFancyFont("Menu")}` },
         type: 1,
       },
     ];
-    const messageOptions = {
-      buttons,
-      contextInfo: {
-        mentionedJid: [m.sender],
-      },
+    const buttonMessage = {
+      text: "❌ *An error occurred while fetching the APK. Please try again.*",
+      footer: "APK Downloader",
+      buttons: buttons,
+      headerType: 1,
+      mentions: [m.sender]
     };
-    Matrix.sendMessage(m.from, { text: "❌ *An error occurred while fetching the APK. Please try again.*", ...messageOptions }, { quoted: m });
+    await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
   }
 };
 
