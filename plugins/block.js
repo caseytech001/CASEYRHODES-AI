@@ -5,18 +5,17 @@ const block = async (m, gss) => {
     // Get the owner's JID in proper format
     const ownerJid = config.OWNER_NUMBER.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
     
-    // Check if the sender is the owner
-    const isOwner = m.sender === ownerJid;
+    // Check if the sender is the owner (including international format)
+    const senderJid = m.sender.includes(':') ? m.sender.split(':')[0] : m.sender;
+    const isOwner = senderJid === ownerJid;
     
     const prefix = config.PREFIX;
     const body = m.body || '';
     const cmd = body.startsWith(prefix) ? body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-    const text = body.slice(prefix.length + cmd.length).trim();
+    
+    // Only process block command
+    if (cmd !== 'block') return;
 
-    const validCommands = ['block', 'unblock'];
-    
-    if (!validCommands.includes(cmd)) return;
-    
     if (!isOwner) {
       // Send a button message for non-owners
       const buttonMessage = {
@@ -30,13 +29,15 @@ const block = async (m, gss) => {
       return gss.sendMessage(m.from, buttonMessage, { quoted: m });
     }
 
+    const text = body.slice(prefix.length + cmd.length).trim();
+
     // Check if any user is mentioned or quoted
     if (!m.mentionedJid?.length && !m.quoted && !text) {
       const buttonMessage = {
         text: `Please mention a user, quote a message, or provide a number.\nUsage: ${prefix}block @user`,
         footer: "Select an option below",
         buttons: [
-          { buttonId: `${prefix}help block`, buttonText: { displayText: "HE GUIDE" }, type: 1 },
+          { buttonId: `${prefix}help block`, buttonText: { displayText: "HELP GUIDE" }, type: 1 },
           { buttonId: `${prefix}listblock`, buttonText: { displayText: "BLOCKED LIST" }, type: 1 }
         ],
         headerType: 1
@@ -72,26 +73,24 @@ const block = async (m, gss) => {
       users = users.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
     }
 
-    const action = cmd === 'block' ? 'block' : 'unblock';
-    const actionText = cmd === 'block' ? 'Blocked' : 'Unblocked';
     const userName = users.split('@')[0];
     const displayName = m.quoted?.pushName || userName;
 
     // Create confirmation buttons before taking action
     const confirmButtons = {
-      text: `Are you sure you want to ${action} *${displayName}*?`,
+      text: `Are you sure you want to block *${displayName}*?`,
       footer: "This action cannot be undone",
       buttons: [
-        { buttonId: `${prefix}confirm-${action}-${userName}`, buttonText: { displayText: `YES, ${action.toUpperCase()}` }, type: 1 },
+        { buttonId: `${prefix}confirm-block-${userName}`, buttonText: { displayText: "YES, BLOCK" }, type: 1 },
         { buttonId: `${prefix}cancel`, buttonText: { displayText: "CANCEL" }, type: 1 }
       ],
       headerType: 1
     };
 
-    // Store the pending action in a temporary variable (in a real implementation, you might use a database)
+    // Store the pending action in a temporary variable
     gss.pendingActions = gss.pendingActions || {};
     gss.pendingActions[m.sender] = {
-      action,
+      action: 'block',
       userJid: users,
       timestamp: Date.now()
     };
