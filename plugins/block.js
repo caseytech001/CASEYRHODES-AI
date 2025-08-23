@@ -2,7 +2,8 @@ import config from '../config.cjs';
 
 const block = async (m, gss) => {
   try {
-    const botNumber = await gss.decodeJid(gss.user.id);
+    // Get the bot's JID correctly
+    const botNumber = gss.user.id;
     const isCreator = [botNumber, config.OWNER_NUMBER + '@s.whatsapp.net', ...(config.SUDO_NUMBERS || []).map(num => num + '@s.whatsapp.net')].includes(m.sender);
     const prefix = config.PREFIX;
     const body = m.body || '';
@@ -26,6 +27,7 @@ const block = async (m, gss) => {
     if (!users && text) {
       const numberMatch = text.match(/[\d+]+/g);
       if (numberMatch) {
+        // Format the number properly for WhatsApp
         users = numberMatch[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net';
       }
     }
@@ -37,12 +39,13 @@ const block = async (m, gss) => {
     const action = cmd === 'block' ? 'block' : 'unblock';
     const actionText = cmd === 'block' ? 'Blocked' : 'Unblocked';
 
+    // Update to use the correct Baileys method
     await gss.updateBlockStatus(users, action)
       .then((res) => m.reply(`✅ ${actionText} ${users.split('@')[0]} successfully.`))
       .catch((err) => m.reply(`❌ Failed to ${action} user: ${err.message || err}`));
       
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error in block command:', error);
     m.reply('❌ An error occurred while processing the command.');
   }
 };
