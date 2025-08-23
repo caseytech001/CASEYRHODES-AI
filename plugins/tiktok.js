@@ -36,7 +36,7 @@ const tiktok = async (m, Matrix) => {
   try {
     await Matrix.sendMessage(m.from, { react: { text: "⏳", key: m.key } });
 
-    const { data } = await axios.get(`https://apis.davidcyriltech.my.id/download/tiktokv4?url=${encodeURIComponent(query)}`);
+    const { data } = await axios.get(`https://api.diioffc.web.id/api/search/tiktok?query=${encodeURIComponent(query)}`);
 
     if (!data.success || !data.result || !data.result.video) {
       const buttonMessage = {
