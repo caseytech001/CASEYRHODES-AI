@@ -63,6 +63,24 @@ function extractYouTubeId(url) {
   return (match && match[7].length === 11) ? match[7] : false;
 }
 
+// Custom reaction function
+async function sendCustomReaction(client, message, reaction) {
+  try {
+    // Get the message key of the quoted message or the original message
+    const key = message.quoted ? message.quoted.key : message.key;
+    
+    // Send reaction to the message
+    await client.sendMessage(key.remoteJid, {
+      react: {
+        text: reaction,
+        key: key
+      }
+    });
+  } catch (error) {
+    console.error("Error sending reaction:", error.message);
+  }
+}
+
 const play = async (message, client) => {
   try {
     const prefix = config.Prefix || config.PREFIX || '.';
@@ -70,8 +88,14 @@ const play = async (message, client) => {
     const command = body.startsWith(prefix) ? body.slice(prefix.length).split(" ")[0].toLowerCase() : '';
     const args = body.slice(prefix.length + command.length).trim().split(" ");
     
+    // Send a custom reaction when the play command is detected
     if (command === "play") {
+      // Send a loading reaction
+      await sendCustomReaction(client, message, "⏳");
+      
       if (args.length === 0 || !args.join(" ")) {
+        // Send error reaction
+        await sendCustomReaction(client, message, "❌");
         return await client.sendMessage(message.from, {
           text: toFancyFont("Please provide a song name or keywords to search"),
           viewOnce: true,
@@ -84,12 +108,17 @@ const play = async (message, client) => {
       const searchResults = await ytSearch(query);
       
       if (!searchResults.videos || searchResults.videos.length === 0) {
+        // Send error reaction
+        await sendCustomReaction(client, message, "❌");
         return await client.sendMessage(message.from, {
           text: toFancyFont('No tracks found for') + " \"" + query + "\"",
           viewOnce: true,
           mentions: [message.sender]
         }, { quoted: message });
       }
+      
+      // Send a searching reaction
+      await sendCustomReaction(client, message, "🔍");
       
       const video = searchResults.videos[0];
       const fileName = video.title.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').substring(0, 100);
@@ -184,6 +213,9 @@ const play = async (message, client) => {
           await client.sendMessage(message.from, buttonMessage, { quoted: message });
         }
         
+        // Send a downloading reaction
+        await sendCustomReaction(client, message, "⬇️");
+        
         const audioResponse = await fetch(apiData.result.download_url);
         
         if (!audioResponse.ok) {
@@ -195,6 +227,8 @@ const play = async (message, client) => {
         
       } catch (apiError) {
         console.error("API error:", apiError.message);
+        // Send error reaction
+        await sendCustomReaction(client, message, "❌");
         
         return await client.sendMessage(message.from, {
           text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("couldn't process your request. Please try again later"),
@@ -206,6 +240,10 @@ const play = async (message, client) => {
       try {
         // Send audio file
         const audioData = fs.readFileSync(filePath);
+        
+        // Send success reaction before sending audio
+        await sendCustomReaction(client, message, "✅");
+        
         await client.sendMessage(message.from, { 
           audio: audioData, 
           mimetype: 'audio/mpeg',
@@ -227,6 +265,8 @@ const play = async (message, client) => {
         
       } catch (sendError) {
         console.error("Failed to send audio:", sendError.message);
+        // Send error reaction
+        await sendCustomReaction(client, message, "❌");
         
         return await client.sendMessage(message.from, {
           text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("failed to send audio file"),
@@ -237,6 +277,8 @@ const play = async (message, client) => {
     }
   } catch (error) {
     console.error("❌ song error: " + error.message);
+    // Send error reaction
+    await sendCustomReaction(client, message, "❌");
     
     await client.sendMessage(message.from, {
       text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("encountered an error. Please try again"),
