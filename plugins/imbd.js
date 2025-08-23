@@ -73,7 +73,7 @@ const imdb = async (m, gss) => {
       return await gss.sendMessage(m.from, message);
     }
 
-    let fids = await axios.get(`http://www.omdbapi.com/?apikey=742b2d09&t=${encodeURIComponent(text)}&plot=full`);
+    let fids = await axios.get(`https://delirius-apiofc.vercel.app/search/movie?query=$${encodeURIComponent(text)}&plot=full`);
     let imdbt = "";
     
     if (fids.data.Response === "False") {
