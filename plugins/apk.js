@@ -103,24 +103,35 @@ const apkDownloader = async (m, Matrix) => {
 ╰━━━━━━━━━━━━━━━┈⊷
 > *ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ*`;
 
-    // Prepare the document message
-    const documentMessage = {
-      document: { url: app.file.path_alt },
-      fileName: `${app.name}.apk`,
-      mimetype: "application/vnd.android.package-archive",
-      caption: caption,
-    };
+    // Prepare the document with buttons
+    const docMedia = await prepareWAMessageMedia(
+      { 
+        document: { url: app.file.path_alt }, 
+        fileName: `${app.name}.apk`,
+        mimetype: "application/vnd.android.package-archive"
+      },
+      { upload: Matrix.waUploadToServer }
+    );
 
-    // Create message with buttons
-    const buttonMessage = {
-      text: caption,
+    // Create message with document and buttons
+    const message = {
+      document: docMedia.documentMessage,
+      fileName: `${app.name}.apk`,
+      caption: caption,
       footer: "APK Downloader",
       buttons: [
-        { buttonId: `${prefix}menu`, buttonText: { displayText: `${toFancyFont("Menu")}` } },
-        { buttonId: `${prefix}search ${query}`, buttonText: { displayText: `${toFancyFont("Search Again")}` } }
+        { 
+          buttonId: `${prefix}menu`, 
+          buttonText: { displayText: `${toFancyFont("Menu")}` },
+          type: 1
+        },
+        { 
+          buttonId: `${prefix}search ${query}`, 
+          buttonText: { displayText: `${toFancyFont("Search Again")}` },
+          type: 1
+        }
       ],
-      headerType: 1,
-      mentions: [m.sender],
+      headerType: 4, // Document message type
       contextInfo: {
         forwardingScore: 999,
         isForwarded: true
@@ -128,31 +139,7 @@ const apkDownloader = async (m, Matrix) => {
     };
 
     await Matrix.sendMessage(m.from, { react: { text: "⬆️", key: m.key } });
-
-    // Prepare and send the document
-    const docMedia = await prepareWAMessageMedia(
-      { document: { url: app.file.path_alt }, fileName: `${app.name}.apk` },
-      { upload: Matrix.waUploadToServer }
-    );
-    
-    const docMsg = generateWAMessageFromContent(
-      m.from,
-      {
-        documentMessage: {
-          ...docMedia.documentMessage,
-          caption: caption,
-          fileName: `${app.name}.apk`,
-          mimetype: "application/vnd.android.package-archive",
-        }
-      },
-      { quoted: m }
-    );
-    
-    await Matrix.relayMessage(m.from, docMsg.message, { messageId: docMsg.key.id });
-
-    // Send the button message
-    await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
-
+    await Matrix.sendMessage(m.from, message, { quoted: m });
     await Matrix.sendMessage(m.from, { react: { text: "✅", key: m.key } });
 
   } catch (error) {
