@@ -109,6 +109,52 @@ async function deleteChatHistory(chatHistory, userId) {
     await writeChatHistoryToFile(chatHistory);
 }
 
+// Function to send interactive buttons
+async function sendInteractiveButtons(Matrix, from, text, buttons, quoted = null) {
+    const buttonMessages = [];
+    
+    buttons.forEach((button) => {
+        buttonMessages.push({
+            name: 'quick_reply',
+            buttonParamsJson: JSON.stringify({
+                display_text: button.text,
+                id: button.id
+            })
+        });
+    });
+    
+    const msg = generateWAMessageFromContent(from, {
+        viewOnceMessage: {
+            message: {
+                messageContextInfo: {
+                    deviceListMetadata: {},
+                    deviceListMetadataVersion: 2
+                },
+                interactiveMessage: proto.Message.InteractiveMessage.create({
+                    body: proto.Message.InteractiveMessage.Body.create({
+                        text: text
+                    }),
+                    footer: proto.Message.InteractiveMessage.Footer.create({
+                        text: "> 🔥 100% Local - No External APIs!"
+                    }),
+                    header: proto.Message.InteractiveMessage.Header.create({
+                        title: "",
+                        subtitle: "",
+                        hasMediaAttachment: false
+                    }),
+                    nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+                        buttons: buttonMessages
+                    })
+                })
+            }
+        }
+    }, {});
+    
+    await Matrix.relayMessage(msg.key.remoteJid, msg.message, {
+        messageId: msg.key.id
+    });
+}
+
 const mistral = async (m, Matrix) => {
     const chatHistory = await readChatHistoryFromFile();
     const text = m.body.toLowerCase();
@@ -127,7 +173,21 @@ const mistral = async (m, Matrix) => {
 
     if (validCommands.includes(cmd)) {
         if (!prompt) {
-            await Matrix.sendMessage(m.from, { text: 'Please give me a prompt. Example: .ai Hello' }, { quoted: m });
+            // Send interactive buttons when no prompt is provided
+            const buttons = [
+                { id: 'time_button', text: '⏰ Current Time' },
+                { id: 'date_button', text: '📅 Today\'s Date' },
+                { id: 'joke_button', text: '😂 Tell a Joke' },
+                { id: 'help_button', text: '❓ What can you do?' }
+            ];
+            
+            await sendInteractiveButtons(
+                Matrix, 
+                m.from, 
+                "Hello! I'm your local AI assistant. What would you like to know?",
+                buttons,
+                m
+            );
             return;
         }
 
@@ -190,7 +250,15 @@ const mistral = async (m, Matrix) => {
                     messageId: msg.key.id
                 });
             } else {
-                await Matrix.sendMessage(m.from, { text: answer }, { quoted: m });
+                // Add interactive buttons to regular responses
+                const buttons = [
+                    { id: 'time_button', text: '⏰ Time' },
+                    { id: 'date_button', text: '📅 Date' },
+                    { id: 'joke_button', text: '😂 Joke' },
+                    { id: 'help_button', text: '❓ Help' }
+                ];
+                
+                await sendInteractiveButtons(Matrix, m.from, answer, buttons, m);
             }
 
             // Success reaction
@@ -201,6 +269,49 @@ const mistral = async (m, Matrix) => {
             console.error('Error: ', err);
             await Matrix.sendMessage(m.from, { react: { text: '❌', key: m.key } });
         }
+    }
+    
+    // Handle button responses
+    if (m.message?.interactiveMessage?.nativeFlowResponseMessage) {
+        const buttonId = m.message.interactiveMessage.nativeFlowResponseMessage.params?.id;
+        
+        let response = "";
+        switch(buttonId) {
+            case 'time_button':
+                response = `The current time is: ${new Date().toLocaleTimeString()}`;
+                break;
+            case 'date_button':
+                response = `Today's date is: ${new Date().toLocaleDateString()}`;
+                break;
+            case 'joke_button':
+                const jokes = [
+                    "Why don't scientists trust atoms? Because they make up everything!",
+                    "Why did the scarecrow win an award? He was outstanding in his field!",
+                    "What do you call a fake noodle? An impasta!",
+                    "Why don't eggs tell jokes? They'd crack each other up!"
+                ];
+                response = jokes[Math.floor(Math.random() * jokes.length)];
+                break;
+            case 'help_button':
+                response = "I can help you with various tasks like telling time, date, jokes, and answering questions. I'm a local AI running directly on this server!";
+                break;
+            default:
+                response = "I'm not sure what you're asking. How can I help you?";
+        }
+        
+        // Update chat history
+        await updateChatHistory(chatHistory, m.sender, { role: "user", content: `Button: ${buttonId}` });
+        await updateChatHistory(chatHistory, m.sender, { role: "assistant", content: response });
+        
+        // Send response with buttons again
+        const buttons = [
+            { id: 'time_button', text: '⏰ Time' },
+            { id: 'date_button', text: '📅 Date' },
+            { id: 'joke_button', text: '😂 Joke' },
+            { id: 'help_button', text: '❓ Help' }
+        ];
+        
+        await sendInteractiveButtons(Matrix, m.from, response, buttons, m);
     }
 };
 
