@@ -13,12 +13,8 @@ const tempMailCommand = async (m, Matrix) => {
     if (interactiveResponseMessage) {
         const paramsJson = interactiveResponseMessage.nativeFlowResponseMessage?.paramsJson;
         if (paramsJson) {
-            try {
-                const params = JSON.parse(paramsJson);
-                selectedListId = params.id;
-            } catch (error) {
-                console.error("Error parsing paramsJson:", error);
-            }
+            const params = JSON.parse(paramsJson);
+            selectedListId = params.id;
         }
     }
 
@@ -30,10 +26,6 @@ const tempMailCommand = async (m, Matrix) => {
 
             // Generate temporary email
             const genResponse = await fetch('https://tempmail.apinepdev.workers.dev/api/gen');
-            if (!genResponse.ok) {
-                throw new Error(`HTTP error! status: ${genResponse.status}`);
-            }
-            
             const genData = await genResponse.json();
 
             if (!genData.email) {
@@ -46,18 +38,18 @@ const tempMailCommand = async (m, Matrix) => {
 
             const buttons = [
                 {
-                    "name": "cta_copy",
-                    "buttonParamsJson": JSON.stringify({
-                        "display_text": "Copy Email",
-                        "id": "copy_email",
-                        "copy_code": tempEmail
+                    name: "cta_copy",
+                    buttonParamsJson: JSON.stringify({
+                        display_text: "Copy Email",
+                        id: "copy_email",
+                        copy_code: tempEmail
                     })
                 },
                 {
-                    "name": "quick_reply",
-                    "buttonParamsJson": JSON.stringify({
-                        "display_text": "Check Inbox",
-                        "id": `check_inbox_${tempEmail}`
+                    name: "quick_reply",
+                    buttonParamsJson: JSON.stringify({
+                        display_text: "Check Inbox",
+                        id: `check_inbox_${tempEmail}`
                     })
                 }
             ];
@@ -69,29 +61,30 @@ const tempMailCommand = async (m, Matrix) => {
                             deviceListMetadata: {},
                             deviceListMetadataVersion: 2
                         },
-                        interactiveMessage: proto.Message.InteractiveMessage.create({
-                            body: proto.Message.InteractiveMessage.Body.create({
+                        interactiveMessage: {
+                            body: {
                                 text: `Generated Temporary Email: ${tempEmail}`
-                            }),
-                            footer: proto.Message.InteractiveMessage.Footer.create({
+                            },
+                            footer: {
                                 text: "© Powered By 𝞢𝙏𝞖𝞘𝞦-𝞛𝘿"
-                            }),
-                            header: proto.Message.InteractiveMessage.Header.create({
+                            },
+                            header: {
                                 title: "Temporary Email",
+                                gifPlayback: true,
                                 subtitle: "",
                                 hasMediaAttachment: false
-                            }),
-                            nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+                            },
+                            nativeFlowMessage: {
                                 buttons
-                            }),
+                            },
                             contextInfo: {
                                 mentionedJid: [m.sender],
                                 forwardingScore: 9999,
                                 isForwarded: true,
                             }
-                        }),
-                    },
-                },
+                        }
+                    }
+                }
             }, {});
 
             await Matrix.relayMessage(msg.key.remoteJid, msg.message, {
@@ -100,8 +93,8 @@ const tempMailCommand = async (m, Matrix) => {
             await m.React("✅");
 
         } catch (error) {
-            console.error("Error processing tempmail request:", error);
-            m.reply('Error processing your request: ' + error.message);
+            console.error("Error processing your request:", error);
+            m.reply('Error processing your request.');
             await m.React("❌");
         }
     } else if (selectedId && selectedId.startsWith('check_inbox_')) {
@@ -112,38 +105,29 @@ const tempMailCommand = async (m, Matrix) => {
             await m.React("🕘");
 
             // Check inbox for the provided email
-            const inboxResponse = await fetch(`https://tempmail.apinepdev.workers.dev/api/getmessage?email=${encodeURIComponent(email)}`);
-            if (!inboxResponse.ok) {
-                throw new Error(`HTTP error! status: ${inboxResponse.status}`);
-            }
-            
+            const inboxResponse = await fetch(`https://tempmail.apinepdev.workers.dev/api/getmessage?email=${email}`);
             const inboxData = await inboxResponse.json();
 
-            let inboxMessages = '';
+            let inboxMessages;
             let buttons = [];
 
             if (inboxData.messages && inboxData.messages.length > 0) {
                 inboxMessages = 'Inbox Messages:\n\n';
                 inboxData.messages.forEach((msg, index) => {
-                    try {
-                        const message = typeof msg.message === 'string' ? JSON.parse(msg.message) : msg.message;
-                        inboxMessages += `${index + 1}. From: ${msg.sender}\nSubject: ${msg.subject}\nDate: ${new Date(message.date || msg.date).toLocaleString()}\nMessage: ${message.body || message.textBody || 'No content'}\n\n`;
+                    const message = JSON.parse(msg.message);
+                    inboxMessages += `${index + 1}. From: ${msg.sender}\nSubject: ${msg.subject}\nDate: ${new Date(message.date).toLocaleString()}\nMessage: ${message.body}\n\n`;
 
-                        const emailBody = message.textBody || message.body || '';
-                        const otpMatch = emailBody.match(/\b\d{4,6}\b/);
-                        if (otpMatch) {
-                            buttons.push({
-                                "name": "cta_copy",
-                                "buttonParamsJson": JSON.stringify({
-                                    "display_text": "Copy OTP",
-                                    "id": "copy_otp",
-                                    "copy_code": otpMatch[0]
-                                })
-                            });
-                        }
-                    } catch (parseError) {
-                        console.error("Error parsing message:", parseError);
-                        inboxMessages += `${index + 1}. From: ${msg.sender}\nSubject: ${msg.subject}\nDate: Unknown\nMessage: [Unable to parse message content]\n\n`;
+                    const emailBody = message.textBody || '';
+                    const otpMatch = emailBody.match(/\b\d{4,6}\b/);
+                    if (otpMatch) {
+                        buttons.push({
+                            name: "cta_copy",
+                            buttonParamsJson: JSON.stringify({
+                                display_text: "Copy OTP",
+                                id: "copy_otp",
+                                copy_code: otpMatch[0]
+                            })
+                        });
                     }
                 });
             } else {
@@ -151,10 +135,10 @@ const tempMailCommand = async (m, Matrix) => {
             }
 
             buttons.push({
-                "name": "quick_reply",
-                "buttonParamsJson": JSON.stringify({
-                    "display_text": "Check Inbox Again",
-                    "id": `check_inbox_${email}`
+                name: "quick_reply",
+                buttonParamsJson: JSON.stringify({
+                    display_text: "Check Inbox Again",
+                    id: `check_inbox_${email}`
                 })
             });
 
@@ -165,29 +149,30 @@ const tempMailCommand = async (m, Matrix) => {
                             deviceListMetadata: {},
                             deviceListMetadataVersion: 2
                         },
-                        interactiveMessage: proto.Message.InteractiveMessage.create({
-                            body: proto.Message.InteractiveMessage.Body.create({
+                        interactiveMessage: {
+                            body: {
                                 text: inboxMessages
-                            }),
-                            footer: proto.Message.InteractiveMessage.Footer.create({
+                            },
+                            footer: {
                                 text: "© Powered By 🇸​​🇮​​🇱​​🇻​​🇦​ ​🇪​​🇹​​🇭​​🇮​​🇽​-𝞛𝘿"
-                            }),
-                            header: proto.Message.InteractiveMessage.Header.create({
-                                title: "Inbox Results",
-                                subtitle: `For: ${email}`,
+                            },
+                            header: {
+                                title: "",
+                                gifPlayback: true,
+                                subtitle: "",
                                 hasMediaAttachment: false
-                            }),
-                            nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+                            },
+                            nativeFlowMessage: {
                                 buttons
-                            }),
+                            },
                             contextInfo: {
                                 mentionedJid: [m.sender],
                                 forwardingScore: 9999,
                                 isForwarded: true,
                             }
-                        }),
-                    },
-                },
+                        }
+                    }
+                }
             }, {});
 
             await Matrix.relayMessage(updatedMsg.key.remoteJid, updatedMsg.message, {
@@ -196,8 +181,8 @@ const tempMailCommand = async (m, Matrix) => {
             await m.React("✅");
 
         } catch (error) {
-            console.error("Error checking inbox:", error);
-            m.reply('Error checking inbox: ' + error.message);
+            console.error("Error processing your request:", error);
+            m.reply('Error processing your request.');
             await m.React("❌");
         }
     }
