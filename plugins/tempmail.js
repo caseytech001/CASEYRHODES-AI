@@ -13,8 +13,12 @@ const tempMailCommand = async (m, Matrix) => {
     if (interactiveResponseMessage) {
         const paramsJson = interactiveResponseMessage.nativeFlowResponseMessage?.paramsJson;
         if (paramsJson) {
-            const params = JSON.parse(paramsJson);
-            selectedListId = params.id;
+            try {
+                const params = JSON.parse(paramsJson);
+                selectedListId = params.id;
+            } catch (e) {
+                console.error("Error parsing paramsJson:", e);
+            }
         }
     }
 
@@ -25,9 +29,13 @@ const tempMailCommand = async (m, Matrix) => {
             await m.React("🕘");
 
             // Generate temporary email
-            const genResponse = await fetch('https://apis.davidcyriltech.my.id/temp-mail');
+            const genResponse = await fetch('https://api.tempmail.lol/v2/gen');
+            if (!genResponse.ok) {
+                throw new Error(`API responded with status ${genResponse.status}`);
+            }
+            
             const genData = await genResponse.json();
-
+            
             if (!genData.email) {
                 m.reply('Failed to generate temporary email.');
                 await m.React("❌");
@@ -61,28 +69,26 @@ const tempMailCommand = async (m, Matrix) => {
                             deviceListMetadata: {},
                             deviceListMetadataVersion: 2
                         },
-                        interactiveMessage: {
-                            body: {
+                        interactiveMessage: proto.Message.InteractiveMessage.create({
+                            body: proto.Message.InteractiveMessage.Body.create({
                                 text: `Generated Temporary Email: ${tempEmail}`
-                            },
-                            footer: {
+                            }),
+                            footer: proto.Message.InteractiveMessage.Footer.create({
                                 text: "© Powered By 𝞢𝙏𝞖𝞘𝞦-𝞛𝘿"
-                            },
-                            header: {
+                            }),
+                            header: proto.Message.InteractiveMessage.Header.create({
                                 title: "Temporary Email",
-                                gifPlayback: true,
-                                subtitle: "",
                                 hasMediaAttachment: false
-                            },
-                            nativeFlowMessage: {
-                                buttons
-                            },
-                            contextInfo: {
-                                mentionedJid: [m.sender],
-                                forwardingScore: 9999,
-                                isForwarded: true,
-                            }
-                        }
+                            }),
+                            nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+                                buttons: buttons.map(button => 
+                                    proto.Message.InteractiveMessage.NativeFlowMessage.NativeFlowButton.create({
+                                        name: button.name,
+                                        buttonParamsJson: button.buttonParamsJson
+                                    })
+                                )
+                            })
+                        })
                     }
                 }
             }, {});
@@ -105,19 +111,23 @@ const tempMailCommand = async (m, Matrix) => {
             await m.React("🕘");
 
             // Check inbox for the provided email
-            const inboxResponse = await fetch(`https://tempmail.apinepdev.workers.dev/api/getmessage?email=${email}`);
+            const inboxResponse = await fetch(`https://api.tempmail.lol/v2/email/${email}`);
+            if (!inboxResponse.ok) {
+                throw new Error(`Inbox API responded with status ${inboxResponse.status}`);
+            }
+            
             const inboxData = await inboxResponse.json();
-
-            let inboxMessages;
+            
+            let inboxMessages = '';
             let buttons = [];
 
-            if (inboxData.messages && inboxData.messages.length > 0) {
+            if (inboxData.emails && inboxData.emails.length > 0) {
                 inboxMessages = 'Inbox Messages:\n\n';
-                inboxData.messages.forEach((msg, index) => {
-                    const message = JSON.parse(msg.message);
-                    inboxMessages += `${index + 1}. From: ${msg.sender}\nSubject: ${msg.subject}\nDate: ${new Date(message.date).toLocaleString()}\nMessage: ${message.body}\n\n`;
+                inboxData.emails.forEach((msg, index) => {
+                    inboxMessages += `${index + 1}. From: ${msg.from}\nSubject: ${msg.subject}\nDate: ${new Date(msg.date).toLocaleString()}\n\n`;
 
-                    const emailBody = message.textBody || '';
+                    // Look for OTP in email content
+                    const emailBody = msg.text || msg.html || '';
                     const otpMatch = emailBody.match(/\b\d{4,6}\b/);
                     if (otpMatch) {
                         buttons.push({
@@ -149,28 +159,26 @@ const tempMailCommand = async (m, Matrix) => {
                             deviceListMetadata: {},
                             deviceListMetadataVersion: 2
                         },
-                        interactiveMessage: {
-                            body: {
+                        interactiveMessage: proto.Message.InteractiveMessage.create({
+                            body: proto.Message.InteractiveMessage.Body.create({
                                 text: inboxMessages
-                            },
-                            footer: {
+                            }),
+                            footer: proto.Message.InteractiveMessage.Footer.create({
                                 text: "© Powered By 🇸​​🇮​​🇱​​🇻​​🇦​ ​🇪​​🇹​​🇭​​🇮​​🇽​-𝞛𝘿"
-                            },
-                            header: {
-                                title: "",
-                                gifPlayback: true,
-                                subtitle: "",
+                            }),
+                            header: proto.Message.InteractiveMessage.Header.create({
+                                title: "Inbox Results",
                                 hasMediaAttachment: false
-                            },
-                            nativeFlowMessage: {
-                                buttons
-                            },
-                            contextInfo: {
-                                mentionedJid: [m.sender],
-                                forwardingScore: 9999,
-                                isForwarded: true,
-                            }
-                        }
+                            }),
+                            nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+                                buttons: buttons.map(button => 
+                                    proto.Message.InteractiveMessage.NativeFlowMessage.NativeFlowButton.create({
+                                        name: button.name,
+                                        buttonParamsJson: button.buttonParamsJson
+                                    })
+                                )
+                            })
+                        })
                     }
                 }
             }, {});
