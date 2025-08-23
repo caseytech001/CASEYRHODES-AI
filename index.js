@@ -105,21 +105,18 @@ async function start() {
                     
                     // Send welcome message after successful connection with buttons
                     const startMess = {
-                        image: { url: "https://files.catbox.moe/eh0h1x.jpg" }, 
+                        image: { url: "https://files.catbox.moe/y3j3kl.jpg" }, 
                         caption: `*Hello there JINX-XMD User! 👋🏻* 
 
 > Simple, Straightforward, But Loaded With Features 🎊. Meet JINX-XMD WhatsApp Bot.
-
 *Thanks for using JINX-XMD 🚩* 
-
-> Join WhatsApp Channel: ⤵️  
-https://whatsapp.com/channel/0029VakUEfb4o7qVdkwPk83E
+Join WhatsApp Channel: ⤵️  
+> https://whatsapp.com/channel/0029VakUEfb4o7qVdkwPk83E
 
 - *YOUR PREFIX:* = ${prefix}
 
 Don't forget to give a star to the repo ⬇️  
-https://github.com/caseyweb/JINX-MD
-
+> https://github.com/caseyweb/CASEYRHODES-XMD
 > © Powered BY CASEYRHODES TECH 🍀 🖤`,
                         buttons: [
                             {
@@ -171,7 +168,7 @@ https://github.com/caseyweb/JINX-MD
                     return;
                 } else if (selected === 'source') {
                     await Matrix.sendMessage(m.key.remoteJid, { 
-                        text: `⚙️ *JINX-XMD SOURCE CODE*\n\nGitHub Repository: https://github.com/caseyweb/JINX-MD\n\nGive it a star ⭐ if you like it!` 
+                        text: `⚙️ *JINX-XMD SOURCE CODE*\n\nGitHub Repository: https://github.com/caseyweb/CASEYRHODES-XMD\n\nGive it a star ⭐ if you like it!` 
                     });
                     return;
                 }
