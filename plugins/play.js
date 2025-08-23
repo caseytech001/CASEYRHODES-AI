@@ -81,11 +81,6 @@ const play = async (message, client) => {
       
       const query = args.join(" ");
       
-      await client.sendMessage(message.from, {
-        text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("searching for") + " \"" + query + "\"",
-        viewOnce: true
-      }, { quoted: message });
-      
       const searchResults = await ytSearch(query);
       
       if (!searchResults.videos || searchResults.videos.length === 0) {
@@ -139,16 +134,16 @@ const play = async (message, client) => {
 📥 *Format:* MP3
         `.trim();
         
-        // Create buttons matching the image design
+        // Create buttons with Menu and Join Channel options
         const buttons = [
           {
-            buttonId: prefix + 'audio ' + query,
-            buttonText: { displayText: "🎵 Audio (Play)" },
+            buttonId: prefix + 'menu',
+            buttonText: { displayText: "📋 Menu" },
             type: 1
           },
           {
-            buttonId: prefix + 'document ' + query,
-            buttonText: { displayText: "📄 Document (Save)" },
+            buttonId: prefix + 'join channel',
+            buttonText: { displayText: "📢 Join Channel" },
             type: 1
           }
         ];
