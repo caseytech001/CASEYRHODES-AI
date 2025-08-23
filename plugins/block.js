@@ -2,9 +2,12 @@ import config from '../config.cjs';
 
 const block = async (m, gss) => {
   try {
-    // Get the bot's JID correctly
-    const botNumber = gss.user.id;
-    const isCreator = [botNumber, config.OWNER_NUMBER + '@s.whatsapp.net', ...(config.SUDO_NUMBERS || []).map(num => num + '@s.whatsapp.net')].includes(m.sender);
+    // Get the owner's JID in proper format
+    const ownerJid = config.OWNER_NUMBER.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+    
+    // Check if the sender is the owner
+    const isOwner = m.sender === ownerJid;
+    
     const prefix = config.PREFIX;
     const body = m.body || '';
     const cmd = body.startsWith(prefix) ? body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
@@ -14,11 +17,31 @@ const block = async (m, gss) => {
     
     if (!validCommands.includes(cmd)) return;
     
-    if (!isCreator) return m.reply("*📛 THIS IS AN OWNER/SUDO COMMAND*");
+    if (!isOwner) {
+      // Send a button message for non-owners
+      const buttonMessage = {
+        text: "*📛 THIS IS AN OWNER ONLY COMMAND*",
+        footer: "You don't have permission to use this command",
+        buttons: [
+          { buttonId: `${prefix}support`, buttonText: { displayText: "REQUEST SUPPORT" }, type: 1 }
+        ],
+        headerType: 1
+      };
+      return gss.sendMessage(m.from, buttonMessage, { quoted: m });
+    }
 
     // Check if any user is mentioned or quoted
     if (!m.mentionedJid?.length && !m.quoted && !text) {
-      return m.reply(`Please mention a user, quote a message, or provide a number.\nUsage: ${prefix}block @user`);
+      const buttonMessage = {
+        text: `Please mention a user, quote a message, or provide a number.\nUsage: ${prefix}block @user`,
+        footer: "Select an option below",
+        buttons: [
+          { buttonId: `${prefix}help block`, buttonText: { displayText: "HE GUIDE" }, type: 1 },
+          { buttonId: `${prefix}listblock`, buttonText: { displayText: "BLOCKED LIST" }, type: 1 }
+        ],
+        headerType: 1
+      };
+      return gss.sendMessage(m.from, buttonMessage, { quoted: m });
     }
 
     let users = m.mentionedJid?.[0] || (m.quoted ? m.quoted.sender : null);
@@ -33,20 +56,61 @@ const block = async (m, gss) => {
     }
 
     if (!users) {
-      return m.reply('Could not identify a valid user to block.');
+      const buttonMessage = {
+        text: 'Could not identify a valid user to block.',
+        footer: "Please try again",
+        buttons: [
+          { buttonId: `${prefix}help block`, buttonText: { displayText: "HELP" }, type: 1 }
+        ],
+        headerType: 1
+      };
+      return gss.sendMessage(m.from, buttonMessage, { quoted: m });
+    }
+
+    // Ensure the user JID is in the correct format
+    if (!users.endsWith('@s.whatsapp.net')) {
+      users = users.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
     }
 
     const action = cmd === 'block' ? 'block' : 'unblock';
     const actionText = cmd === 'block' ? 'Blocked' : 'Unblocked';
+    const userName = users.split('@')[0];
+    const displayName = m.quoted?.pushName || userName;
 
-    // Update to use the correct Baileys method
-    await gss.updateBlockStatus(users, action)
-      .then((res) => m.reply(`✅ ${actionText} ${users.split('@')[0]} successfully.`))
-      .catch((err) => m.reply(`❌ Failed to ${action} user: ${err.message || err}`));
+    // Create confirmation buttons before taking action
+    const confirmButtons = {
+      text: `Are you sure you want to ${action} *${displayName}*?`,
+      footer: "This action cannot be undone",
+      buttons: [
+        { buttonId: `${prefix}confirm-${action}-${userName}`, buttonText: { displayText: `YES, ${action.toUpperCase()}` }, type: 1 },
+        { buttonId: `${prefix}cancel`, buttonText: { displayText: "CANCEL" }, type: 1 }
+      ],
+      headerType: 1
+    };
+
+    // Store the pending action in a temporary variable (in a real implementation, you might use a database)
+    gss.pendingActions = gss.pendingActions || {};
+    gss.pendingActions[m.sender] = {
+      action,
+      userJid: users,
+      timestamp: Date.now()
+    };
+
+    await gss.sendMessage(m.from, confirmButtons, { quoted: m });
       
   } catch (error) {
     console.error('Error in block command:', error);
-    m.reply('❌ An error occurred while processing the command.');
+    
+    const errorButtons = {
+      text: '❌ An error occurred while processing the command.',
+      footer: "Please try again later",
+      buttons: [
+        { buttonId: `${prefix}support`, buttonText: { displayText: "REPORT ERROR" }, type: 1 }
+      ],
+      headerType: 1
+    };
+    
+    gss.sendMessage(m.from, errorButtons, { quoted: m });
   }
 };
 
