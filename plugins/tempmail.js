@@ -25,7 +25,7 @@ const tempMailCommand = async (m, Matrix) => {
             await m.React("🕘");
 
             // Generate temporary email
-            const genResponse = await fetch('https://tempmail.apinepdev.workers.dev/api/gen');
+            const genResponse = await fetch('https://apis.davidcyriltech.my.id/temp-mail');
             const genData = await genResponse.json();
 
             if (!genData.email) {
