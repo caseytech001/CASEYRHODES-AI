@@ -7,26 +7,87 @@ let scheduledTasks = {};
 const groupSetting = async (m, gss) => {
   try {
     const prefix = config.PREFIX;
-    const body = m.body || m.message?.conversation || '';
-    const cmd = body.startsWith(prefix) ? body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-    const text = body.slice(prefix.length + cmd.length).trim();
+    const cmd = m.message?.conversation?.startsWith(prefix) 
+      ? m.message.conversation.slice(prefix.length).split(' ')[0].toLowerCase() 
+      : '';
+    const text = m.message?.conversation?.slice(prefix.length + cmd.length).trim() || '';
 
     const validCommands = ['group'];
     if (!validCommands.includes(cmd)) return;
 
-    if (!m.isGroup) return m.reply("*📛 THIS COMMAND CAN ONLY BE USED IN GROUPS*");
+    if (!m.isGroup) {
+      const buttons = [
+        {buttonId: `${prefix}group`, buttonText: {displayText: 'GROUP COMMANDS'}, type: 1}
+      ];
+      const buttonMessage = {
+        text: "*📛 THIS COMMAND CAN ONLY BE USED IN GROUPS*",
+        footer: "Use in a group to manage settings",
+        buttons: buttons,
+        headerType: 1
+      };
+      return await gss.sendMessage(m.chat, buttonMessage);
+    }
     
-    const groupMetadata = await gss.groupMetadata(m.from);
+    const groupMetadata = await gss.groupMetadata(m.chat);
     const participants = groupMetadata.participants;
-    const botNumber = await gss.decodeJid(gss.user.id);
+    const botNumber = gss.user.id;
     const botAdmin = participants.find(p => p.id === botNumber)?.admin;
     const senderAdmin = participants.find(p => p.id === m.sender)?.admin;
 
-    if (!botAdmin) return m.reply("*📛 BOT MUST BE AN ADMIN TO USE THIS COMMAND*");
-    if (!senderAdmin) return m.reply("*📛 YOU MUST BE AN ADMIN TO USE THIS COMMAND*");
+    if (!botAdmin) {
+      const buttons = [
+        {buttonId: '!promote', buttonText: {displayText: 'MAKE BOT ADMIN'}, type: 1}
+      ];
+      const buttonMessage = {
+        text: "*📛 BOT MUST BE AN ADMIN TO USE THIS COMMAND*",
+        footer: "Please promote the bot to admin first",
+        buttons: buttons,
+        headerType: 1
+      };
+      return await gss.sendMessage(m.chat, buttonMessage);
+    }
+    
+    if (!senderAdmin) {
+      const buttons = [
+        {buttonId: '!admin', buttonText: {displayText: 'REQUEST ADMIN'}, type: 1}
+      ];
+      const buttonMessage = {
+        text: "*📛 YOU MUST BE AN ADMIN TO USE THIS COMMAND*",
+        footer: "Only group admins can change settings",
+        buttons: buttons,
+        headerType: 1
+      };
+      return await gss.sendMessage(m.chat, buttonMessage);
+    }
 
-    const args = body.slice(prefix.length + cmd.length).trim().split(/\s+/);
-    if (args.length < 1) return m.reply(`Please specify a setting (open/close) and optionally a time.\n\nExample:\n*${prefix + cmd} open* or *${prefix + cmd} open 04:00 PM*`);
+    const args = text.split(/\s+/);
+    
+    // Show main menu if no arguments
+    if (args.length < 1 || args[0] === 'menu') {
+      const buttons = [
+        {buttonId: `${prefix}group open`, buttonText: {displayText: 'OPEN GROUP'}, type: 1},
+        {buttonId: `${prefix}group close`, buttonText: {displayText: 'CLOSE GROUP'}, type: 1},
+        {buttonId: `${prefix}group schedule`, buttonText: {displayText: 'SCHEDULE'}, type: 1}
+      ];
+      const buttonMessage = {
+        text: "┌──「 *GROUP SETTINGS* 」\n" +
+              "│\n" +
+              "├─ 📛 *Group Name:* " + groupMetadata.subject + "\n" +
+              "├─ 🔒 *Current Setting:* " + (groupMetadata.announce ? "CLOSED" : "OPEN") + "\n" +
+              "│\n" +
+              "├─ 💡 *Commands:*\n" +
+              "├─ • " + prefix + "group open\n" +
+              "├─ • " + prefix + "group close\n" +
+              "├─ • " + prefix + "group open 04:00 PM\n" +
+              "├─ • " + prefix + "group close 11:00 PM\n" +
+              "│\n" +
+              "└──「 *BAILEYS BOT* 」",
+        footer: "Select an option or type a command",
+        buttons: buttons,
+        headerType: 1
+      };
+      return await gss.sendMessage(m.chat, buttonMessage);
+    }
 
     const groupSetting = args[0].toLowerCase();
     const time = args.slice(1).join(' ');
@@ -34,62 +95,156 @@ const groupSetting = async (m, gss) => {
     // Handle immediate setting if no time is provided
     if (!time) {
       if (groupSetting === 'close') {
-        await gss.groupSettingUpdate(m.from, 'announcement');
-        return m.reply("Group successfully closed.");
+        await gss.groupSettingUpdate(m.chat, 'announcement');
+        
+        const buttons = [
+          {buttonId: `${prefix}group open`, buttonText: {displayText: 'OPEN GROUP'}, type: 1},
+          {buttonId: `${prefix}group menu`, buttonText: {displayText: 'MENU'}, type: 1}
+        ];
+        const buttonMessage = {
+          text: "✅ *Group successfully closed.*\n\nOnly admins can send messages now.",
+          footer: config.BOT_NAME,
+          buttons: buttons,
+          headerType: 1
+        };
+        return await gss.sendMessage(m.chat, buttonMessage);
       } else if (groupSetting === 'open') {
-        await gss.groupSettingUpdate(m.from, 'not_announcement');
-        return m.reply("Group successfully opened.");
+        await gss.groupSettingUpdate(m.chat, 'not_announcement');
+        
+        const buttons = [
+          {buttonId: `${prefix}group close`, buttonText: {displayText: 'CLOSE GROUP'}, type: 1},
+          {buttonId: `${prefix}group menu`, buttonText: {displayText: 'MENU'}, type: 1}
+        ];
+        const buttonMessage = {
+          text: "✅ *Group successfully opened.*\n\nAll participants can send messages now.",
+          footer: config.BOT_NAME,
+          buttons: buttons,
+          headerType: 1
+        };
+        return await gss.sendMessage(m.chat, buttonMessage);
+      } else if (groupSetting === 'schedule') {
+        const buttons = [
+          {buttonId: `${prefix}group open 06:00 AM`, buttonText: {displayText: 'OPEN AT 6AM'}, type: 1},
+          {buttonId: `${prefix}group close 11:00 PM`, buttonText: {displayText: 'CLOSE AT 11PM'}, type: 1},
+          {buttonId: `${prefix}group menu`, buttonText: {displayText: 'BACK TO MENU'}, type: 1}
+        ];
+        const buttonMessage = {
+          text: "⏰ *Group Schedule Settings*\n\n" +
+                "Select a preset or type your own schedule:\n\n" +
+                "• `" + prefix + "group open 06:00 AM`\n" +
+                "• `" + prefix + "group close 11:00 PM`\n" +
+                "• `" + prefix + "group open 04:00 PM`\n" +
+                "• `" + prefix + "group close 10:00 PM`",
+          footer: "All times are in IST",
+          buttons: buttons,
+          headerType: 1
+        };
+        return await gss.sendMessage(m.chat, buttonMessage);
       } else {
-        return m.reply(`Invalid setting. Use "open" to open the group and "close" to close the group.\n\nExample:\n*${prefix + cmd} open* or *${prefix + cmd} close*`);
+        const buttons = [
+          {buttonId: `${prefix}group open`, buttonText: {displayText: 'OPEN'}, type: 1},
+          {buttonId: `${prefix}group close`, buttonText: {displayText: 'CLOSE'}, type: 1}
+        ];
+        const buttonMessage = {
+          text: `❌ Invalid setting. Use "open" to open the group and "close" to close the group.\n\nExample:\n*${prefix + cmd} open* or *${prefix + cmd} close*`,
+          footer: "Try again with a valid option",
+          buttons: buttons,
+          headerType: 1
+        };
+        return await gss.sendMessage(m.chat, buttonMessage);
       }
     }
 
     // Check if the provided time is valid
     if (!/^\d{1,2}:\d{2}\s*(?:AM|PM)$/i.test(time)) {
-      return m.reply(`Invalid time format. Use HH:mm AM/PM format.\n\nExample:\n*${prefix + cmd} open 04:00 PM*`);
+      const buttons = [
+        {buttonId: `${prefix}group open 04:00 PM`, buttonText: {displayText: 'EXAMPLE TIME'}, type: 1},
+        {buttonId: `${prefix}group menu`, buttonText: {displayText: 'BACK TO MENU'}, type: 1}
+      ];
+      const buttonMessage = {
+        text: `❌ Invalid time format. Use HH:mm AM/PM format.\n\nExample:\n*${prefix + cmd} open 04:00 PM*`,
+        footer: "All times are in IST",
+        buttons: buttons,
+        headerType: 1
+      };
+      return await gss.sendMessage(m.chat, buttonMessage);
     }
 
     // Convert time to 24-hour format
-    const timeMoment = moment(time, ['h:mm A', 'hh:mm A']);
-    if (!timeMoment.isValid()) {
-      return m.reply(`Invalid time format. Use HH:mm AM/PM format.\n\nExample:\n*${prefix + cmd} open 04:00 PM*`);
-    }
-    
-    const [hour, minute] = timeMoment.format('HH:mm').split(':').map(Number);
+    const [hour, minute] = moment(time, ['h:mm A', 'hh:mm A']).format('HH:mm').split(':').map(Number);
     const cronTime = `${minute} ${hour} * * *`;
 
     console.log(`Scheduling ${groupSetting} at ${cronTime} IST`);
 
     // Clear any existing scheduled task for this group
-    if (scheduledTasks[m.from]) {
-      scheduledTasks[m.from].stop();
-      delete scheduledTasks[m.from];
+    if (scheduledTasks[m.chat]) {
+      scheduledTasks[m.chat].stop();
+      delete scheduledTasks[m.chat];
     }
 
-    scheduledTasks[m.from] = cron.schedule(cronTime, async () => {
+    scheduledTasks[m.chat] = cron.schedule(cronTime, async () => {
       try {
-        console.log(`Executing scheduled task for ${groupSetting} at ${moment().tz("Asia/Kolkata").format('HH:mm')} IST`);
+        console.log(`Executing scheduled task for ${groupSetting} at ${moment().format('HH:mm')} IST`);
         if (groupSetting === 'close') {
-          await gss.groupSettingUpdate(m.from, 'announcement');
-          await gss.sendMessage(m.from, { text: "Group successfully closed." });
+          await gss.groupSettingUpdate(m.chat, 'announcement');
+          
+          const buttons = [
+            {buttonId: `${prefix}group open`, buttonText: {displayText: 'OPEN GROUP'}, type: 1}
+          ];
+          const buttonMessage = {
+            text: "⏰ *Scheduled Action Completed:*\nGroup successfully closed.\n\nOnly admins can send messages now.",
+            footer: config.BOT_NAME,
+            buttons: buttons,
+            headerType: 1
+          };
+          await gss.sendMessage(m.chat, buttonMessage);
         } else if (groupSetting === 'open') {
-          await gss.groupSettingUpdate(m.from, 'not_announcement');
-          await gss.sendMessage(m.from, { text: "Group successfully opened." });
+          await gss.groupSettingUpdate(m.chat, 'not_announcement');
+          
+          const buttons = [
+            {buttonId: `${prefix}group close`, buttonText: {displayText: 'CLOSE GROUP'}, type: 1}
+          ];
+          const buttonMessage = {
+            text: "⏰ *Scheduled Action Completed:*\nGroup successfully opened.\n\nAll participants can send messages now.",
+            footer: config.BOT_NAME,
+            buttons: buttons,
+            headerType: 1
+          };
+          await gss.sendMessage(m.chat, buttonMessage);
         }
       } catch (err) {
         console.error('Error during scheduled task execution:', err);
-        await gss.sendMessage(m.from, { text: 'An error occurred while updating the group setting.' });
+        await gss.sendMessage(m.chat, { text: '❌ An error occurred while updating the group setting.' });
       }
     }, {
-      timezone: "Asia/Kolkata",
-      scheduled: true
+      timezone: "Asia/Kolkata"
     });
 
-    scheduledTasks[m.from].start();
-    m.reply(`Group will be set to "${groupSetting}" at ${time} IST.`);
+    const action = groupSetting === 'close' ? 'closed' : 'opened';
+    const buttons = [
+      {buttonId: `${prefix}group ${groupSetting === 'close' ? 'open' : 'close'}`, buttonText: {displayText: groupSetting === 'close' ? 'OPEN NOW' : 'CLOSE NOW'}, type: 1},
+      {buttonId: `${prefix}group menu`, buttonText: {displayText: 'SETTINGS MENU'}, type: 1}
+    ];
+    const buttonMessage = {
+      text: `✅ *Schedule Set Successfully!*\n\nGroup will be ${action} at ${time} IST.`,
+      footer: "You can cancel by scheduling a different time",
+      buttons: buttons,
+      headerType: 1
+    };
+    await gss.sendMessage(m.chat, buttonMessage);
   } catch (error) {
     console.error('Error:', error);
-    m.reply('An error occurred while processing the command.');
+    
+    const buttons = [
+      {buttonId: `${prefix}group menu`, buttonText: {displayText: 'BACK TO MENU'}, type: 1}
+    ];
+    const buttonMessage = {
+      text: '❌ An error occurred while processing the command.',
+      footer: "Please try again later",
+      buttons: buttons,
+      headerType: 1
+    };
+    await gss.sendMessage(m.chat, buttonMessage);
   }
 };
 
