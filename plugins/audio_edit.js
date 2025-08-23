@@ -11,22 +11,6 @@ const audioEffects = async (m, gss) => {
     const text = body.slice(prefix.length + cmd.length).trim();
 
     const validCommands = ['bass', 'blown', 'deep', 'earrape', 'fast', 'fat', 'nightcore', 'reverse', 'robot', 'slow', 'smooth', 'tupai'];
-    
-    // Show help menu with buttons if no command or help command
-    if (cmd === 'edit' || cmd === 'audioeffects' || cmd === '') {
-      const buttonMessage = {
-        text: `🎵 *AUDIO EFFECTS MENU* 🎵\n\n*Available Effects:*\n• bass - Enhance bass\n• blown - Distorted effect\n• deep - Deep voice\n• earrape - Loud volume\n• fast - Speed up audio\n• fat - Bass boost\n• nightcore - Nightcore effect\n• reverse - Reverse audio\n• robot - Robot voice\n• slow - Slow down audio\n• smooth - Smooth effect\n• tupai - Chipmunk voice\n\n*Usage:* Reply to an audio with *${prefix}[effect]*`,
-        footer: config.BOT_NAME,
-        buttons: [
-          { buttonId: `${prefix}bass`, buttonText: { displayText: '🎸 BASS' }, type: 1 },
-          { buttonId: `${prefix}deep`, buttonText: { displayText: '🔊 DEEP' }, type: 1 },
-          { buttonId: `${prefix}nightcore`, buttonText: { displayText: '🎶 NIGHTCORE' }, type: 1 }
-        ],
-        headerType: 1
-      };
-      return gss.sendMessage(m.key.remoteJid, buttonMessage, { quoted: m });
-    }
-
     if (!validCommands.includes(cmd)) return;
 
     let set;
@@ -58,25 +42,12 @@ const audioEffects = async (m, gss) => {
 
     // Check if message is quoted and contains audio
     if (!m.message?.extendedTextMessage?.contextInfo?.quotedMessage?.audioMessage) {
-      const noAudioMessage = {
-        text: `❌ *Please reply to an audio message!*\n\nReply to an audio with *${prefix + cmd}* to apply the effect.`,
-        footer: config.BOT_NAME,
-        buttons: [
-          { buttonId: `${prefix}audio`, buttonText: { displayText: '📋 EFFECTS MENU' }, type: 1 },
-          { buttonId: `${prefix}help`, buttonText: { displayText: '❓ HELP' }, type: 1 }
-        ],
-        headerType: 1
-      };
-      return gss.sendMessage(m.key.remoteJid, noAudioMessage, { quoted: m });
+      return m.reply(`Reply to the audio you want to change with a caption *${prefix + cmd}*`);
     }
 
-    const processingMessage = {
-      text: `⏳ *Processing ${cmd.toUpperCase()} effect...*\nPlease wait while we apply the audio effect.`,
-      footer: config.BOT_NAME
-    };
-    await gss.sendMessage(m.key.remoteJid, processingMessage, { quoted: m });
-
     const quoted = m.message.extendedTextMessage.contextInfo;
+    
+    m.reply('Please wait...');
     
     // Download the quoted audio message
     const buffer = await gss.downloadAndSaveMediaMessage(quoted.quotedMessage.audioMessage);
@@ -84,40 +55,17 @@ const audioEffects = async (m, gss) => {
     fs.renameSync(buffer, mediaPath);
     const outputPath = `./${getRandom('.mp3')}`;
 
-    exec(`ffmpeg -i ${mediaPath} ${set} ${outputPath}`, async (err, stderr, stdout) => {
+    exec(`ffmpeg -i ${mediaPath} ${set} ${outputPath}`, (err, stderr, stdout) => {
       fs.unlinkSync(mediaPath);
       if (err) {
         console.error('Error:', err);
-        const errorMessage = {
-          text: `❌ *Error Processing Audio*\nAn error occurred while applying the ${cmd} effect.`,
-          footer: config.BOT_NAME,
-          buttons: [
-            { buttonId: `${prefix}audio`, buttonText: { displayText: '📋 TRY AGAIN' }, type: 1 }
-          ],
-          headerType: 1
-        };
-        return gss.sendMessage(m.key.remoteJid, errorMessage, { quoted: m });
+        return m.reply('An error occurred while processing the audio.');
       }
       
       const buff = fs.readFileSync(outputPath);
       
-      // Send success message with buttons
-      const successMessage = {
-        text: `✅ *${cmd.toUpperCase()} Effect Applied Successfully!*\n\nAudio has been processed with ${cmd} effect.`,
-        footer: config.BOT_NAME,
-        buttons: [
-          { buttonId: `${prefix}audio`, buttonText: { displayText: '🎵 MORE EFFECTS' }, type: 1 },
-          { buttonId: `${prefix}bass`, buttonText: { displayText: '🎸 BASS' }, type: 1 },
-          { buttonId: `${prefix}nightcore`, buttonText: { displayText: '🎶 NIGHTCORE' }, type: 1 }
-        ],
-        headerType: 1
-      };
-      
-      // Send the success message
-      await gss.sendMessage(m.key.remoteJid, successMessage, { quoted: m });
-      
       // Send the processed audio
-      await gss.sendMessage(m.key.remoteJid, { 
+      gss.sendMessage(m.key.remoteJid, { 
         audio: buff, 
         mimetype: 'audio/mpeg',
         ptt: false
@@ -127,16 +75,7 @@ const audioEffects = async (m, gss) => {
     });
   } catch (e) {
     console.error('Error:', e);
-    const errorMessage = {
-      text: `❌ *Unexpected Error*\nAn error occurred while processing the command.`,
-      footer: config.BOT_NAME,
-      buttons: [
-        { buttonId: `${prefix}audio`, buttonText: { displayText: '📋 MENU' }, type: 1 },
-        { buttonId: `${prefix}help`, buttonText: { displayText: '❓ HELP' }, type: 1 }
-      ],
-      headerType: 1
-    };
-    gss.sendMessage(m.key.remoteJid, errorMessage, { quoted: m });
+    m.reply('An error occurred while processing the command.');
   }
 };
 
