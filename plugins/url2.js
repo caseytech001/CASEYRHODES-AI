@@ -44,7 +44,7 @@ const tourl = async (m, bot) => {
   const prefixMatch = m.body.match(/^[\\/!#.]/);
   const prefix = prefixMatch ? prefixMatch[0] : '/';
   const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-  const validCommands = ['tourl', 'geturl', 'upload', 'url'];
+  const validCommands = ['tourl2', 'geturl', 'upload', 'url2'];
 
   if (validCommands.includes(cmd)) {
     if (!m.quoted || !['imageMessage', 'videoMessage', 'audioMessage'].includes(m.quoted.mtype)) {
