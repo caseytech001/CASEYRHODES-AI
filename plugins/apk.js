@@ -115,8 +115,9 @@ const apkDownloader = async (m, Matrix) => {
 
     // Create message with document and buttons
     const message = {
-      document: docMedia.documentMessage,
+      document: docMedia.document,
       fileName: `${app.name}.apk`,
+      mimetype: "application/vnd.android.package-archive",
       caption: caption,
       footer: "APK Downloader",
       buttons: [
