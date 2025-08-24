@@ -21,6 +21,20 @@ const handleGreeting = async (m, gss) => {
           let mediaUrl;
           let caption = '';
 
+          // Define buttons
+          const buttons = [
+            {
+              buttonId: 'more',
+              buttonText: { displayText: '📥 More Media' },
+              type: 1
+            },
+            {
+              buttonId: 'close',
+              buttonText: { displayText: '❌ Close' },
+              type: 1
+            }
+          ];
+
           // Check if it's an image
           if (quotedMessage.imageMessage) {
             caption = quotedMessage.imageMessage.caption || '';
@@ -29,6 +43,9 @@ const handleGreeting = async (m, gss) => {
             await gss.sendMessage(m.from, {
               image: { url: mediaUrl },
               caption: caption,
+              footer: 'Media Shared with You',
+              buttons: buttons,
+              headerType: 1,
               contextInfo: {
                 mentionedJid: [m.sender],
                 forwardingScore: 9999,
@@ -44,6 +61,28 @@ const handleGreeting = async (m, gss) => {
             await gss.sendMessage(m.from, {
               video: { url: mediaUrl },
               caption: caption,
+              footer: 'Media Shared with You',
+              buttons: buttons,
+              headerType: 1,
+              contextInfo: {
+                mentionedJid: [m.sender],
+                forwardingScore: 9999,
+                isForwarded: true,
+              },
+            });
+          }
+          // Check if it's a document
+          else if (quotedMessage.documentMessage) {
+            caption = quotedMessage.documentMessage.caption || '';
+            mediaUrl = await gss.downloadAndSaveMediaMessage(quotedMessage.documentMessage);
+            
+            await gss.sendMessage(m.from, {
+              document: { url: mediaUrl },
+              fileName: quotedMessage.documentMessage.fileName || 'document',
+              caption: caption,
+              footer: 'Document Shared with You',
+              buttons: buttons,
+              headerType: 1,
               contextInfo: {
                 mentionedJid: [m.sender],
                 forwardingScore: 9999,
