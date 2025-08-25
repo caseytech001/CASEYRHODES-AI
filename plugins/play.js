@@ -106,7 +106,7 @@ const play = async (message, client) => {
         const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         
         const songInfo = `
- ━❍ *SONG*❍━
+ ━❍ *CASEYRHODES-AI*❍━
 🎵 *Title:* ${video.title}
 👤 *Artist:* ${video.author.name}
 ⏱️ *Duration:* ${formattedDuration}
