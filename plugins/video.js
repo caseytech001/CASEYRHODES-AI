@@ -98,7 +98,6 @@ const video = async (message, client) => {
         await sendCustomReaction(client, message, "❌");
         return await client.sendMessage(message.from, {
           text: toFancyFont("Please provide a video name or keywords to search"),
-          viewOnce: true,
           mentions: [message.sender]
         }, { quoted: message });
       }
@@ -112,7 +111,6 @@ const video = async (message, client) => {
         await sendCustomReaction(client, message, "❌");
         return await client.sendMessage(message.from, {
           text: toFancyFont('No videos found for') + " \"" + query + "\"",
-          viewOnce: true,
           mentions: [message.sender]
         }, { quoted: message });
       }
@@ -127,7 +125,7 @@ const video = async (message, client) => {
       let apiResponse;
       
       try {
-        const apiUrl = "https://apis.davidcyriltech.my.id/video?query=" + encodeURIComponent(query);
+        const apiUrl = "https://apis.davidcyriltech.my.id/download/ytmp4?url=" + encodeURIComponent(video.url);
         apiResponse = await fetch(apiUrl);
         
         if (!apiResponse.ok) {
@@ -195,8 +193,6 @@ const video = async (message, client) => {
             image: imageBuffer,
             caption: videoInfo,
             buttons: buttons,
-            headerType: 4,
-            viewOnce: true,
             mentions: [message.sender]
           };
           
@@ -205,8 +201,6 @@ const video = async (message, client) => {
           const buttonMessage = {
             text: videoInfo,
             buttons: buttons,
-            headerType: 1,
-            viewOnce: true,
             mentions: [message.sender]
           };
           
@@ -232,7 +226,6 @@ const video = async (message, client) => {
         
         return await client.sendMessage(message.from, {
           text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("couldn't process your request. Please try again later"),
-          viewOnce: true,
           mentions: [message.sender]
         }, { quoted: message });
       }
@@ -270,7 +263,6 @@ const video = async (message, client) => {
         
         return await client.sendMessage(message.from, {
           text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("failed to send video file"),
-          viewOnce: true,
           mentions: [message.sender]
         }, { quoted: message });
       }
@@ -282,7 +274,6 @@ const video = async (message, client) => {
     
     await client.sendMessage(message.from, {
       text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("encountered an error. Please try again"),
-      viewOnce: true,
       mentions: [message.sender]
     }, { quoted: message });
   }
