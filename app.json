@@ -77,6 +77,12 @@
       "required": false,
       "value": "false"
     },
+    
+    "AUTO_REACT": {
+      "description": "Make it true if you want react on every message.",
+      "required": false,
+      "value": "true"
+    },
     "AUTO_TYPING": {
       "description": "make it true if you want bot to show typing",
       "required": false,
