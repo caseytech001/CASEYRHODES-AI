@@ -88,7 +88,7 @@ const play = async (message, client) => {
     const command = body.startsWith(prefix) ? body.slice(prefix.length).split(" ")[0].toLowerCase() : '';
     const args = body.slice(prefix.length + command.length).trim().split(" ");
     
-    // Store user preferences (document or audio) for each user
+    // Store user preferences for each user
     const userPreferences = {};
     
     // Send a custom reaction when the play command is detected
@@ -166,16 +166,16 @@ const play = async (message, client) => {
 📥 *Format:* MP3
         `.trim();
         
-        // Create buttons for format selection
+        // Create buttons for audio and repo
         const formatButtons = [
           {
-            buttonId: `${prefix}senddoc ${video.url}`,
-            buttonText: { displayText: "📁 Send as Document" },
+            buttonId: `${prefix}sendaudio ${video.url}`,
+            buttonText: { displayText: "🎵 Audio" }, // Changed from "Send Audio" to "Audio"
             type: 1
           },
           {
-            buttonId: `${prefix}sendaudio ${video.url}`,
-            buttonText: { displayText: "🎵 Send as Audio" },
+            buttonId: `${prefix}repo`,
+            buttonText: { displayText: "📂 Repository" },
             type: 1
           }
         ];
@@ -196,7 +196,7 @@ const play = async (message, client) => {
         if (imageBuffer) {
           const imageMessage = {
             image: imageBuffer,
-            caption: songInfo + "\n\n" + toFancyFont("choose how you want to receive the audio:"),
+            caption: songInfo + "\n\n" + toFancyFont("click the button below to get the audio:"),
             buttons: formatButtons,
             headerType: 4,
             viewOnce: true,
@@ -206,7 +206,7 @@ const play = async (message, client) => {
           await client.sendMessage(message.from, imageMessage, { quoted: message });
         } else {
           const buttonMessage = {
-            text: songInfo + "\n\n" + toFancyFont("choose how you want to receive the audio:"),
+            text: songInfo + "\n\n" + toFancyFont("click the button below to get the audio:"),
             buttons: formatButtons,
             headerType: 1,
             viewOnce: true,
@@ -237,17 +237,8 @@ const play = async (message, client) => {
       }
     }
     
-    // Handle format selection commands
-    if (command === "senddoc" || command === "sendaudio") {
-      const videoUrl = args[0];
-      if (!videoUrl) {
-        return await client.sendMessage(message.from, {
-          text: toFancyFont("Invalid request. Please use the play command first."),
-          viewOnce: true,
-          mentions: [message.sender]
-        }, { quoted: message });
-      }
-      
+    // Handle audio button selection
+    if (command === "sendaudio") {
       const userData = userPreferences[message.sender];
       if (!userData) {
         return await client.sendMessage(message.from, {
@@ -275,23 +266,13 @@ const play = async (message, client) => {
         
         const audioData = fs.readFileSync(userData.filePath);
         
-        if (command === "senddoc") {
-          // Send as document
-          await client.sendMessage(message.from, { 
-            document: audioData, 
-            mimetype: 'audio/mpeg',
-            fileName: userData.fileName + ".mp3",
-            caption: `🎵 ${userData.videoTitle}`
-          }, { quoted: message });
-        } else {
-          // Send as audio
-          await client.sendMessage(message.from, { 
-            audio: audioData, 
-            mimetype: 'audio/mpeg',
-            ptt: false,
-            fileName: userData.fileName + ".mp3"
-          }, { quoted: message });
-        }
+        // Send as audio
+        await client.sendMessage(message.from, { 
+          audio: audioData, 
+          mimetype: 'audio/mpeg',
+          ptt: false,
+          fileName: userData.fileName + ".mp3"
+        }, { quoted: message });
         
         // Clean up temp file
         setTimeout(() => {
@@ -330,6 +311,19 @@ const play = async (message, client) => {
         delete userPreferences[message.sender];
       }
     }
+    
+    // Handle repo button selection
+    if (command === "repo") {
+      await client.sendMessage(message.from, {
+        text: toFancyFont("here is the repository link:") + "\n\n" +
+              "🔗 *GitHub Repository:*\n" +
+              "https://github.com/yourusername/your-repo\n\n" +
+              toFancyFont("feel free to star and contribute!"),
+        viewOnce: true,
+        mentions: [message.sender]
+      }, { quoted: message });
+    }
+    
   } catch (error) {
     console.error("❌ song error: " + error.message);
     // Send error reaction
