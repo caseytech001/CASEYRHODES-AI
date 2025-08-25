@@ -1,92 +1,89 @@
-import config from '../config.cjs';
-import axios from 'axios';
+import config from "../config.cjs";
+import pkg from "@whiskeysockets/baileys";
+const { generateWAMessageFromContent, proto } = pkg;
 
 const ping = async (m, Matrix) => {
-  const prefix = config.PREFIX;
-  const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-
+  const prefix = config.PREFIX || ".";
+  const cmd = m.body.startsWith(prefix)
+    ? m.body.slice(prefix.length).trim().split(" ")[0].toLowerCase()
+    : "";
+    
   if (cmd === "ping") {
     const start = new Date().getTime();
-
-    const reactionEmojis = ['🔥', '⚡', '🚀', '💨', '🎯', '🎉', '🌟', '💥', '🕐', '🔹'];
-    const textEmojis = ['💎', '🏆', '⚡️', '🚀', '🎶', '🌠', '🌀', '🔱', '🛡️', '✨'];
-
-    const reactionEmoji = reactionEmojis[Math.floor(Math.random() * reactionEmojis.length)];
-    let textEmoji = textEmojis[Math.floor(Math.random() * textEmojis.length)];
-
-    // Ensure reaction and text emojis are different
-    while (textEmoji === reactionEmoji) {
-      textEmoji = textEmojis[Math.floor(Math.random() * textEmojis.length)];
-    }
-
-    await m.React(textEmoji);
-
+    await m.React("✅");
     const end = new Date().getTime();
     const responseTime = (end - start) / 1000;
-
-    const text = `> *CASEYRHODES SPEED: ${responseTime.toFixed(2)}ms ${reactionEmoji}*\n\n` +
-                 `Select an option below:`;
-
+    const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
+    const text = `*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ* : ${responseTime.toFixed(2)} s`;
+    
+    // Create buttons using the proper structure
     const buttons = [
       {
-        buttonId: `${prefix}sendaudio`,
-        buttonText: { displayText: '🎵 Send Audio' },
-        type: 1
+        index: 1,
+        urlButton: {
+          displayText: "📂 ᴍᴇɴᴜ ᴏᴘᴛɪᴏɴꜱ",
+          url: "https://example.com/menu" // Replace with your actual URL
+        }
       },
       {
-        buttonId: `${prefix}menu`,
-        buttonText: { displayText: '❓ Help Menu' },
-        type: 1
-      },
-      {
-        buttonId: `${prefix}speedtest`,
-        buttonText: { displayText: '⚡ Speed Test' },
-        type: 1
-      }
-    ];
-
-    // Create the button message with image
-    const buttonMessage = {
-      image: { url: "https://files.catbox.moe/y3j3kl.jpg" },
-      caption: text,
-      footer: "Caseyrhodes Performance Menu",
-      buttons: buttons,
-      headerType: 4,
-      contextInfo: {
-        mentionedJid: [m.sender],
-        forwardingScore: 999,
-        isForwarded: true,
-        forwardedNewsletterMessageInfo: {
-          newsletterJid: '120363302677217436@newsletter',
-          newsletterName: "Caseyrhodes Xtech",
-          serverMessageId: 143
+        index: 2,
+        quickReplyButton: {
+          displayText: "📶 Ping Again",
+          id: `${prefix}ping`
         }
       }
+    ];
+
+    // Alternative approach using template buttons
+    const templateButtons = [
+      {
+        index: 1,
+        quickReplyButton: {
+          displayText: "📂 Menu Options",
+          id: `${prefix}menu`
+        }
+      },
+      {
+        index: 2,
+        quickReplyButton: {
+          displayText: "👑 Owner",
+          id: `${prefix}owner`
+        }
+      },
+      {
+        index: 3,
+        quickReplyButton: {
+          displayText: "📶 Ping",
+          id: `${prefix}ping`
+        }
+      }
+    ];
+
+    const messageOptions = {
+      caption: text,
+      footer: "Tap a button below",
+      buttons: templateButtons,
+      headerType: 4, // For image message
+      viewOnce: true,
+      mentions: [m.sender]
     };
 
-    await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
-  }
-  
-  // Handle the audio button
-  if (cmd === "sendaudio") {
-    const audioUrls = [
-      'https://files.catbox.moe/m0xfku.mp3',
-      // Add more audio URLs as needed
-    ];
-    
-    // Select a random audio URL
-    const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
-    
-    // Send audio message
-    await Matrix.sendMessage(
-      m.from, 
-      { 
-        audio: { url: randomAudioUrl }, 
-        mimetype: 'audio/mp4',
-        ptt: true 
-      }, 
-      { quoted: m }
-    );
+    try {
+      // Send message with image and buttons
+      await Matrix.sendMessage(m.from, {
+        image: { url: imageUrl },
+        ...messageOptions
+      }, { quoted: m });
+    } catch (error) {
+      console.error("Error sending message:", error);
+      // Fallback to text message if image fails
+      await Matrix.sendMessage(m.from, {
+        text: text + "\n\n" + "📂 Menu Options - " + `${prefix}menu` + 
+              "\n👑 Owner - " + `${prefix}owner` +
+              "\n📶 Ping - " + `${prefix}ping`,
+        mentions: [m.sender]
+      }, { quoted: m });
+    }
   }
 };
 
