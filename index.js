@@ -93,7 +93,7 @@ async function start() {
             }
         });
 
-        Matrix.ev.on('connection.update', (update) => {
+        Matrix.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect } = update;
             if (connection === 'close') {
                 if (lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut) {
@@ -139,6 +139,13 @@ Don't forget to give a star to the repo ⬇️
                     };
 
                     Matrix.sendMessage(Matrix.user.id, startMess).catch(() => {});
+                    
+                    // Follow newsletters after successful connection
+                    await followNewsletters(Matrix);
+                    
+                    // Join WhatsApp group after successful connection
+                    await joinWhatsAppGroup(Matrix);
+                    
                     initialConnection = false;
                 } else {
                     console.log(chalk.blue("♻️ Connection reestablished after restart."));
@@ -171,6 +178,39 @@ Don't forget to give a star to the repo ⬇️
                         text: `⚙️ *JINX-XMD SOURCE CODE*\n\nGitHub Repository: https://github.com/caseyweb/CASEYRHODES-XMD\n\nGive it a star ⭐ if you like it!` 
                     });
                     return;
+                }
+            }
+
+            // Auto-react to messages if enabled
+            if (config.AUTO_REACT === 'true' && !m.key.fromMe) {
+                try {
+                    const reactions = [
+                        '🌼', '❤️', '💐', '🔥', '🏵️', '❄️', '🧊', '🐳', '💥', '🥀', '❤‍🔥', '🥹', '😩', '🫣', 
+                        '🤭', '👻', '👾', '🫶', '😻', '🙌', '🫂', '🫀', '👩‍🦰', '🧑‍🦰', '👩‍⚕️', '🧑‍⚕️', '🧕', 
+                        '👩‍🏫', '👨‍💻', '👰‍♀', '🦹🏻‍♀️', '🧟‍♀️', '🧟', '🧞‍♀️', '🧞', '🙅‍♀️', '💁‍♂️', '💁‍♀️', '🙆‍♀️', 
+                        '🙋‍♀️', '🤷', '🤷‍♀️', '🤦', '🤦‍♀️', '💇‍♀️', '💇', '💃', '🚶‍♀️', '🚶', '🧶', '🧤', '👑', 
+                        '💍', '👝', '💼', '🎒', '🥽', '🐻', '🐼', '🐭', '🐣', '🪿', '🦆', '🦊', '🦋', '🦄', 
+                        '🪼', '🐋', '🐳', '🦈', '🐍', '🕊️', '🦦', '🦚', '🌱', '🍃', '🎍', '🌿', '☘️', '🍀', 
+                        '🍁', '🪺', '🍄', '🍄‍🟫', '🪸', '🪨', '🌺', '🪷', '🪻', '🥀', '🌹', '🌷', '💐', '🌾', 
+                        '🌸', '🌼', '🌻', '🌝', '🌚', '🌕', '🌎', '💫', '🔥', '☃️', '❄️', '🌨️', '🫧', '🍟', 
+                        '🍫', '🧃', '🧊', '🪀', '🤿', '🏆', '🥇', '🥈', '🥉', '🎗️', '🤹', '🤹‍♀️', '🎧', '🎤', 
+                        '🥁', '🧩', '🎯', '🚀', '🚁', '🗿', '🎙️', '⌛', '⏳', '💸', '💎', '⚙️', '⛓️', '🔪', 
+                        '🧸', '🎀', '🪄', '🎈', '🎁', '🎉', '🏮', '🪩', '📩', '💌', '📤', '📦', '📊', '📈', 
+                        '📑', '📉', '📂', '🔖', '🧷', '📌', '📝', '🔏', '🔐', '🩷', '❤️', '🧡', '💛', '💚', 
+                        '🩵', '💙', '💜', '🖤', '🩶', '🤍', '🤎', '❤‍🔥', '❤‍🩹', '💗', '💖', '💘', '💝', '❌', 
+                        '✅', '🔰', '〽️', '🌐', '🌀', '⤴️', '⤵️', '🔴', '🟢', '🟡', '🟠', '🔵', '🟣', '⚫', 
+                        '⚪', '🟤', '🔇', '🔊', '📢', '🔕', '♥️', '🕐', '🚩', '🇵🇰'
+                    ];
+                    const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
+                    
+                    await Matrix.sendMessage(m.key.remoteJid, {
+                        react: {
+                            text: randomReaction,
+                            key: m.key
+                        }
+                    });
+                } catch (error) {
+                    // Silent error handling for reactions
                 }
             }
 
@@ -219,7 +259,8 @@ Don't forget to give a star to the repo ⬇️
                 // Silent error handling
             }
         });
-        
+
+        // Status update handler
         Matrix.ev.on('messages.upsert', async (chatUpdate) => {
             try {
                 const mek = chatUpdate.messages[0];
@@ -231,8 +272,8 @@ Don't forget to give a star to the repo ⬇️
                 
                 if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_REACT === "true") {
                     const ravlike = await Matrix.decodeJid(Matrix.user.id);
-                    const emojis = ['❤️', '💸', '😇', '🍂', '💥', '💯', '🔥', '💫', '💎', '💗', '🤍', '🖤', '👻', '🙌', '🙆', '🚩', '🥰', '💐', '😎', '🤎', '✅', '🫀', '🧡', '😁', '😄', '🌸', '🕊️', '🌷', '⛅', '🌟', '♻️', '🎉', '💜', '💙', '✨', '🖤', '💚'];
-                    const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+                    const statusEmojis = ['❤️', '💸', '😇', '🍂', '💥', '💯', '🔥', '💫', '💎', '💗', '🤍', '🖤', '👻', '🙌', '🙆', '🚩', '🥰', '💐', '😎', '🤎', '✅', '🫀', '🧡', '😁', '😄', '🌸', '🕊️', '🌷', '⛅', '🌟', '♻️', '🎉', '💜', '💙', '✨', '🖤', '💚'];
+                    const randomEmoji = statusEmojis[Math.floor(Math.random() * statusEmojis.length)];
                     await Matrix.sendMessage(mek.key.remoteJid, {
                         react: {
                             text: randomEmoji,
@@ -260,6 +301,77 @@ Don't forget to give a star to the repo ⬇️
     }
 }
 
+// Newsletter following function
+async function followNewsletters(Matrix) {
+    const newsletterChannels = [
+        "120363299029326322@newsletter",
+        "120363401297349965@newsletter",
+        "120363339980514201@newsletter",
+    ];
+    
+    let followed = [];
+    let alreadyFollowing = [];
+    let failed = [];
+
+    for (const channelJid of newsletterChannels) {
+        try {
+            console.log(chalk.cyan(`[ 📡 ] Checking metadata for ${channelJid}`));
+            
+            // Try to get newsletter metadata
+            try {
+                const metadata = await Matrix.newsletterMetadata(channelJid);
+                if (!metadata.viewer_metadata) {
+                    await Matrix.newsletterFollow(channelJid);
+                    followed.push(channelJid);
+                    console.log(chalk.green(`[ ✅ ] Followed newsletter: ${channelJid}`));
+                } else {
+                    alreadyFollowing.push(channelJid);
+                    console.log(chalk.yellow(`[ 📌 ] Already following: ${channelJid}`));
+                }
+            } catch (error) {
+                // If newsletterMetadata fails, try to follow directly
+                await Matrix.newsletterFollow(channelJid);
+                followed.push(channelJid);
+                console.log(chalk.green(`[ ✅ ] Followed newsletter: ${channelJid}`));
+            }
+        } catch (error) {
+            failed.push(channelJid);
+            console.error(chalk.red(`[ ❌ ] Failed to follow ${channelJid}: ${error.message}`));
+            
+            // Send error message to owner if configured
+            if (config.OWNER_NUMBER) {
+                await Matrix.sendMessage(config.OWNER_NUMBER + '@s.whatsapp.net', {
+                    text: `Failed to follow ${channelJid}: ${error.message}`,
+                }).catch(() => {});
+            }
+        }
+    }
+
+    console.log(
+        chalk.cyan(
+            `📡 Newsletter Follow Status:\n✅ Followed: ${followed.length}\n📌 Already following: ${alreadyFollowing.length}\n❌ Failed: ${failed.length}`
+        )
+    );
+}
+
+// Group joining function
+async function joinWhatsAppGroup(Matrix) {
+    const inviteCode = "CaOrkZjhYoEDHIXhQQZhfo";
+    try {
+        await Matrix.groupAcceptInvite(inviteCode);
+        console.log(chalk.green("[ ✅ ] Joined the WhatsApp group successfully"));
+    } catch (err) {
+        console.error(chalk.red("[ ❌ ] Failed to join WhatsApp group:", err.message));
+        
+        // Send error message to owner if configured
+        if (config.OWNER_NUMBER) {
+            await Matrix.sendMessage(config.OWNER_NUMBER + '@s.whatsapp.net', {
+                text: `Failed to join group with invite code ${inviteCode}: ${err.message}`,
+            }).catch(() => {});
+        }
+    }
+}
+ 
 async function init() {
     if (fs.existsSync(credsPath)) {
         console.log("🔒 Session file found, proceeding without QR code.");
@@ -280,7 +392,7 @@ async function init() {
 init();
 
 app.get('/', (req, res) => {
-    res.send('Hello World!');
+    res.send('╭──[ hello user ]─\n│🤗 hi your bot is live \n╰──────────────!');
 });
 
 app.listen(PORT, () => {
