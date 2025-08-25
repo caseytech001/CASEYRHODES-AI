@@ -39,11 +39,8 @@ const alive = async (m, Matrix) => {
       }, { quoted: m });
       
       return; // Exit after sending audio
-    } else if (selectedButtonId === `${prefix}owner`) {
-      // Handle owner button - replace with your owner info
-      await Matrix.sendMessage(m.from, { 
-        text: "👤 *Owner Information*\n\nName: Your Name\nContact: your@contact.info" 
-      }, { quoted: m });
+    } else if (selectedButtonId === `${prefix}repo`) {
+      // Repository button clicked - no action taken
       return;
     }
   }
@@ -57,8 +54,8 @@ const alive = async (m, Matrix) => {
 
   const buttons = [
     {
-      buttonId: `${prefix}owner`,
-      buttonText: { displayText: '👤 Owner' },
+      buttonId: `${prefix}repo`,
+      buttonText: { displayText: '📁 Repository' },
       type: 1
     },
     {
