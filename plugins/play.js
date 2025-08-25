@@ -5,7 +5,6 @@ import { pipeline } from 'stream';
 import { promisify } from 'util';
 import os from 'os';
 import config from '../config.cjs';
-import { generateWAMessageFromContent, proto } from '@whiskeysockets/baileys';
 
 function toFancyFont(text) {
   const fontMap = {
@@ -47,7 +46,8 @@ async function sendCustomReaction(client, message, reaction) {
   }
 }
 
-const userPreferences = {};
+// Store user preferences with better session management
+const userSessions = new Map();
 
 const play = async (message, client) => {
   try {
@@ -56,6 +56,20 @@ const play = async (message, client) => {
     const command = body.startsWith(prefix) ? body.slice(prefix.length).split(" ")[0].toLowerCase() : '';
     const args = body.slice(prefix.length + command.length).trim().split(" ");
     
+    // Clean up expired sessions (older than 10 minutes)
+    const now = Date.now();
+    for (const [sender, session] of userSessions.entries()) {
+      if (now - session.timestamp > 10 * 60 * 1000) {
+        userSessions.delete(sender);
+        // Clean up file if exists
+        if (session.filePath && fs.existsSync(session.filePath)) {
+          try {
+            fs.unlinkSync(session.filePath);
+          } catch (e) {}
+        }
+      }
+    }
+
     if (command === "play") {
       await sendCustomReaction(client, message, "⏳");
       
@@ -68,7 +82,12 @@ const play = async (message, client) => {
       }
       
       const query = args.join(" ");
-      const searchResults = await ytSearch(query);
+      
+      // Search and download in parallel for faster response
+      const [searchResults, apiResponse] = await Promise.all([
+        ytSearch(query),
+        fetch(`https://apis.davidcyriltech.my.id/play?query=${encodeURIComponent(query)}`)
+      ]);
       
       if (!searchResults.videos || searchResults.videos.length === 0) {
         await sendCustomReaction(client, message, "❌");
@@ -78,45 +97,70 @@ const play = async (message, client) => {
         }, { quoted: message });
       }
       
-      await sendCustomReaction(client, message, "🔍");
+      if (!apiResponse.ok) {
+        await sendCustomReaction(client, message, "❌");
+        return await client.sendMessage(message.from, {
+          text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("API error. Please try again later"),
+          mentions: [message.sender]
+        }, { quoted: message });
+      }
+      
+      const apiData = await apiResponse.json();
+      
+      if (!apiData.status || !apiData.result?.download_url) {
+        await sendCustomReaction(client, message, "❌");
+        return await client.sendMessage(message.from, {
+          text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("No download URL available"),
+          mentions: [message.sender]
+        }, { quoted: message });
+      }
       
       const video = searchResults.videos[0];
-      const fileName = video.title.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').substring(0, 100);
-      const filePath = tmpDir + '/' + fileName + ".mp3";
+      const fileName = `${video.title.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').substring(0, 50)}_${Date.now()}`;
+      const filePath = `${tmpDir}/${fileName}.mp3`;
       
-      try {
-        const apiUrl = "https://apis.davidcyriltech.my.id/play?query=" + encodeURIComponent(query);
-        const apiResponse = await fetch(apiUrl);
-        
-        if (!apiResponse.ok) {
-          throw new Error("API responded with status: " + apiResponse.status);
-        }
-        
-        const apiData = await apiResponse.json();
-        
-        if (!apiData.status || !apiData.result?.download_url) {
-          throw new Error("API response missing download URL or failed");
-        }
-        
-        const videoId = extractYouTubeId(video.url) || video.videoId;
-        const thumbnailUrl = getYouTubeThumbnail(videoId, 'maxresdefault');
-        
-        const minutes = Math.floor(video.duration.seconds / 60);
-        const seconds = video.duration.seconds % 60;
-        const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        
-        const songInfo = `
- ━❍ *SONG*❍━
+      const videoId = extractYouTubeId(video.url) || video.videoId;
+      const thumbnailUrl = getYouTubeThumbnail(videoId, 'hqdefault');
+      
+      const minutes = Math.floor(video.duration.seconds / 60);
+      const seconds = video.duration.seconds % 60;
+      const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      
+      const songInfo = `
 🎵 *Title:* ${video.title}
 👤 *Artist:* ${video.author.name}
 ⏱️ *Duration:* ${formattedDuration}
 📅 *Published:* ${video.ago}
 👁️ *Views:* ${video.views.toLocaleString()}
-📥 *Format:* MP3
-        `.trim();
-        
-        // Use simple button IDs without video ID to avoid session issues
-        const formatButtons = [
+      `.trim();
+      
+      // Store session data
+      userSessions.set(message.sender, {
+        downloadUrl: apiData.result.download_url,
+        filePath: filePath,
+        fileName: fileName,
+        videoTitle: video.title,
+        timestamp: Date.now()
+      });
+      
+      // Start background download immediately
+      const downloadPromise = (async () => {
+        try {
+          const audioResponse = await fetch(apiData.result.download_url);
+          if (audioResponse.ok) {
+            const fileStream = fs.createWriteStream(filePath);
+            await streamPipeline(audioResponse.body, fileStream);
+            console.log("✅ Background download completed for:", message.sender);
+          }
+        } catch (error) {
+          console.error("❌ Background download failed:", error.message);
+        }
+      })();
+      
+      // Send quick response with buttons
+      await client.sendMessage(message.from, {
+        text: `*${toFancyFont('song found')}* 🎵\n\n${songInfo}\n\n${toFancyFont('choose download format:')}`,
+        buttons: [
           {
             buttonId: `${prefix}audio`,
             buttonText: { displayText: "🎵 Audio" },
@@ -127,233 +171,85 @@ const play = async (message, client) => {
             buttonText: { displayText: "📄 Document" },
             type: 1
           }
-        ];
-        
-        let imageBuffer = null;
-        try {
-          const imageResponse = await fetch(thumbnailUrl);
-          if (imageResponse.ok) {
-            const arrayBuffer = await imageResponse.arrayBuffer();
-            imageBuffer = Buffer.from(arrayBuffer);
-          }
-        } catch (imageError) {
-          console.error("Failed to download thumbnail:", imageError.message);
+        ],
+        mentions: [message.sender]
+      }, { quoted: message });
+      
+      await sendCustomReaction(client, message, "✅");
+      
+    } else if (command === "audio" || command === "document") {
+      const session = userSessions.get(message.sender);
+      
+      if (!session || (Date.now() - session.timestamp > 10 * 60 * 1000)) {
+        if (session) userSessions.delete(message.sender);
+        await sendCustomReaction(client, message, "❌");
+        return await client.sendMessage(message.from, {
+          text: toFancyFont("Session expired. Please use the play command again."),
+          mentions: [message.sender]
+        }, { quoted: message });
+      }
+      
+      await sendCustomReaction(client, message, "⬇️");
+      
+      try {
+        // Check if file exists, if not download it
+        if (!fs.existsSync(session.filePath)) {
+          const audioResponse = await fetch(session.downloadUrl);
+          if (!audioResponse.ok) throw new Error("Download failed");
+          
+          const fileStream = fs.createWriteStream(session.filePath);
+          await streamPipeline(audioResponse.body, fileStream);
         }
         
-        // Store user data with sender ID as key
-        userPreferences[message.sender] = {
-          downloadUrl: apiData.result.download_url,
-          filePath: filePath,
-          fileName: fileName,
-          videoTitle: video.title,
-          timestamp: Date.now()
-        };
+        const audioData = fs.readFileSync(session.filePath);
         
-        // Start downloading audio in background
-        const downloadAudio = async () => {
-          try {
-            const audioResponse = await fetch(apiData.result.download_url);
-            if (audioResponse.ok) {
-              const fileStream = fs.createWriteStream(filePath);
-              await streamPipeline(audioResponse.body, fileStream);
-              console.log("Background download completed for:", message.sender);
-            }
-          } catch (downloadError) {
-            console.error("Background download failed:", downloadError.message);
-          }
-        };
-        
-        // Start background download
-        downloadAudio();
-        
-        if (imageBuffer) {
-          await client.sendMessage(message.from, {
-            image: imageBuffer,
-            caption: songInfo + "\n\n" + toFancyFont("Choose download format:"),
-            buttons: formatButtons,
-            headerType: 4,
-            mentions: [message.sender]
+        if (command === "audio") {
+          await client.sendMessage(message.from, { 
+            audio: audioData, 
+            mimetype: 'audio/mpeg',
+            ptt: false,
+            fileName: session.fileName + ".mp3"
           }, { quoted: message });
         } else {
-          await client.sendMessage(message.from, {
-            text: songInfo + "\n\n" + toFancyFont("Choose download format:"),
-            buttons: formatButtons,
-            headerType: 1,
-            mentions: [message.sender]
+          await client.sendMessage(message.from, { 
+            document: audioData, 
+            mimetype: 'audio/mpeg',
+            fileName: session.fileName + ".mp3"
           }, { quoted: message });
         }
         
-        // Clean up old sessions
-        const now = Date.now();
-        for (const [sender, data] of Object.entries(userPreferences)) {
-          if (now - data.timestamp > 5 * 60 * 1000) {
-            delete userPreferences[sender];
-          }
-        }
-        
-      } catch (apiError) {
-        console.error("API error:", apiError.message);
-        await sendCustomReaction(client, message, "❌");
-        
-        return await client.sendMessage(message.from, {
-          text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("couldn't process your request. Please try again later"),
-          mentions: [message.sender]
-        }, { quoted: message });
-      }
-    }
-    
-    // Handle audio button
-    if (command === "audio") {
-      const userData = userPreferences[message.sender];
-      
-      if (!userData || (Date.now() - userData.timestamp > 5 * 60 * 1000)) {
-        if (userData) delete userPreferences[message.sender];
-        
-        return await client.sendMessage(message.from, {
-          text: toFancyFont("Session expired. Please use the play command again."),
-          mentions: [message.sender]
-        }, { quoted: message });
-      }
-      
-      await sendCustomReaction(client, message, "⬇️");
-      
-      try {
-        // Check if file already exists from background download
-        if (!fs.existsSync(userData.filePath)) {
-          const audioResponse = await fetch(userData.downloadUrl);
-          
-          if (!audioResponse.ok) {
-            throw new Error("Failed to download audio: " + audioResponse.status);
-          }
-          
-          const fileStream = fs.createWriteStream(userData.filePath);
-          await streamPipeline(audioResponse.body, fileStream);
-        }
-        
-        const audioData = fs.readFileSync(userData.filePath);
-        
-        await client.sendMessage(message.from, { 
-          audio: audioData, 
-          mimetype: 'audio/mpeg',
-          ptt: false,
-          fileName: userData.fileName + ".mp3"
-        }, { quoted: message });
-        
         await sendCustomReaction(client, message, "✅");
         
-        // Clean up file after delay
+        // Clean up file after 30 seconds
         setTimeout(() => {
           try {
-            if (fs.existsSync(userData.filePath)) {
-              fs.unlinkSync(userData.filePath);
-              console.log("Deleted temp file:", userData.filePath);
+            if (fs.existsSync(session.filePath)) {
+              fs.unlinkSync(session.filePath);
             }
-          } catch (cleanupError) {
-            console.error("Error during file cleanup:", cleanupError);
-          }
-        }, 10000);
-        
-        // Keep user data for document option but remove after longer timeout
-        userData.timestamp = Date.now();
+          } catch (e) {}
+        }, 30000);
         
       } catch (error) {
-        console.error("Failed to process audio:", error.message);
+        console.error("Failed to process:", command, error.message);
         await sendCustomReaction(client, message, "❌");
         
         await client.sendMessage(message.from, {
-          text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("failed to process audio file"),
+          text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont(`failed to process ${command} file`),
           mentions: [message.sender]
         }, { quoted: message });
         
         // Clean up on error
-        if (userData && fs.existsSync(userData.filePath)) {
-          try {
-            fs.unlinkSync(userData.filePath);
-          } catch (cleanupError) {
-            console.error("Error cleaning up file:", cleanupError);
+        try {
+          if (fs.existsSync(session.filePath)) {
+            fs.unlinkSync(session.filePath);
           }
-        }
-        delete userPreferences[message.sender];
-      }
-    }
-    
-    // Handle document button
-    if (command === "document") {
-      const userData = userPreferences[message.sender];
-      
-      if (!userData || (Date.now() - userData.timestamp > 5 * 60 * 1000)) {
-        if (userData) delete userPreferences[message.sender];
-        
-        return await client.sendMessage(message.from, {
-          text: toFancyFont("Session expired. Please use the play command again."),
-          mentions: [message.sender]
-        }, { quoted: message });
-      }
-      
-      await sendCustomReaction(client, message, "⬇️");
-      
-      try {
-        // Check if file already exists from background download
-        if (!fs.existsSync(userData.filePath)) {
-          const audioResponse = await fetch(userData.downloadUrl);
-          
-          if (!audioResponse.ok) {
-            throw new Error("Failed to download audio: " + audioResponse.status);
-          }
-          
-          const fileStream = fs.createWriteStream(userData.filePath);
-          await streamPipeline(audioResponse.body, fileStream);
-        }
-        
-        const audioData = fs.readFileSync(userData.filePath);
-        
-        // Send as document
-        await client.sendMessage(message.from, { 
-          document: audioData, 
-          mimetype: 'audio/mpeg',
-          fileName: userData.fileName + ".mp3"
-        }, { quoted: message });
-        
-        await sendCustomReaction(client, message, "✅");
-        
-        // Clean up file after delay
-        setTimeout(() => {
-          try {
-            if (fs.existsSync(userData.filePath)) {
-              fs.unlinkSync(userData.filePath);
-              console.log("Deleted temp file:", userData.filePath);
-            }
-          } catch (cleanupError) {
-            console.error("Error during file cleanup:", cleanupError);
-          }
-        }, 10000);
-        
-        // Remove user data after successful document send
-        delete userPreferences[message.sender];
-        
-      } catch (error) {
-        console.error("Failed to process document:", error.message);
-        await sendCustomReaction(client, message, "❌");
-        
-        await client.sendMessage(message.from, {
-          text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("failed to process document file"),
-          mentions: [message.sender]
-        }, { quoted: message });
-        
-        // Clean up on error
-        if (userData && fs.existsSync(userData.filePath)) {
-          try {
-            fs.unlinkSync(userData.filePath);
-          } catch (cleanupError) {
-            console.error("Error cleaning up file:", cleanupError);
-          }
-        }
-        delete userPreferences[message.sender];
+        } catch (e) {}
+        userSessions.delete(message.sender);
       }
     }
   
   } catch (error) {
-    console.error("❌ song error: " + error.message);
+    console.error("❌ Main error:", error.message);
     await sendCustomReaction(client, message, "❌");
     
     await client.sendMessage(message.from, {
