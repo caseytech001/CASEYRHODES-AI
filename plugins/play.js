@@ -106,7 +106,7 @@ const play = async (message, client) => {
         const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         
         const songInfo = `
- ━❍ *CASEYRHODES-AI*❍━
+ ━❍ *SONG*❍━
 🎵 *Title:* ${video.title}
 👤 *Artist:* ${video.author.name}
 ⏱️ *Duration:* ${formattedDuration}
@@ -115,15 +115,15 @@ const play = async (message, client) => {
 📥 *Format:* MP3
         `.trim();
         
-        // Added document button alongside audio button
+        // Use simple button IDs without video ID to avoid session issues
         const formatButtons = [
           {
-            buttonId: `${prefix}audio ${video.videoId}`,
+            buttonId: `${prefix}audio`,
             buttonText: { displayText: "🎵 Audio" },
             type: 1
           },
           {
-            buttonId: `${prefix}document ${video.videoId}`,
+            buttonId: `${prefix}document`,
             buttonText: { displayText: "📄 Document" },
             type: 1
           }
@@ -140,7 +140,7 @@ const play = async (message, client) => {
           console.error("Failed to download thumbnail:", imageError.message);
         }
         
-        // Store user data for both audio and document options
+        // Store user data with sender ID as key
         userPreferences[message.sender] = {
           downloadUrl: apiData.result.download_url,
           filePath: filePath,
@@ -149,14 +149,14 @@ const play = async (message, client) => {
           timestamp: Date.now()
         };
         
-        // Start downloading audio in background while sending the info
+        // Start downloading audio in background
         const downloadAudio = async () => {
           try {
             const audioResponse = await fetch(apiData.result.download_url);
             if (audioResponse.ok) {
               const fileStream = fs.createWriteStream(filePath);
               await streamPipeline(audioResponse.body, fileStream);
-              await sendCustomReaction(client, message, "✅");
+              console.log("Background download completed for:", message.sender);
             }
           } catch (downloadError) {
             console.error("Background download failed:", downloadError.message);
@@ -183,6 +183,7 @@ const play = async (message, client) => {
           }, { quoted: message });
         }
         
+        // Clean up old sessions
         const now = Date.now();
         for (const [sender, data] of Object.entries(userPreferences)) {
           if (now - data.timestamp > 5 * 60 * 1000) {
@@ -201,6 +202,7 @@ const play = async (message, client) => {
       }
     }
     
+    // Handle audio button
     if (command === "audio") {
       const userData = userPreferences[message.sender];
       
@@ -216,30 +218,8 @@ const play = async (message, client) => {
       await sendCustomReaction(client, message, "⬇️");
       
       try {
-        if (fs.existsSync(userData.filePath)) {
-          const audioData = fs.readFileSync(userData.filePath);
-          
-          await client.sendMessage(message.from, { 
-            audio: audioData, 
-            mimetype: 'audio/mpeg',
-            ptt: false,
-            fileName: userData.fileName + ".mp3"
-          }, { quoted: message });
-          
-          await sendCustomReaction(client, message, "✅");
-          
-          setTimeout(() => {
-            try {
-              if (fs.existsSync(userData.filePath)) {
-                fs.unlinkSync(userData.filePath);
-              }
-            } catch (cleanupError) {
-              console.error("Error during file cleanup:", cleanupError);
-            }
-          }, 5000);
-          
-          delete userPreferences[message.sender];
-        } else {
+        // Check if file already exists from background download
+        if (!fs.existsSync(userData.filePath)) {
           const audioResponse = await fetch(userData.downloadUrl);
           
           if (!audioResponse.ok) {
@@ -248,29 +228,33 @@ const play = async (message, client) => {
           
           const fileStream = fs.createWriteStream(userData.filePath);
           await streamPipeline(audioResponse.body, fileStream);
-          
-          const audioData = fs.readFileSync(userData.filePath);
-          await client.sendMessage(message.from, { 
-            audio: audioData, 
-            mimetype: 'audio/mpeg',
-            ptt: false,
-            fileName: userData.fileName + ".mp3"
-          }, { quoted: message });
-          
-          await sendCustomReaction(client, message, "✅");
-          
-          setTimeout(() => {
-            try {
-              if (fs.existsSync(userData.filePath)) {
-                fs.unlinkSync(userData.filePath);
-              }
-            } catch (cleanupError) {
-              console.error("Error during file cleanup:", cleanupError);
-            }
-          }, 5000);
-          
-          delete userPreferences[message.sender];
         }
+        
+        const audioData = fs.readFileSync(userData.filePath);
+        
+        await client.sendMessage(message.from, { 
+          audio: audioData, 
+          mimetype: 'audio/mpeg',
+          ptt: false,
+          fileName: userData.fileName + ".mp3"
+        }, { quoted: message });
+        
+        await sendCustomReaction(client, message, "✅");
+        
+        // Clean up file after delay
+        setTimeout(() => {
+          try {
+            if (fs.existsSync(userData.filePath)) {
+              fs.unlinkSync(userData.filePath);
+              console.log("Deleted temp file:", userData.filePath);
+            }
+          } catch (cleanupError) {
+            console.error("Error during file cleanup:", cleanupError);
+          }
+        }, 10000);
+        
+        // Keep user data for document option but remove after longer timeout
+        userData.timestamp = Date.now();
         
       } catch (error) {
         console.error("Failed to process audio:", error.message);
@@ -281,6 +265,7 @@ const play = async (message, client) => {
           mentions: [message.sender]
         }, { quoted: message });
         
+        // Clean up on error
         if (userData && fs.existsSync(userData.filePath)) {
           try {
             fs.unlinkSync(userData.filePath);
@@ -292,6 +277,7 @@ const play = async (message, client) => {
       }
     }
     
+    // Handle document button
     if (command === "document") {
       const userData = userPreferences[message.sender];
       
@@ -307,11 +293,8 @@ const play = async (message, client) => {
       await sendCustomReaction(client, message, "⬇️");
       
       try {
-        let audioData;
-        
-        if (fs.existsSync(userData.filePath)) {
-          audioData = fs.readFileSync(userData.filePath);
-        } else {
+        // Check if file already exists from background download
+        if (!fs.existsSync(userData.filePath)) {
           const audioResponse = await fetch(userData.downloadUrl);
           
           if (!audioResponse.ok) {
@@ -320,10 +303,11 @@ const play = async (message, client) => {
           
           const fileStream = fs.createWriteStream(userData.filePath);
           await streamPipeline(audioResponse.body, fileStream);
-          audioData = fs.readFileSync(userData.filePath);
         }
         
-        // Send as document instead of audio
+        const audioData = fs.readFileSync(userData.filePath);
+        
+        // Send as document
         await client.sendMessage(message.from, { 
           document: audioData, 
           mimetype: 'audio/mpeg',
@@ -332,16 +316,19 @@ const play = async (message, client) => {
         
         await sendCustomReaction(client, message, "✅");
         
+        // Clean up file after delay
         setTimeout(() => {
           try {
             if (fs.existsSync(userData.filePath)) {
               fs.unlinkSync(userData.filePath);
+              console.log("Deleted temp file:", userData.filePath);
             }
           } catch (cleanupError) {
             console.error("Error during file cleanup:", cleanupError);
           }
-        }, 5000);
+        }, 10000);
         
+        // Remove user data after successful document send
         delete userPreferences[message.sender];
         
       } catch (error) {
@@ -353,6 +340,7 @@ const play = async (message, client) => {
           mentions: [message.sender]
         }, { quoted: message });
         
+        // Clean up on error
         if (userData && fs.existsSync(userData.filePath)) {
           try {
             fs.unlinkSync(userData.filePath);
