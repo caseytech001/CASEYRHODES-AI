@@ -4,7 +4,7 @@ const ownerContact = async (m, gss) => {
     const ownernumber = config.OWNER_NUMBER;
     const prefix = config.PREFIX;
     
-    // Check if message starts with prefix OR is a button response (which won't have prefix)
+    // Check if message starts with prefix OR is a button response
     const isButtonResponse = m.body && !m.body.startsWith(prefix) && 
                            (m.body === `${prefix}callowner` || m.body === `${prefix}whatsappowner`);
     
@@ -14,7 +14,7 @@ const ownerContact = async (m, gss) => {
     let text;
     
     if (isButtonResponse) {
-        // Handle button responses (they come without prefix but contain the full command)
+        // Handle button responses
         cmd = m.body.slice(prefix.length).toLowerCase();
         text = '';
     } else {
@@ -28,20 +28,20 @@ const ownerContact = async (m, gss) => {
     if (cmd === 'owner') {
         try {
             // Validate owner number format
-            if (!ownernumber || !ownernumber.includes('@')) {
-                throw new Error('Invalid owner number format');
+            if (!ownernumber) {
+                throw new Error('Owner number not configured');
             }
 
-            // Send contact
+            // Send contact immediately
             await gss.sendContact(m.from, [ownernumber], m);
             
-            // Send message with buttons
+            // Send interactive buttons for additional options
             const buttonMessage = {
-                text: "You can also contact the owner directly using the buttons below:",
-                footer: "Owner Contact",
+                text: "What would you like to do?",
+                footer: "Owner Contact Options",
                 buttons: [
                     { buttonId: `${prefix}callowner`, buttonText: { displayText: "📞 Call Owner" }, type: 1 },
-                    { buttonId: `${prefix}whatsappowner`, buttonText: { displayText: "💬 WhatsApp" }, type: 1 }
+                    { buttonId: `${prefix}whatsappowner`, buttonText: { displayText: "💬 Send WhatsApp" }, type: 1 }
                 ],
                 headerType: 1
             };
@@ -56,21 +56,41 @@ const ownerContact = async (m, gss) => {
         }
     }
     
-    // Handle the whatsappowner button click
+    // Handle button interactions
+    else if (cmd === 'callowner') {
+        try {
+            // Use config.OWNER_NUMBER directly for the phone number
+            if (!ownernumber) {
+                throw new Error('Owner number not configured');
+            }
+            
+            // Extract phone number from JID (remove @s.whatsapp.net if present)
+            const phoneNumber = ownernumber.includes('@') ? ownernumber.split('@')[0] : ownernumber;
+            await m.reply(`To call the owner, please use this number: ${phoneNumber}`);
+            await m.react("📞");
+            
+        } catch (error) {
+            console.error('Error handling call request:', error);
+            await m.reply('Error processing call request. Owner number not configured.');
+            await m.react("❌");
+        }
+    }
+    
     else if (cmd === 'whatsappowner') {
         try {
             // Validate owner number format
-            if (!ownernumber || !ownernumber.includes('@')) {
-                throw new Error('Invalid owner number format');
+            if (!ownernumber) {
+                throw new Error('Owner number not configured');
             }
 
-            // Send contact again when button is clicked
+            // Send contact again when WhatsApp button is clicked
             await gss.sendContact(m.from, [ownernumber], m);
-            await m.react("✅");
+            await m.reply("Owner contact sent again! 📱");
+            await m.react("💬");
             
         } catch (error) {
             console.error('Error sending owner contact:', error);
-            await m.reply('Error sending owner contact. Please make sure the owner number is properly configured.');
+            await m.reply('Error sending owner contact. Owner number not configured.');
             await m.react("❌");
         }
     }
