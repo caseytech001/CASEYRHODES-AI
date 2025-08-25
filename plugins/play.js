@@ -81,9 +81,6 @@ async function sendCustomReaction(client, message, reaction) {
   }
 }
 
-// Store user selections temporarily
-const userSelections = new Map();
-
 const play = async (message, client) => {
   try {
     const prefix = config.Prefix || config.PREFIX || '.';
@@ -91,52 +88,10 @@ const play = async (message, client) => {
     const command = body.startsWith(prefix) ? body.slice(prefix.length).split(" ")[0].toLowerCase() : '';
     const args = body.slice(prefix.length + command.length).trim().split(" ");
     
-    // Handle selection response
-    if (userSelections.has(message.sender) && body.match(/^select_\d+$/)) {
-      const selectionData = userSelections.get(message.sender);
-      const selectedIndex = parseInt(body.split('_')[1]);
-      
-      if (selectedIndex >= 0 && selectedIndex < selectionData.videos.length) {
-        const selectedVideo = selectionData.videos[selectedIndex];
-        
-        // Remove user selection data
-        userSelections.delete(message.sender);
-        
-        // Send a downloading reaction
-        await sendCustomReaction(client, message, "⬇️");
-        
-        // Process the selected video
-        await processVideoDownload(client, message, selectedVideo, selectionData.query);
-        return;
-      } else {
-        userSelections.delete(message.sender);
-        await sendCustomReaction(client, message, "❌");
-        return await client.sendMessage(message.from, {
-          text: toFancyFont("Invalid selection. Please start over with a new search."),
-          viewOnce: true,
-          mentions: [message.sender]
-        }, { quoted: message });
-      }
-    }
+    // Store user preferences (document or audio) for each user
+    const userPreferences = {};
     
-    // Handle format selection
-    if (userSelections.has(message.sender) && (body === 'audio' || body === 'document')) {
-      const selectionData = userSelections.get(message.sender);
-      const selectedVideo = selectionData.selectedVideo;
-      const format = body;
-      
-      // Remove user selection data
-      userSelections.delete(message.sender);
-      
-      // Send a downloading reaction
-      await sendCustomReaction(client, message, "⬇️");
-      
-      // Process the selected video with the chosen format
-      await processVideoDownload(client, message, selectedVideo, selectionData.query, format);
-      return;
-    }
-    
-    // Process play command
+    // Send a custom reaction when the play command is detected
     if (command === "play") {
       // Send a loading reaction
       await sendCustomReaction(client, message, "⏳");
@@ -168,64 +123,212 @@ const play = async (message, client) => {
       // Send a searching reaction
       await sendCustomReaction(client, message, "🔍");
       
-      // Store the search results for this user
-      userSelections.set(message.sender, {
-        videos: searchResults.videos.slice(0, 5), // Limit to 5 results
-        query: query,
-        timestamp: Date.now()
-      });
+      const video = searchResults.videos[0];
+      const fileName = video.title.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').substring(0, 100);
+      const filePath = tmpDir + '/' + fileName + ".mp3";
       
-      // Create buttons for selection
-      const buttons = [];
+      let apiResponse;
       
-      searchResults.videos.slice(0, 5).forEach((video, index) => {
+      try {
+        const apiUrl = "https://apis.davidcyriltech.my.id/play?query=" + encodeURIComponent(query);
+        apiResponse = await fetch(apiUrl);
+        
+        if (!apiResponse.ok) {
+          throw new Error("API responded with status: " + apiResponse.status);
+        }
+        
+        const apiData = await apiResponse.json();
+        
+        if (!apiData.status || !apiData.result?.download_url) {
+          throw new Error("API response missing download URL or failed");
+        }
+        
+        // Extract YouTube video ID from URL
+        const videoId = extractYouTubeId(video.url) || video.videoId;
+        
+        // Get YouTube thumbnail URL
+        const thumbnailUrl = getYouTubeThumbnail(videoId, 'maxresdefault');
+        
+        // Format duration correctly
         const minutes = Math.floor(video.duration.seconds / 60);
         const seconds = video.duration.seconds % 60;
         const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         
-        buttons.push({
-          buttonId: `select_${index}`,
-          buttonText: { displayText: `${index + 1}. ${video.title.substring(0, 20)}${video.title.length > 20 ? '...' : ''}` },
-          type: 1
-        });
-      });
-      
-      // Add a cancel button
-      buttons.push({
-        buttonId: 'cancel',
-        buttonText: { displayText: '❌ Cancel' },
-        type: 1
-      });
-      
-      const selectionText = toFancyFont("Please select a song from the options below:") +
-        `\n\n*Query:* "${query}"` +
-        `\n\n${toFancyFont("Select an option by tapping the corresponding button")}`;
-      
-      await client.sendMessage(message.from, {
-        text: selectionText,
-        buttons: buttons,
-        headerType: 1,
-        viewOnce: true,
-        mentions: [message.sender]
-      }, { quoted: message });
-      
-      // Set timeout to clear selection data after 1 minute
-      setTimeout(() => {
-        if (userSelections.has(message.sender)) {
-          userSelections.delete(message.sender);
+        // Create the song info display
+        const songInfo = `
+ ━❍ *SONG*❍━
+🎵 *Title:* ${video.title}
+
+👤 *Artist:* ${video.author.name}
+⏱️ *Duration:* ${formattedDuration}
+📅 *Published:* ${video.ago}
+👁️ *Views:* ${video.views.toLocaleString()}
+📥 *Format:* MP3
+        `.trim();
+        
+        // Create buttons for format selection
+        const formatButtons = [
+          {
+            buttonId: `${prefix}senddoc ${video.url}`,
+            buttonText: { displayText: "📁 Send as Document" },
+            type: 1
+          },
+          {
+            buttonId: `${prefix}sendaudio ${video.url}`,
+            buttonText: { displayText: "🎵 Send as Audio" },
+            type: 1
+          }
+        ];
+        
+        // Download thumbnail image
+        let imageBuffer = null;
+        try {
+          const imageResponse = await fetch(thumbnailUrl);
+          if (imageResponse.ok) {
+            const arrayBuffer = await imageResponse.arrayBuffer();
+            imageBuffer = Buffer.from(arrayBuffer);
+          }
+        } catch (imageError) {
+          console.error("Failed to download thumbnail:", imageError.message);
         }
-      }, 60000);
+        
+        // Send message with format selection buttons
+        if (imageBuffer) {
+          const imageMessage = {
+            image: imageBuffer,
+            caption: songInfo + "\n\n" + toFancyFont("choose how you want to receive the audio:"),
+            buttons: formatButtons,
+            headerType: 4,
+            viewOnce: true,
+            mentions: [message.sender]
+          };
+          
+          await client.sendMessage(message.from, imageMessage, { quoted: message });
+        } else {
+          const buttonMessage = {
+            text: songInfo + "\n\n" + toFancyFont("choose how you want to receive the audio:"),
+            buttons: formatButtons,
+            headerType: 1,
+            viewOnce: true,
+            mentions: [message.sender]
+          };
+          
+          await client.sendMessage(message.from, buttonMessage, { quoted: message });
+        }
+        
+        // Store the download URL and file path for later use
+        userPreferences[message.sender] = {
+          downloadUrl: apiData.result.download_url,
+          filePath: filePath,
+          fileName: fileName,
+          videoTitle: video.title
+        };
+        
+      } catch (apiError) {
+        console.error("API error:", apiError.message);
+        // Send error reaction
+        await sendCustomReaction(client, message, "❌");
+        
+        return await client.sendMessage(message.from, {
+          text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("couldn't process your request. Please try again later"),
+          viewOnce: true,
+          mentions: [message.sender]
+        }, { quoted: message });
+      }
     }
     
-    // Handle cancel button
-    if (body === 'cancel' && userSelections.has(message.sender)) {
-      userSelections.delete(message.sender);
-      await sendCustomReaction(client, message, "❌");
-      return await client.sendMessage(message.from, {
-        text: toFancyFont("Search cancelled."),
-        viewOnce: true,
-        mentions: [message.sender]
-      }, { quoted: message });
+    // Handle format selection commands
+    if (command === "senddoc" || command === "sendaudio") {
+      const videoUrl = args[0];
+      if (!videoUrl) {
+        return await client.sendMessage(message.from, {
+          text: toFancyFont("Invalid request. Please use the play command first."),
+          viewOnce: true,
+          mentions: [message.sender]
+        }, { quoted: message });
+      }
+      
+      const userData = userPreferences[message.sender];
+      if (!userData) {
+        return await client.sendMessage(message.from, {
+          text: toFancyFont("Session expired. Please use the play command again."),
+          viewOnce: true,
+          mentions: [message.sender]
+        }, { quoted: message });
+      }
+      
+      // Send a downloading reaction
+      await sendCustomReaction(client, message, "⬇️");
+      
+      try {
+        const audioResponse = await fetch(userData.downloadUrl);
+        
+        if (!audioResponse.ok) {
+          throw new Error("Failed to download audio: " + audioResponse.status);
+        }
+        
+        const fileStream = fs.createWriteStream(userData.filePath);
+        await streamPipeline(audioResponse.body, fileStream);
+        
+        // Send success reaction
+        await sendCustomReaction(client, message, "✅");
+        
+        const audioData = fs.readFileSync(userData.filePath);
+        
+        if (command === "senddoc") {
+          // Send as document
+          await client.sendMessage(message.from, { 
+            document: audioData, 
+            mimetype: 'audio/mpeg',
+            fileName: userData.fileName + ".mp3",
+            caption: `🎵 ${userData.videoTitle}`
+          }, { quoted: message });
+        } else {
+          // Send as audio
+          await client.sendMessage(message.from, { 
+            audio: audioData, 
+            mimetype: 'audio/mpeg',
+            ptt: false,
+            fileName: userData.fileName + ".mp3"
+          }, { quoted: message });
+        }
+        
+        // Clean up temp file
+        setTimeout(() => {
+          try {
+            if (fs.existsSync(userData.filePath)) {
+              fs.unlinkSync(userData.filePath);
+              console.log("Deleted temp file: " + userData.filePath);
+            }
+          } catch (cleanupError) {
+            console.error("Error during file cleanup:", cleanupError);
+          }
+        }, 5000);
+        
+        // Remove user data from storage
+        delete userPreferences[message.sender];
+        
+      } catch (error) {
+        console.error("Failed to process audio:", error.message);
+        // Send error reaction
+        await sendCustomReaction(client, message, "❌");
+        
+        await client.sendMessage(message.from, {
+          text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("failed to process audio file"),
+          viewOnce: true,
+          mentions: [message.sender]
+        }, { quoted: message });
+        
+        // Clean up on error
+        if (userData && fs.existsSync(userData.filePath)) {
+          try {
+            fs.unlinkSync(userData.filePath);
+          } catch (cleanupError) {
+            console.error("Error cleaning up file:", cleanupError);
+          }
+        }
+        delete userPreferences[message.sender];
+      }
     }
   } catch (error) {
     console.error("❌ song error: " + error.message);
@@ -239,224 +342,5 @@ const play = async (message, client) => {
     }, { quoted: message });
   }
 };
-
-// Function to process video download
-async function processVideoDownload(client, message, video, query, format = null) {
-  try {
-    const fileName = video.title.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').substring(0, 100);
-    const filePath = tmpDir + '/' + fileName + ".mp3";
-    
-    let apiResponse;
-    
-    try {
-      const apiUrl = "https://apis.davidcyriltech.my.id/play?query=" + encodeURIComponent(video.url);
-      apiResponse = await fetch(apiUrl);
-      
-      if (!apiResponse.ok) {
-        throw new Error("API responded with status: " + apiResponse.status);
-      }
-      
-      const apiData = await apiResponse.json();
-      
-      if (!apiData.status || !apiData.result?.download_url) {
-        throw new Error("API response missing download URL or failed");
-      }
-      
-      // Extract YouTube video ID from URL
-      const videoId = extractYouTubeId(video.url) || video.videoId;
-      
-      // Get YouTube thumbnail URL
-      const thumbnailUrl = getYouTubeThumbnail(videoId, 'maxresdefault');
-      
-      // Format duration correctly
-      const minutes = Math.floor(video.duration.seconds / 60);
-      const seconds = video.duration.seconds % 60;
-      const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-      
-      // Create the song info display
-      const songInfo = `
- ━❍ *SONG*❍━
-🎵 *Title:* ${video.title}
-
-👤 *Artist:* ${video.author.name}
-⏱️ *Duration:* ${formattedDuration}
-📅 *Published:* ${video.ago}
-👁️ *Views:* ${video.views.toLocaleString()}
-📥 *Format:* MP3
-      `.trim();
-      
-      // Download thumbnail image
-      let imageBuffer = null;
-      try {
-        const imageResponse = await fetch(thumbnailUrl);
-        if (imageResponse.ok) {
-          const arrayBuffer = await imageResponse.arrayBuffer();
-          imageBuffer = Buffer.from(arrayBuffer);
-        }
-      } catch (imageError) {
-        console.error("Failed to download thumbnail:", imageError.message);
-      }
-      
-      // If format is not selected, ask user to choose
-      if (!format) {
-        userSelections.set(message.sender, {
-          selectedVideo: video,
-          query: query,
-          timestamp: Date.now()
-        });
-        
-        const formatButtons = [
-          {
-            buttonId: 'audio',
-            buttonText: { displayText: '🎵 Audio Message' },
-            type: 1
-          },
-          {
-            buttonId: 'document',
-            buttonText: { displayText: '📄 Document' },
-            type: 1
-          },
-          {
-            buttonId: 'cancel',
-            buttonText: { displayText: '❌ Cancel' },
-            type: 1
-          }
-        ];
-        
-        // Send message with format selection
-        const formatMessage = {
-          text: toFancyFont("How would you like to receive this audio?") + `\n\n${songInfo}`,
-          buttons: formatButtons,
-          headerType: 1,
-          viewOnce: true,
-          mentions: [message.sender]
-        };
-        
-        if (imageBuffer) {
-          formatMessage.image = imageBuffer;
-          formatMessage.headerType = 4;
-        }
-        
-        await client.sendMessage(message.from, formatMessage, { quoted: message });
-        return;
-      }
-      
-      // Create buttons with Menu and Join Channel options
-      const buttons = [
-        {
-          buttonId: prefix + 'menu',
-          buttonText: { displayText: "📋 Menu" },
-          type: 1
-        },
-        {
-          buttonId: prefix + 'join channel',
-          buttonText: { displayText: "📢 Join Channel" },
-          type: 1
-        }
-      ];
-      
-      // Send message with image if available, otherwise text only
-      if (imageBuffer) {
-        const imageMessage = {
-          image: imageBuffer,
-          caption: songInfo,
-          buttons: buttons,
-          headerType: 4,
-          viewOnce: true,
-          mentions: [message.sender]
-        };
-        
-        await client.sendMessage(message.from, imageMessage, { quoted: message });
-      } else {
-        const buttonMessage = {
-          text: songInfo,
-          buttons: buttons,
-          headerType: 1,
-          viewOnce: true,
-          mentions: [message.sender]
-        };
-        
-        await client.sendMessage(message.from, buttonMessage, { quoted: message });
-      }
-      
-      const audioResponse = await fetch(apiData.result.download_url);
-      
-      if (!audioResponse.ok) {
-        throw new Error("Failed to download audio: " + audioResponse.status);
-      }
-      
-      const fileStream = fs.createWriteStream(filePath);
-      await streamPipeline(audioResponse.body, fileStream);
-      
-    } catch (apiError) {
-      console.error("API error:", apiError.message);
-      // Send error reaction
-      await sendCustomReaction(client, message, "❌");
-      
-      return await client.sendMessage(message.from, {
-        text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("couldn't process your request. Please try again later"),
-        viewOnce: true,
-        mentions: [message.sender]
-      }, { quoted: message });
-    }
-    
-    try {
-      // Send audio file
-      const audioData = fs.readFileSync(filePath);
-      
-      // Send success reaction before sending audio
-      await sendCustomReaction(client, message, "✅");
-      
-      if (format === 'document') {
-        // Send as document
-        await client.sendMessage(message.from, { 
-          document: audioData, 
-          mimetype: 'audio/mpeg',
-          fileName: fileName + ".mp3"
-        }, { quoted: message });
-      } else {
-        // Send as audio
-        await client.sendMessage(message.from, { 
-          audio: audioData, 
-          mimetype: 'audio/mpeg',
-          ptt: false,
-          fileName: fileName + ".mp3"
-        }, { quoted: message });
-      }
-      
-      // Clean up temp file
-      setTimeout(() => {
-        try {
-          if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-            console.log("Deleted temp file: " + filePath);
-          }
-        } catch (cleanupError) {
-          console.error("Error during file cleanup:", cleanupError);
-        }
-      }, 5000);
-      
-    } catch (sendError) {
-      console.error("Failed to send audio:", sendError.message);
-      // Send error reaction
-      await sendCustomReaction(client, message, "❌");
-      
-      return await client.sendMessage(message.from, {
-        text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("failed to send audio file"),
-        viewOnce: true,
-        mentions: [message.sender]
-      }, { quoted: message });
-    }
-  } catch (error) {
-    console.error("Error in processVideoDownload:", error.message);
-    await sendCustomReaction(client, message, "❌");
-    
-    await client.sendMessage(message.from, {
-      text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("encountered an error while processing your selection"),
-      viewOnce: true,
-      mentions: [message.sender]
-    }, { quoted: message });
-  }
-}
 
 export default play;
