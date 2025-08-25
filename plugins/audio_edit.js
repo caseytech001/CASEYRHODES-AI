@@ -47,7 +47,24 @@ const audioEffects = async (m, gss) => {
 
     const quoted = m.message.extendedTextMessage.contextInfo;
     
-    m.reply('Please wait...');
+    // Create buttons for all valid commands
+    const effectButtons = validCommands.map(command => ({
+      buttonId: `${prefix}${command}`,
+      buttonText: { displayText: command.toUpperCase() },
+      type: 1
+    }));
+    
+    // Split buttons into rows of 3 for better organization
+    const buttonRows = [];
+    for (let i = 0; i < effectButtons.length; i += 3) {
+      buttonRows.push(effectButtons.slice(i, i + 3));
+    }
+    
+    // Send wait message with buttons
+    const waitMessage = await m.reply('Please wait...', {
+      buttons: buttonRows,
+      headerType: 1
+    });
     
     // Download the quoted audio message
     const buffer = await gss.downloadAndSaveMediaMessage(quoted.quotedMessage.audioMessage);
@@ -64,12 +81,20 @@ const audioEffects = async (m, gss) => {
       
       const buff = fs.readFileSync(outputPath);
       
-      // Send the processed audio
+      // Send the processed audio with buttons
       gss.sendMessage(m.key.remoteJid, { 
         audio: buff, 
         mimetype: 'audio/mpeg',
-        ptt: false
+        ptt: false,
+        caption: `Audio processed with *${prefix + cmd}* effect\n\nTry other effects:`,
+        buttons: buttonRows,
+        headerType: 1
       }, { quoted: m });
+      
+      // Delete the wait message
+      gss.sendMessage(m.key.remoteJid, { 
+        delete: waitMessage.key 
+      });
       
       fs.unlinkSync(outputPath);
     });
