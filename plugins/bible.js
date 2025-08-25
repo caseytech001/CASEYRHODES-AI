@@ -17,6 +17,20 @@ function toFancyFont(text) {
   return text.split('').map(char => fancyMap[char] || char).join('');
 }
 
+// Image fetch utility
+async function fetchMenuImage() {
+  const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) throw new Error('Failed to fetch image');
+    const buffer = await response.buffer();
+    return buffer;
+  } catch (error) {
+    console.error("Error fetching image:", error);
+    return null;
+  }
+}
+
 const bibleCommand = async (m, Matrix) => {
   try {
     const prefix = config.PREFIX;
@@ -30,7 +44,7 @@ const bibleCommand = async (m, Matrix) => {
       const buttonMessage = {
         text: `*${toFancyFont("Please specify the book, chapter, and verse. Example: bible john 3:16")}*`,
         buttons: [
-          { buttonId: `${prefix}menu`, buttonText: { displayText: toFancyFont("Menu") }, type: 1 }
+          { buttonId: `${prefix}menu`, buttonText: { displayText: `📋 ${toFancyFont("Menu")}` }, type: 1 }
         ],
         mentions: [m.sender],
         headerType: 1
@@ -46,7 +60,7 @@ const bibleCommand = async (m, Matrix) => {
       const buttonMessage = {
         text: `*${toFancyFont("Invalid reference. Example: bible john 3:16.")}*`,
         buttons: [
-          { buttonId: `${prefix}menu`, buttonText: { displayText: toFancyFont("Menu") }, type: 1 }
+          { buttonId: `${prefix}menu`, buttonText: { displayText: `📋 ${toFancyFont("Menu")}` }, type: 1 }
         ],
         mentions: [m.sender],
         headerType: 1
@@ -57,24 +71,49 @@ const bibleCommand = async (m, Matrix) => {
     const verses = data.verses ? data.verses.length : 1;
     const message = `*${toFancyFont("Caseyrhodes Bible")}*\n\n*${toFancyFont("Reading:")}* ${data.reference}\n*${toFancyFont("Verse:")}* ${verses}\n\n*${toFancyFont("Read:")}*\n${data.text}\n\n*${toFancyFont("Translation:")}* ${data.translation_name}`;
 
-    const buttonMessage = {
-      text: message,
-      buttons: [
-        { buttonId: `${prefix}bible ${text}`, buttonText: { displayText: toFancyFont("Read Again") }, type: 1 },
-        { buttonId: `${prefix}menu`, buttonText: { displayText: toFancyFont("Menu") }, type: 1 }
-      ],
-      mentions: [m.sender],
-      headerType: 1
-    };
-
-    await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
+    // Fetch the image
+    const imageBuffer = await fetchMenuImage();
+    
+    if (imageBuffer) {
+      // Prepare image media
+      const imageMessage = await prepareWAMessageMedia(
+        { image: imageBuffer },
+        { upload: Matrix.waUploadToServer }
+      );
+      
+      // Create message with image
+      const buttonMessage = {
+        image: imageMessage.image,
+        caption: message,
+        buttons: [
+          { buttonId: `${prefix}bible ${text}`, buttonText: { displayText: `📖 ${toFancyFont("Read Again")}` }, type: 1 },
+          { buttonId: `${prefix}menu`, buttonText: { displayText: `📋 ${toFancyFont("Menu")}` }, type: 1 }
+        ],
+        mentions: [m.sender],
+        headerType: 4
+      };
+      
+      await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
+    } else {
+      // Fallback to text message if image fails
+      const buttonMessage = {
+        text: message,
+        buttons: [
+          { buttonId: `${prefix}bible ${text}`, buttonText: { displayText: `📖 ${toFancyFont("Read Again")}` }, type: 1 },
+          { buttonId: `${prefix}menu`, buttonText: { displayText: `📋 ${toFancyFont("Menu")}` }, type: 1 }
+        ],
+        mentions: [m.sender],
+        headerType: 1
+      };
+      await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
+    }
 
   } catch (error) {
     console.error("Error occurred in bible command:", error);
     const buttonMessage = {
       text: `*${toFancyFont("An error occurred while fetching the Bible verse. Please try again later.")}*`,
       buttons: [
-        { buttonId: `${config.PREFIX}menu`, buttonText: { displayText: toFancyFont("Menu") }, type: 1 }
+        { buttonId: `${config.PREFIX}menu`, buttonText: { displayText: `📋 ${toFancyFont("Menu")}` }, type: 1 }
       ],
       mentions: [m.sender],
       headerType: 1
