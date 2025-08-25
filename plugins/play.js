@@ -115,11 +115,16 @@ const play = async (message, client) => {
 📥 *Format:* MP3
         `.trim();
         
-        // Removed repo button - only audio button remains
+        // Added document button alongside audio button
         const formatButtons = [
           {
             buttonId: `${prefix}audio ${video.videoId}`,
             buttonText: { displayText: "🎵 Audio" },
+            type: 1
+          },
+          {
+            buttonId: `${prefix}document ${video.videoId}`,
+            buttonText: { displayText: "📄 Document" },
             type: 1
           }
         ];
@@ -135,7 +140,7 @@ const play = async (message, client) => {
           console.error("Failed to download thumbnail:", imageError.message);
         }
         
-        // Send audio immediately without waiting for button click
+        // Store user data for both audio and document options
         userPreferences[message.sender] = {
           downloadUrl: apiData.result.download_url,
           filePath: filePath,
@@ -164,14 +169,14 @@ const play = async (message, client) => {
         if (imageBuffer) {
           await client.sendMessage(message.from, {
             image: imageBuffer,
-            caption: songInfo + "\n\n" + toFancyFont("Audio is being downloaded..."),
+            caption: songInfo + "\n\n" + toFancyFont("Choose download format:"),
             buttons: formatButtons,
             headerType: 4,
             mentions: [message.sender]
           }, { quoted: message });
         } else {
           await client.sendMessage(message.from, {
-            text: songInfo + "\n\n" + toFancyFont("Audio is being downloaded..."),
+            text: songInfo + "\n\n" + toFancyFont("Choose download format:"),
             buttons: formatButtons,
             headerType: 1,
             mentions: [message.sender]
@@ -273,6 +278,78 @@ const play = async (message, client) => {
         
         await client.sendMessage(message.from, {
           text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("failed to process audio file"),
+          mentions: [message.sender]
+        }, { quoted: message });
+        
+        if (userData && fs.existsSync(userData.filePath)) {
+          try {
+            fs.unlinkSync(userData.filePath);
+          } catch (cleanupError) {
+            console.error("Error cleaning up file:", cleanupError);
+          }
+        }
+        delete userPreferences[message.sender];
+      }
+    }
+    
+    if (command === "document") {
+      const userData = userPreferences[message.sender];
+      
+      if (!userData || (Date.now() - userData.timestamp > 5 * 60 * 1000)) {
+        if (userData) delete userPreferences[message.sender];
+        
+        return await client.sendMessage(message.from, {
+          text: toFancyFont("Session expired. Please use the play command again."),
+          mentions: [message.sender]
+        }, { quoted: message });
+      }
+      
+      await sendCustomReaction(client, message, "⬇️");
+      
+      try {
+        let audioData;
+        
+        if (fs.existsSync(userData.filePath)) {
+          audioData = fs.readFileSync(userData.filePath);
+        } else {
+          const audioResponse = await fetch(userData.downloadUrl);
+          
+          if (!audioResponse.ok) {
+            throw new Error("Failed to download audio: " + audioResponse.status);
+          }
+          
+          const fileStream = fs.createWriteStream(userData.filePath);
+          await streamPipeline(audioResponse.body, fileStream);
+          audioData = fs.readFileSync(userData.filePath);
+        }
+        
+        // Send as document instead of audio
+        await client.sendMessage(message.from, { 
+          document: audioData, 
+          mimetype: 'audio/mpeg',
+          fileName: userData.fileName + ".mp3"
+        }, { quoted: message });
+        
+        await sendCustomReaction(client, message, "✅");
+        
+        setTimeout(() => {
+          try {
+            if (fs.existsSync(userData.filePath)) {
+              fs.unlinkSync(userData.filePath);
+            }
+          } catch (cleanupError) {
+            console.error("Error during file cleanup:", cleanupError);
+          }
+        }, 5000);
+        
+        delete userPreferences[message.sender];
+        
+      } catch (error) {
+        console.error("Failed to process document:", error.message);
+        await sendCustomReaction(client, message, "❌");
+        
+        await client.sendMessage(message.from, {
+          text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("failed to process document file"),
           mentions: [message.sender]
         }, { quoted: message });
         
