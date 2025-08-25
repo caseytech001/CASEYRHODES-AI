@@ -32,21 +32,25 @@ const ownerContact = async (m, gss) => {
                 throw new Error('Owner number not configured');
             }
 
-            // Send contact immediately
-            await gss.sendContact(m.from, [ownernumber], m);
-            
-            // Send interactive buttons for additional options
-            const buttonMessage = {
+            // Send contact with buttons in a single message
+            const contactMessage = {
                 text: "What would you like to do?",
                 footer: "Owner Contact Options",
                 buttons: [
                     { buttonId: `${prefix}callowner`, buttonText: { displayText: "📞 Call Owner" }, type: 1 },
                     { buttonId: `${prefix}whatsappowner`, buttonText: { displayText: "💬 Send WhatsApp" }, type: 1 }
                 ],
-                headerType: 1
+                headerType: 6, // Changed to 6 for contact message
+                contacts: {
+                    displayName: "Owner",
+                    contacts: [{ 
+                        displayName: "Owner", 
+                        vcard: `BEGIN:VCARD\nVERSION:3.0\nN:;Owner;;;\nFN:Owner\nTEL;type=CELL;type=VOICE;waid=${ownernumber.replace('@s.whatsapp.net', '')}:${ownernumber.replace('@s.whatsapp.net', '')}\nEND:VCARD`
+                    }]
+                }
             };
             
-            await gss.sendMessage(m.from, buttonMessage, { quoted: m });
+            await gss.sendMessage(m.from, contactMessage, { quoted: m });
             await m.react("✅");
             
         } catch (error) {
