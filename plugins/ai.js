@@ -9,8 +9,14 @@ const chatHistoryFile = path.resolve(__dirname, '../mistral_history.json');
 
 const mistralSystemPrompt = "you are a good assistant.";
 
+// Check if user is owner
+function isOwner(sender) {
+    const ownerNumbers = config.OWNER_NUMBERS || [];
+    return ownerNumbers.includes(sender.split('@')[0]) || ownerNumbers.includes(sender);
+}
+
 // Local AI response generator - no external APIs!
-function generateLocalAIResponse(prompt, chatHistory = []) {
+function generateLocalAIResponse(prompt, chatHistory = [], isOwnerUser = false) {
     const responses = {
         greeting: [
             "Hello! How can I help you today?",
@@ -32,6 +38,11 @@ function generateLocalAIResponse(prompt, chatHistory = []) {
             "Why don't eggs tell jokes? They'd crack each other up!"
         ],
         weather: "I'm a local AI, so I can't access real-time weather data. But I hope it's nice where you are!",
+        owner: [
+            "Hello Owner! How can I assist you today?",
+            "Hey Boss! What do you need?",
+            "Owner commands unlocked! What can I do for you?"
+        ],
         default: [
             "That's an interesting question!",
             "I understand what you're asking.",
@@ -44,9 +55,24 @@ function generateLocalAIResponse(prompt, chatHistory = []) {
     // Convert prompt to lowercase for easier matching
     const lowerPrompt = prompt.toLowerCase();
 
+    // Special owner commands
+    if (isOwnerUser) {
+        if (/(status|stats|performance)/i.test(lowerPrompt)) {
+            return `🤖 Bot Status:
+• Uptime: ${process.uptime().toFixed(2)} seconds
+• Memory: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)} MB
+• Node: ${process.version}`;
+        }
+        else if (/(restart|reboot)/i.test(lowerPrompt)) {
+            return "⚠️ Restart command received. (Note: Actual restart would need to be implemented)";
+        }
+    }
+
     // Simple pattern matching
     if (/(hello|hi|hey|greetings|good morning|good afternoon|good evening)/i.test(lowerPrompt)) {
-        return responses.greeting[Math.floor(Math.random() * responses.greeting.length)];
+        return isOwnerUser 
+            ? responses.owner[Math.floor(Math.random() * responses.owner.length)]
+            : responses.greeting[Math.floor(Math.random() * responses.greeting.length)];
     }
     else if (/(help|support|assist|what can you do)/i.test(lowerPrompt)) {
         return responses.help[Math.floor(Math.random() * responses.help.length)];
@@ -110,7 +136,15 @@ async function deleteChatHistory(chatHistory, userId) {
 }
 
 // Function to send interactive buttons
-async function sendInteractiveButtons(Matrix, from, text, buttons, quoted = null) {
+async function sendInteractiveButtons(Matrix, from, text, buttons, quoted = null, isOwnerUser = false) {
+    // Add owner-specific buttons if user is owner
+    if (isOwnerUser) {
+        buttons.push(
+            { id: 'status_button', text: '📊 Bot Status' },
+            { id: 'broadcast_button', text: '📢 Broadcast' }
+        );
+    }
+    
     const buttonMessages = [];
     
     buttons.forEach((button) => {
@@ -135,7 +169,9 @@ async function sendInteractiveButtons(Matrix, from, text, buttons, quoted = null
                         text: text
                     }),
                     footer: proto.Message.InteractiveMessage.Footer.create({
-                        text: "> 🔥 100% Local - No External APIs!"
+                        text: isOwnerUser 
+                            ? "> 🔥 Owner Mode - Enhanced Features!" 
+                            : "> 🔥 100% Local - No External APIs!"
                     }),
                     header: proto.Message.InteractiveMessage.Header.create({
                         title: "",
@@ -158,10 +194,21 @@ async function sendInteractiveButtons(Matrix, from, text, buttons, quoted = null
 const mistral = async (m, Matrix) => {
     const chatHistory = await readChatHistoryFromFile();
     const text = m.body.toLowerCase();
+    const ownerUser = isOwner(m.sender);
 
     if (text === "/forget") {
         await deleteChatHistory(chatHistory, m.sender);
         await Matrix.sendMessage(m.from, { text: 'Conversation history deleted successfully! 🗑️' }, { quoted: m });
+        return;
+    }
+
+    // Owner-only command to clear all chat history
+    if (text === "/clearall" && ownerUser) {
+        for (const key of Object.keys(chatHistory)) {
+            delete chatHistory[key];
+        }
+        await writeChatHistoryToFile(chatHistory);
+        await Matrix.sendMessage(m.from, { text: 'All chat history cleared! 🗑️' }, { quoted: m });
         return;
     }
 
@@ -184,9 +231,12 @@ const mistral = async (m, Matrix) => {
             await sendInteractiveButtons(
                 Matrix, 
                 m.from, 
-                "Hello! I'm your local AI assistant. What would you like to know?",
+                ownerUser 
+                    ? "Hello Owner! I'm your local AI assistant with enhanced features. What would you like to know?"
+                    : "Hello! I'm your local AI assistant. What would you like to know?",
                 buttons,
-                m
+                m,
+                ownerUser
             );
             return;
         }
@@ -198,7 +248,7 @@ const mistral = async (m, Matrix) => {
             await Matrix.sendMessage(m.from, { react: { text: '⏳', key: m.key } });
 
             // Generate response locally - NO EXTERNAL API!
-            const answer = generateLocalAIResponse(prompt, senderChatHistory);
+            const answer = generateLocalAIResponse(prompt, senderChatHistory, ownerUser);
 
             // Update chat history
             await updateChatHistory(chatHistory, m.sender, { role: "user", content: prompt });
@@ -222,7 +272,9 @@ const mistral = async (m, Matrix) => {
                                     text: answer
                                 }),
                                 footer: proto.Message.InteractiveMessage.Footer.create({
-                                    text: "> 🔥 100% Local - No External APIs!"
+                                    text: ownerUser 
+                                        ? "> 🔥 Owner Mode - Enhanced Features!" 
+                                        : "> 🔥 100% Local - No External APIs!"
                                 }),
                                 header: proto.Message.InteractiveMessage.Header.create({
                                     title: "",
@@ -258,7 +310,7 @@ const mistral = async (m, Matrix) => {
                     { id: 'help_button', text: '❓ Help' }
                 ];
                 
-                await sendInteractiveButtons(Matrix, m.from, answer, buttons, m);
+                await sendInteractiveButtons(Matrix, m.from, answer, buttons, m, ownerUser);
             }
 
             // Success reaction
@@ -274,6 +326,7 @@ const mistral = async (m, Matrix) => {
     // Handle button responses
     if (m.message?.interactiveMessage?.nativeFlowResponseMessage) {
         const buttonId = m.message.interactiveMessage.nativeFlowResponseMessage.params?.id;
+        const ownerUser = isOwner(m.sender);
         
         let response = "";
         switch(buttonId) {
@@ -295,6 +348,23 @@ const mistral = async (m, Matrix) => {
             case 'help_button':
                 response = "I can help you with various tasks like telling time, date, jokes, and answering questions. I'm a local AI running directly on this server!";
                 break;
+            case 'status_button':
+                if (ownerUser) {
+                    response = `🤖 Bot Status:
+• Uptime: ${process.uptime().toFixed(2)} seconds
+• Memory: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)} MB
+• Node: ${process.version}`;
+                } else {
+                    response = "❌ Permission denied. This feature is for owners only.";
+                }
+                break;
+            case 'broadcast_button':
+                if (ownerUser) {
+                    response = "📢 Broadcast feature would be implemented here. (Placeholder)";
+                } else {
+                    response = "❌ Permission denied. This feature is for owners only.";
+                }
+                break;
             default:
                 response = "I'm not sure what you're asking. How can I help you?";
         }
@@ -311,7 +381,7 @@ const mistral = async (m, Matrix) => {
             { id: 'help_button', text: '❓ Help' }
         ];
         
-        await sendInteractiveButtons(Matrix, m.from, response, buttons, m);
+        await sendInteractiveButtons(Matrix, m.from, response, buttons, m, ownerUser);
     }
 };
 
