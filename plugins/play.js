@@ -133,6 +133,8 @@ const play = async (message, client) => {
 📅 *Published:* ${video.ago}
 👁️ *Views:* ${video.views.toLocaleString()}
 🔗 *YouTube URL:* ${video.url}
+
+${toFancyFont("Choose download format:")}
       `.trim();
       
       // Store session data
@@ -172,37 +174,43 @@ const play = async (message, client) => {
         }
       })();
       
-      // Send response with image if available, otherwise text
+      // Send single message with both info and buttons
       if (imageBuffer) {
         await client.sendMessage(message.from, {
           image: imageBuffer,
           caption: songInfo,
+          buttons: [
+            {
+              buttonId: `${prefix}audio`,
+              buttonText: { displayText: "🎵 Audio" },
+              type: 1
+            },
+            {
+              buttonId: `${prefix}document`,
+              buttonText: { displayText: "📄 Document" },
+              type: 1
+            }
+          ],
           mentions: [message.sender]
         }, { quoted: message });
       } else {
         await client.sendMessage(message.from, {
           text: songInfo,
+          buttons: [
+            {
+              buttonId: `${prefix}audio`,
+              buttonText: { displayText: "🎵 Audio" },
+              type: 1
+            },
+            {
+              buttonId: `${prefix}document`,
+              buttonText: { displayText: "📄 Document" },
+              type: 1
+            }
+          ],
           mentions: [message.sender]
         }, { quoted: message });
       }
-      
-      // Send download format options as a separate message
-      await client.sendMessage(message.from, {
-        text: toFancyFont("choose download format:"),
-        buttons: [
-          {
-            buttonId: `${prefix}audio`,
-            buttonText: { displayText: "🎵 Audio" },
-            type: 1
-          },
-          {
-            buttonId: `${prefix}document`,
-            buttonText: { displayText: "📄 Document" },
-            type: 1
-          }
-        ],
-        mentions: [message.sender]
-      }, { quoted: message });
       
       await sendCustomReaction(client, message, "✅");
       
