@@ -81,15 +81,15 @@ async function sendCustomReaction(client, message, reaction) {
   }
 }
 
+// Store user preferences globally to persist across function calls
+const userPreferences = {};
+
 const play = async (message, client) => {
   try {
     const prefix = config.Prefix || config.PREFIX || '.';
     const body = message.body || '';
     const command = body.startsWith(prefix) ? body.slice(prefix.length).split(" ")[0].toLowerCase() : '';
     const args = body.slice(prefix.length + command.length).trim().split(" ");
-    
-    // Store user preferences for each user
-    const userPreferences = {};
     
     // Send a custom reaction when the play command is detected
     if (command === "play") {
@@ -169,8 +169,8 @@ const play = async (message, client) => {
         // Create buttons for audio and repo
         const formatButtons = [
           {
-            buttonId: `${prefix}sendaudio ${video.url}`,
-            buttonText: { displayText: "🎵 Audio" }, // Changed from "Send Audio" to "Audio"
+            buttonId: `${prefix}sendaudio ${video.videoId}`,
+            buttonText: { displayText: "🎵 Audio" },
             type: 1
           },
           {
@@ -221,8 +221,17 @@ const play = async (message, client) => {
           downloadUrl: apiData.result.download_url,
           filePath: filePath,
           fileName: fileName,
-          videoTitle: video.title
+          videoTitle: video.title,
+          timestamp: Date.now() // Add timestamp for expiration
         };
+        
+        // Clean up old sessions (older than 5 minutes)
+        const now = Date.now();
+        for (const [sender, data] of Object.entries(userPreferences)) {
+          if (now - data.timestamp > 5 * 60 * 1000) { // 5 minutes
+            delete userPreferences[sender];
+          }
+        }
         
       } catch (apiError) {
         console.error("API error:", apiError.message);
@@ -240,7 +249,14 @@ const play = async (message, client) => {
     // Handle audio button selection
     if (command === "sendaudio") {
       const userData = userPreferences[message.sender];
-      if (!userData) {
+      
+      // Check if session exists and is not expired (5 minutes)
+      if (!userData || (Date.now() - userData.timestamp > 5 * 60 * 1000)) {
+        // Clean up expired session
+        if (userData) {
+          delete userPreferences[message.sender];
+        }
+        
         return await client.sendMessage(message.from, {
           text: toFancyFont("Session expired. Please use the play command again."),
           viewOnce: true,
