@@ -84,11 +84,7 @@ const ownerContact = async (m, gss) => {
             }
 
             // Send contact again when WhatsApp button is clicked
-            `OWNER CONTACTS:
-
-            CASWYRHODES TECH
-
-            > 254112192119`
+            await gss.sendContact(m.from, [ownernumber], m);
             await m.reply("Owner contact sent again! 📱");
             await m.react("💬");
             
