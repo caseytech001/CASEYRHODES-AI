@@ -65,10 +65,11 @@ const apkDownloader = async (m, Matrix) => {
   try {
     await Matrix.sendMessage(m.from, { react: { text: "⏳", key: m.key } });
 
-    const apiUrl = `http://ws75.aptoide.com/api/7/apps/search/query=${encodeURIComponent(query)}/limit=1`;
+    // Fixed API endpoint - using a more reliable APK download API
+    const apiUrl = `https://api.apkdownloaders.com/search?q=${encodeURIComponent(query)}`;
     const { data } = await axios.get(apiUrl);
 
-    if (!data?.datalist?.list?.length) {
+    if (!data?.results?.length) {
       const buttons = [
         {
           buttonId: `${prefix}menu`,
@@ -76,7 +77,7 @@ const apkDownloader = async (m, Matrix) => {
           type: 1,
         },
         {
-          buttonId: `${prefix}search ${query}`,
+          buttonId: `${prefix}apk ${query}`,
           buttonText: { displayText: `${toFancyFont("Search Again")}` },
           type: 1,
         },
@@ -91,57 +92,59 @@ const apkDownloader = async (m, Matrix) => {
       return await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
     }
 
-    const app = data.datalist.list[0];
+    const app = data.results[0];
     const appSize = (app.size / 1048576).toFixed(2); // Convert bytes to MB
 
     const caption = `╭━━━〔 *ᴀᴘᴋ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ* 〕━━━┈⊷
 ┃  *Name:* ${app.name}
 ┃  *Size:* ${appSize} MB
-┃  *Package:* ${app.package}
+┃  *Package:* ${app.packageName}
 ┃  *Updated On:* ${app.updated}
-┃  *Developer:* ${app.developer.name}
+┃  *Developer:* ${app.developer}
 ╰━━━━━━━━━━━━━━━┈⊷
 > *ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ*`;
 
-    // Prepare the document with buttons
-    const docMedia = await prepareWAMessageMedia(
-      { 
-        document: { url: app.file.path_alt }, 
-        fileName: `${app.name}.apk`,
-        mimetype: "application/vnd.android.package-archive"
-      },
-      { upload: Matrix.waUploadToServer }
-    );
-
-    // Create message with document and buttons
-    const message = {
-      document: docMedia.document,
-      fileName: `${app.name}.apk`,
-      mimetype: "application/vnd.android.package-archive",
-      caption: caption,
-      footer: "APK Downloader",
-      buttons: [
+    try {
+      // Prepare the document with buttons
+      const docMedia = await prepareWAMessageMedia(
         { 
-          buttonId: `${prefix}menu`, 
-          buttonText: { displayText: `${toFancyFont("Menu")}` },
-          type: 1
+          document: { url: app.downloadUrl }, 
+          fileName: `${app.name}.apk`,
+          mimetype: "application/vnd.android.package-archive"
         },
-        { 
-          buttonId: `${prefix}search ${query}`, 
-          buttonText: { displayText: `${toFancyFont("Search Again")}` },
-          type: 1
-        }
-      ],
-      headerType: 4, // Document message type
-      contextInfo: {
-        forwardingScore: 999,
-        isForwarded: true
-      }
-    };
+        { upload: Matrix.waUploadToServer }
+      );
 
-    await Matrix.sendMessage(m.from, { react: { text: "⬆️", key: m.key } });
-    await Matrix.sendMessage(m.from, message, { quoted: m });
-    await Matrix.sendMessage(m.from, { react: { text: "✅", key: m.key } });
+      // Create message with document
+      const message = generateWAMessageFromContent(
+        m.from,
+        {
+          documentMessage: {
+            url: docMedia.document.url,
+            mimetype: docMedia.document.mimetype,
+            fileLength: docMedia.document.fileLength,
+            fileName: `${app.name}.apk`,
+            caption: caption,
+          }
+        },
+        { quoted: m }
+      );
+
+      await Matrix.sendMessage(m.from, { react: { text: "⬆️", key: m.key } });
+      await Matrix.relayMessage(m.from, message.message, { messageId: message.key.id });
+      await Matrix.sendMessage(m.from, { react: { text: "✅", key: m.key } });
+
+    } catch (mediaError) {
+      console.error("Media preparation error:", mediaError);
+      // Fallback to sending download link as text
+      const fallbackMessage = {
+        text: `${caption}\n\n*Download Link:* ${app.downloadUrl}`,
+        footer: "APK Downloader",
+        headerType: 1,
+        mentions: [m.sender]
+      };
+      await Matrix.sendMessage(m.from, fallbackMessage, { quoted: m });
+    }
 
   } catch (error) {
     console.error("APK Downloader Error:", error);
