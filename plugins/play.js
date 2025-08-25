@@ -63,7 +63,6 @@ const play = async (message, client) => {
         await sendCustomReaction(client, message, "❌");
         return await client.sendMessage(message.from, {
           text: toFancyFont("Please provide a song name or keywords to search"),
-          viewOnce: true,
           mentions: [message.sender]
         }, { quoted: message });
       }
@@ -75,7 +74,6 @@ const play = async (message, client) => {
         await sendCustomReaction(client, message, "❌");
         return await client.sendMessage(message.from, {
           text: toFancyFont('No tracks found for') + " \"" + query + "\"",
-          viewOnce: true,
           mentions: [message.sender]
         }, { quoted: message });
       }
@@ -167,15 +165,15 @@ const play = async (message, client) => {
           await client.sendMessage(message.from, {
             image: imageBuffer,
             caption: songInfo + "\n\n" + toFancyFont("Audio is being downloaded..."),
+            buttons: formatButtons,
             headerType: 4,
-            viewOnce: true,
             mentions: [message.sender]
           }, { quoted: message });
         } else {
           await client.sendMessage(message.from, {
             text: songInfo + "\n\n" + toFancyFont("Audio is being downloaded..."),
+            buttons: formatButtons,
             headerType: 1,
-            viewOnce: true,
             mentions: [message.sender]
           }, { quoted: message });
         }
@@ -193,7 +191,6 @@ const play = async (message, client) => {
         
         return await client.sendMessage(message.from, {
           text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("couldn't process your request. Please try again later"),
-          viewOnce: true,
           mentions: [message.sender]
         }, { quoted: message });
       }
@@ -207,7 +204,6 @@ const play = async (message, client) => {
         
         return await client.sendMessage(message.from, {
           text: toFancyFont("Session expired. Please use the play command again."),
-          viewOnce: true,
           mentions: [message.sender]
         }, { quoted: message });
       }
@@ -277,7 +273,6 @@ const play = async (message, client) => {
         
         await client.sendMessage(message.from, {
           text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("failed to process audio file"),
-          viewOnce: true,
           mentions: [message.sender]
         }, { quoted: message });
         
@@ -298,7 +293,6 @@ const play = async (message, client) => {
     
     await client.sendMessage(message.from, {
       text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("encountered an error. Please try again"),
-      viewOnce: true,
       mentions: [message.sender]
     }, { quoted: message });
   }
