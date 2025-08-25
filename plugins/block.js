@@ -26,7 +26,7 @@ const block = async (m, gss) => {
         ],
         headerType: 1
       };
-      return gss.sendMessage(m.from, buttonMessage, { quoted: m });
+      return await gss.sendMessage(m.from, buttonMessage, { quoted: m });
     }
 
     const text = body.slice(prefix.length + cmd.length).trim();
@@ -42,7 +42,7 @@ const block = async (m, gss) => {
         ],
         headerType: 1
       };
-      return gss.sendMessage(m.from, buttonMessage, { quoted: m });
+      return await gss.sendMessage(m.from, buttonMessage, { quoted: m });
     }
 
     let users = m.mentionedJid?.[0] || (m.quoted ? m.quoted.sender : null);
@@ -65,7 +65,7 @@ const block = async (m, gss) => {
         ],
         headerType: 1
       };
-      return gss.sendMessage(m.from, buttonMessage, { quoted: m });
+      return await gss.sendMessage(m.from, buttonMessage, { quoted: m });
     }
 
     // Ensure the user JID is in the correct format
@@ -109,7 +109,7 @@ const block = async (m, gss) => {
       headerType: 1
     };
     
-    gss.sendMessage(m.from, errorButtons, { quoted: m });
+    await gss.sendMessage(m.from, errorButtons, { quoted: m });
   }
 };
 
