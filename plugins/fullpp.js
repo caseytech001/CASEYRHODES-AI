@@ -3,16 +3,17 @@ import Jimp from 'jimp';
 import config from '../config.cjs';
 
 const setProfilePicture = async (m, sock) => {
-  const botNumber = sock.user.id;
+  const botNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net'; // Format the bot number properly
   const isBot = m.sender === botNumber;
   const prefix = config.PREFIX;
   const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
 
   if (cmd !== "fullpp") return;
 
-  // Only bot can use this command
-  if (!isBot) {
-    return m.reply("❌ This command can only be used by the bot itself.");
+  // Allow only the bot owner to use this command instead of just the bot itself
+  const isOwner = config.OWNERS.includes(m.sender.split('@')[0]);
+  if (!isOwner) {
+    return m.reply("❌ This command can only be used by the bot owner.");
   }
 
   // Check if the replied message is an image
