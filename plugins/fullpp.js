@@ -46,7 +46,7 @@ const setProfilePicture = async (m, sock) => {
     }
 
     // Process image
-    const image = await Jimp.read(media);
+    let image = await Jimp.read(media);
     if (!image) throw new Error("Invalid image format");
 
     // Make square if needed
