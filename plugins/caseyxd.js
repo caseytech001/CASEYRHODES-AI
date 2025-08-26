@@ -298,20 +298,82 @@ const menu = async (m, Matrix) => {
 ╰─────────────────⊷
 `;
 
+      // Create button select menu using nativeFlowInfo
+      const buttons = [
+        {
+          buttonId: "menu-options",
+          buttonText: { displayText: "📂 ᴍᴇɴᴜ ᴏᴘᴛɪᴏɴs" },
+          type: 4, // Native Flow type
+          nativeFlowInfo: {
+            name: "single_select",
+            paramsJson: JSON.stringify({
+              title: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ᴍᴇɴᴜ",
+              sections: [
+                {
+                  title: "ᴄᴀᴛᴇɢᴏʀɪᴇs",
+                  highlight_label: "sᴇʟᴇᴄᴛ ᴀ ᴄᴀᴛᴇɢᴏʀʏ",
+                  rows: [
+                    {
+                      title: "📥 ᴅᴏᴡɴʟᴏᴀᴅ",
+                      description: "ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}download-menu`,
+                    },
+                    {
+                      title: "👥 ɢʀᴏᴜᴘ",
+                      description: "ɢʀᴏᴜᴘ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ",
+                      id: `${prefix}group-menu`,
+                    },
+                    {
+                      title: "🎉 ғᴜɴ",
+                      description: "ғᴜɴ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}fun-menu`,
+                    },
+                    {
+                      title: "👑 ᴏᴡɴᴇʀ",
+                      description: "ᴏᴡɴᴇʀ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}owner-menu`,
+                    },
+                    {
+                      title: "🤖 ᴀɪ",
+                      description: "ᴀɪ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}ai-menu`,
+                    },
+                    {
+                      title: "🌸 ᴀɴɪᴍᴇ",
+                      description: "ᴀɴɪᴍᴇ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}anime-menu`,
+                    },
+                    {
+                      title: "🔄 ᴄᴏɴᴠᴇʀᴛᴇʀ",
+                      description: "ᴄᴏɴᴠᴇʀᴛᴇʀ ᴛᴏᴏʟs",
+                      id: `${prefix}converter-menu`,
+                    },
+                    {
+                      title: "🌟 ᴏᴛʜᴇʀ",
+                      description: "ᴏᴛʜᴇʀ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}other-menu`,
+                    },
+                    {
+                      title: "🎭 ʀᴇᴀᴄᴛɪᴏɴs",
+                      description: "ʀᴇᴀᴄᴛɪᴏɴ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}reactions-menu`,
+                    },
+                    {
+                      title: "📂 ᴍᴀɪɴ",
+                      description: "ᴍᴀɪɴ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}main-menu`,
+                    }
+                  ],
+                },
+              ],
+            }),
+          },
+        },
+      ];
+
       const messageOptions = {
         viewOnce: true,
-        buttons: [
-          { buttonId: `${prefix}download-menu`, buttonText: { displayText: `📥 ᴅᴏᴡɴʟᴏᴀᴅ ` }, type: 1 },
-          { buttonId: `${prefix}group-menu`, buttonText: { displayText: `👥 ɢʀᴏᴜᴘ` }, type: 1 },
-          { buttonId: `${prefix}fun-menu`, buttonText: { displayText: `🎉 ғᴜɴ` }, type: 1 },
-          { buttonId: `${prefix}owner-menu`, buttonText: { displayText: `👑 ᴏᴡɴᴇʀ` }, type: 1 },
-          { buttonId: `${prefix}ai-menu`, buttonText: { displayText: `🤖 ᴀɪ` }, type: 1 },
-          { buttonId: `${prefix}anime-menu`, buttonText: { displayText: `🌸 ᴀɴɪᴍᴇ` }, type: 1 },
-          { buttonId: `${prefix}converter-menu`, buttonText: { displayText: `🔄 ᴄᴏɴᴠᴇʀᴛᴇʀ` }, type: 1 },
-          { buttonId: `${prefix}other-menu`, buttonText: { displayText: `🌟 ᴏᴛʜᴇʀ` }, type: 1 },
-          { buttonId: `${prefix}reactions-menu`, buttonText: { displayText: `🎭 ʀᴇᴀᴄᴛɪᴏɴs` }, type: 1 },
-          { buttonId: `${prefix}main-menu`, buttonText: { displayText: `📂 ᴍᴀɪɴ` }, type: 1 }
-        ],
+        buttons: buttons,
         contextInfo: {
           mentionedJid: [m.sender],
           forwardingScore: 999,
@@ -387,7 +449,7 @@ const menu = async (m, Matrix) => {
       let menuResponse = "";
       categoryData.commands.forEach((cmdObj, index) => {
         const num = (index + 1).toString().padStart(2, "0");
-        menuResponse += `${toFancyFont(`.${cmdObj.command}`)} - ${cmdObj.desc}\n`;
+        menuResponse += `${toFancyFont(`${prefix}${cmdObj.command}`)} - ${cmdObj.desc}\n`;
       });
 
       // Format the full response
@@ -405,9 +467,33 @@ ${menuResponse}
 > ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
 `;
 
+      // Create back button with native flow
       const backButton = {
         buttons: [
-          { buttonId: `${prefix}menu`, buttonText: { displayText: `🔙 Back to Main Menu` }, type: 1 }
+          {
+            buttonId: "back-to-main",
+            buttonText: { displayText: "🔙 ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ" },
+            type: 4,
+            nativeFlowInfo: {
+              name: "single_select",
+              paramsJson: JSON.stringify({
+                title: "ɴᴀᴠɪɢᴀᴛɪᴏɴ",
+                sections: [
+                  {
+                    title: "ᴍᴇɴᴜ ᴏᴘᴛɪᴏɴs",
+                    highlight_label: "",
+                    rows: [
+                      {
+                        title: "ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ",
+                        description: "ʀᴇᴛᴜʀɴ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ",
+                        id: `${prefix}menu`,
+                      }
+                    ],
+                  },
+                ],
+              }),
+            },
+          }
         ],
         contextInfo: {
           isForwarded: true,
