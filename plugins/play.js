@@ -20,6 +20,10 @@ function toFancyFont(text) {
 const streamPipeline = promisify(pipeline);
 const tmpDir = os.tmpdir();
 
+// Kaiz-API configuration
+const KAIZ_API_KEY = 'cf2ca612-296f-45ba-abbc-473f18f991eb';
+const KAIZ_API_URL = 'https://kaiz-apis.gleeze.com/api/ytdown-mp3';
+
 function getYouTubeThumbnail(videoId, quality = 'hqdefault') {
   const qualities = {
     'default': 'default.jpg', 'mqdefault': 'mqdefault.jpg', 'hqdefault': 'hqdefault.jpg',
@@ -48,6 +52,89 @@ async function sendCustomReaction(client, message, reaction) {
 
 // Store user preferences with better session management
 const userSessions = new Map();
+
+// Utility function to fetch video info
+async function fetchVideoInfo(text) {
+  const isYtUrl = text.match(/(youtube\.com|youtu\.be)/i);
+  
+  if (isYtUrl) {
+    const videoId = text.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i)?.[1];
+    if (!videoId) throw new Error('Invalid YouTube URL format');
+    
+    const videoInfo = await ytSearch({ videoId });
+    if (!videoInfo) throw new Error('Could not fetch video info');
+    
+    return { url: `https://youtu.be/${videoId}`, info: videoInfo };
+  } else {
+    const searchResults = await ytSearch(text);
+    if (!searchResults?.videos?.length) throw new Error('No results found');
+    
+    const validVideos = searchResults.videos.filter(v => !v.live && v.duration.seconds < 7200 && v.views > 10000);
+    if (!validVideos.length) throw new Error('Only found live streams/unpopular videos');
+    
+    return { url: validVideos[0].url, info: validVideos[0] };
+  }
+}
+
+// Utility function to fetch audio from Kaiz-API
+async function fetchAudioData(videoUrl) {
+  const apiUrl = `${KAIZ_API_URL}?url=${encodeURIComponent(videoUrl)}&apikey=${KAIZ_API_KEY}`;
+  const response = await fetch(apiUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+  });
+  
+  if (!response.ok) throw new Error('API request failed');
+  
+  const data = await response.json();
+  if (!data?.download_url) throw new Error('Invalid API response');
+  
+  return data;
+}
+
+// Utility function to fetch thumbnail
+async function fetchThumbnail(thumbnailUrl) {
+  if (!thumbnailUrl) return null;
+  try {
+    const response = await fetch(thumbnailUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+    
+    if (!response.ok) return null;
+    
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (e) {
+    console.error('Thumbnail error:', e);
+    return null;
+  }
+}
+
+// Function to format the song info with decorations
+function formatSongInfo(videoInfo, videoUrl) {
+  const minutes = Math.floor(videoInfo.duration.seconds / 60);
+  const seconds = videoInfo.duration.seconds % 60;
+  const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  
+  // Create a decorated song info with ASCII art
+  return `
+╭───〔🎵 ʏᴏᴜᴛᴜʙᴇ ᴀᴜᴅɪᴏ〕───
+│
+├📝 *ᴛɪᴛʟᴇ:* ${videoInfo.title}
+├👤 *ᴀʀᴛɪsᴛ:* ${videoInfo.author.name}
+├⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${formattedDuration}
+├📅 *ᴜᴘʟᴏᴀᴅᴇᴅ:* ${videoInfo.ago}
+├👁️ *ᴠɪᴇᴡs:* ${videoInfo.views.toLocaleString()}
+├🔗 *ʟɪɴᴋ:* ${videoUrl}
+│
+╰───────────────┈ ⊷
+
+${toFancyFont("choose download format:")}
+  `.trim();
+}
 
 const play = async (message, client) => {
   try {
@@ -83,136 +170,91 @@ const play = async (message, client) => {
       
       const query = args.join(" ");
       
-      // Search and download in parallel for faster response
-      const [searchResults, apiResponse] = await Promise.all([
-        ytSearch(query),
-        fetch(`https://apis.davidcyriltech.my.id/play?query=${encodeURIComponent(query)}`)
-      ]);
-      
-      if (!searchResults.videos || searchResults.videos.length === 0) {
-        await sendCustomReaction(client, message, "❌");
-        return await client.sendMessage(message.from, {
-          text: toFancyFont('No tracks found for') + " \"" + query + "\"",
-          mentions: [message.sender]
-        }, { quoted: message });
-      }
-      
-      if (!apiResponse.ok) {
-        await sendCustomReaction(client, message, "❌");
-        return await client.sendMessage(message.from, {
-          text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("API error. Please try again later"),
-          mentions: [message.sender]
-        }, { quoted: message });
-      }
-      
-      const apiData = await apiResponse.json();
-      
-      if (!apiData.status || !apiData.result?.download_url) {
-        await sendCustomReaction(client, message, "❌");
-        return await client.sendMessage(message.from, {
-          text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("No download URL available"),
-          mentions: [message.sender]
-        }, { quoted: message });
-      }
-      
-      const video = searchResults.videos[0];
-      const fileName = `${video.title.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').substring(0, 50)}_${Date.now()}`;
-      const filePath = `${tmpDir}/${fileName}.mp3`;
-      
-      const videoId = extractYouTubeId(video.url) || video.videoId;
-      const thumbnailUrl = getYouTubeThumbnail(videoId, 'maxresdefault');
-      
-      const minutes = Math.floor(video.duration.seconds / 60);
-      const seconds = video.duration.seconds % 60;
-      const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-      
-      const songInfo = `
-🎵 *Title:* ${video.title}
-👤 *Artist:* ${video.author.name}
-⏱️ *Duration:* ${formattedDuration}
-📅 *Published:* ${video.ago}
-👁️ *Views:* ${video.views.toLocaleString()}
-🔗 *YouTube URL:* ${video.url}
-
-${toFancyFont("Choose download format:")}
-      `.trim();
-      
-      // Store session data
-      userSessions.set(message.sender, {
-        downloadUrl: apiData.result.download_url,
-        filePath: filePath,
-        fileName: fileName,
-        videoTitle: video.title,
-        videoUrl: video.url,
-        thumbnailUrl: thumbnailUrl,
-        timestamp: Date.now()
-      });
-      
-      // Download thumbnail for image message
-      let imageBuffer = null;
       try {
-        const imageResponse = await fetch(thumbnailUrl);
-        if (imageResponse.ok) {
-          const arrayBuffer = await imageResponse.arrayBuffer();
-          imageBuffer = Buffer.from(arrayBuffer);
+        // Fetch video info using the new logic
+        const { url: videoUrl, info: videoInfo } = await fetchVideoInfo(query);
+        
+        // Fetch audio data from Kaiz-API
+        const apiData = await fetchAudioData(videoUrl);
+        
+        if (!apiData.download_url) {
+          await sendCustomReaction(client, message, "❌");
+          return await client.sendMessage(message.from, {
+            text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("No download URL available"),
+            mentions: [message.sender]
+          }, { quoted: message });
         }
-      } catch (imageError) {
-        console.error("Failed to download thumbnail:", imageError.message);
-      }
-      
-      // Start background download immediately
-      const downloadPromise = (async () => {
-        try {
-          const audioResponse = await fetch(apiData.result.download_url);
-          if (audioResponse.ok) {
-            const fileStream = fs.createWriteStream(filePath);
-            await streamPipeline(audioResponse.body, fileStream);
-            console.log("✅ Background download completed for:", message.sender);
-          }
-        } catch (error) {
-          console.error("❌ Background download failed:", error.message);
+        
+        const videoId = extractYouTubeId(videoUrl) || videoInfo.videoId;
+        const thumbnailUrl = getYouTubeThumbnail(videoId, 'maxresdefault');
+        
+        // Use the decorated song info format
+        const songInfo = formatSongInfo(videoInfo, videoUrl);
+        
+        // Store session data
+        userSessions.set(message.sender, {
+          downloadUrl: apiData.download_url,
+          videoTitle: videoInfo.title,
+          videoUrl: videoUrl,
+          thumbnailUrl: thumbnailUrl,
+          timestamp: Date.now()
+        });
+        
+        // Download thumbnail for image message
+        let imageBuffer = await fetchThumbnail(thumbnailUrl);
+        
+        // Send single message with both info and buttons
+        if (imageBuffer) {
+          await client.sendMessage(message.from, {
+            image: imageBuffer,
+            caption: songInfo,
+            buttons: [
+              {
+                buttonId: `${prefix}audio`,
+                buttonText: { displayText: "🎵 ᴀᴜᴅɪᴏ" },
+                type: 1
+              },
+              {
+                buttonId: `${prefix}document`,
+                buttonText: { displayText: "📄 ᴅᴏᴄᴜᴍᴇɴᴛ" },
+                type: 1
+              }
+            ],
+            mentions: [message.sender],
+            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ ❤️",
+            headerType: 1
+          }, { quoted: message });
+        } else {
+          await client.sendMessage(message.from, {
+            text: songInfo,
+            buttons: [
+              {
+                buttonId: `${prefix}audio`,
+                buttonText: { displayText: "🎵 ᴀᴜᴅɪᴏ" },
+                type: 1
+              },
+              {
+                buttonId: `${prefix}document`,
+                buttonText: { displayText: "📄 ᴅᴏᴄᴜᴍᴇɴᴛ" },
+                type: 1
+              }
+            ],
+            mentions: [message.sender],
+            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ ❤️"
+          }, { quoted: message });
         }
-      })();
-      
-      // Send single message with both info and buttons
-      if (imageBuffer) {
+        
+        await sendCustomReaction(client, message, "✅");
+        
+      } catch (error) {
+        console.error("Error in play command:", error.message);
+        await sendCustomReaction(client, message, "❌");
+        
         await client.sendMessage(message.from, {
-          image: imageBuffer,
-          caption: songInfo,
-          buttons: [
-            {
-              buttonId: `${prefix}audio`,
-              buttonText: { displayText: "🎵 Audio" },
-              type: 1
-            },
-            {
-              buttonId: `${prefix}document`,
-              buttonText: { displayText: "📄 Document" },
-              type: 1
-            }
-          ],
+          text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont(error.message || "encountered an error. Please try again"),
           mentions: [message.sender]
         }, { quoted: message });
-      } else {
-        await client.sendMessage(message.from, {
-          text: songInfo,
-          buttons: [
-            {
-              buttonId: `${prefix}audio`,
-              buttonText: { displayText: "🎵 Audio" },
-              type: 1
-            },
-            {
-              buttonId: `${prefix}document`,
-              buttonText: { displayText: "📄 Document" },
-              type: 1
-            }
-          ],
-          mentions: [message.sender]
-        }, { quoted: message });
       }
-      
-      await sendCustomReaction(client, message, "✅");
       
     } else if (command === "audio" || command === "document") {
       const session = userSessions.get(message.sender);
@@ -229,39 +271,64 @@ ${toFancyFont("Choose download format:")}
       await sendCustomReaction(client, message, "⬇️");
       
       try {
-        // Check if file exists, if not download it
-        if (!fs.existsSync(session.filePath)) {
-          const audioResponse = await fetch(session.downloadUrl);
-          if (!audioResponse.ok) throw new Error("Download failed");
-          
-          const fileStream = fs.createWriteStream(session.filePath);
-          await streamPipeline(audioResponse.body, fileStream);
-        }
+        // Generate a unique file name
+        const fileName = `${session.videoTitle.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').substring(0, 50)}_${Date.now()}`;
+        const filePath = `${tmpDir}/${fileName}.mp3`;
         
-        const audioData = fs.readFileSync(session.filePath);
+        // Download the audio file
+        const audioResponse = await fetch(session.downloadUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Referer': 'https://www.youtube.com/',
+            'Accept-Encoding': 'identity'
+          }
+        });
+        
+        if (!audioResponse.ok) throw new Error("Download failed");
+        
+        const fileStream = fs.createWriteStream(filePath);
+        await streamPipeline(audioResponse.body, fileStream);
+        
+        const audioData = fs.readFileSync(filePath);
+        
+        // Create a success message with decorations
+        const successMessage = `
+╭───〔✅ ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴏᴍᴘʟᴇᴛᴇ〕───
+│
+├📝 *ᴛɪᴛʟᴇ:* ${session.videoTitle}
+├📦 *ғᴏʀᴍᴀᴛ:* ${command === "audio" ? "Audio" : "Document"}
+│
+╰───────────────┈ ⊷
+        `.trim();
         
         if (command === "audio") {
           await client.sendMessage(message.from, { 
             audio: audioData, 
             mimetype: 'audio/mpeg',
             ptt: false,
-            fileName: session.fileName + ".mp3"
+            fileName: fileName + ".mp3"
           }, { quoted: message });
         } else {
           await client.sendMessage(message.from, { 
             document: audioData, 
             mimetype: 'audio/mpeg',
-            fileName: session.fileName + ".mp3"
+            fileName: fileName + ".mp3"
           }, { quoted: message });
         }
+        
+        // Send success message
+        await client.sendMessage(message.from, {
+          text: successMessage,
+          mentions: [message.sender]
+        }, { quoted: message });
         
         await sendCustomReaction(client, message, "✅");
         
         // Clean up file after 30 seconds
         setTimeout(() => {
           try {
-            if (fs.existsSync(session.filePath)) {
-              fs.unlinkSync(session.filePath);
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
             }
           } catch (e) {}
         }, 30000);
@@ -276,11 +343,6 @@ ${toFancyFont("Choose download format:")}
         }, { quoted: message });
         
         // Clean up on error
-        try {
-          if (fs.existsSync(session.filePath)) {
-            fs.unlinkSync(session.filePath);
-          }
-        } catch (e) {}
         userSessions.delete(message.sender);
       }
     }
