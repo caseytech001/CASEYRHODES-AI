@@ -128,10 +128,10 @@ function formatSongInfo(videoInfo, videoUrl) {
 ├⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${formattedDuration}
 ├📅 *ᴜᴘʟᴏᴀᴅᴇᴅ:* ${videoInfo.ago}
 ├👁️ *ᴠɪᴇᴡs:* ${videoInfo.views.toLocaleString()}
-├🔗 *ʟɪɴᴋ:* ${videoUrl}
+├🎵 *Format:* High Quality MP3
 │
 ╰───────────────┈ ⊷
-
+> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ
 ${toFancyFont("choose download format:")}
   `.trim();
 }
@@ -291,16 +291,6 @@ const play = async (message, client) => {
         
         const audioData = fs.readFileSync(filePath);
         
-        // Create a success message with decorations
-        const successMessage = `
-╭───〔✅ ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴏᴍᴘʟᴇᴛᴇ〕───
-│
-├📝 *ᴛɪᴛʟᴇ:* ${session.videoTitle}
-├📦 *ғᴏʀᴍᴀᴛ:* ${command === "audio" ? "Audio" : "Document"}
-│
-╰───────────────┈ ⊷
-        `.trim();
-        
         if (command === "audio") {
           await client.sendMessage(message.from, { 
             audio: audioData, 
@@ -315,12 +305,6 @@ const play = async (message, client) => {
             fileName: fileName + ".mp3"
           }, { quoted: message });
         }
-        
-        // Send success message
-        await client.sendMessage(message.from, {
-          text: successMessage,
-          mentions: [message.sender]
-        }, { quoted: message });
         
         await sendCustomReaction(client, message, "✅");
         
