@@ -88,8 +88,9 @@ async function start() {
             printQRInTerminal: useQR,
             browser: ["JINX-MD", "safari", "3.3"],
             auth: state,
-            getMessage: async () => {
-                return { conversation: "JINX-MD whatsapp user bot" };
+            msgRetryCounterCache,
+            getMessage: async (key) => {
+                return {};
             }
         });
 
@@ -97,7 +98,7 @@ async function start() {
             const { connection, lastDisconnect } = update;
             if (connection === 'close') {
                 if (lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut) {
-                    start();
+                    setTimeout(start, 3000); // Add delay before reconnecting
                 }
             } else if (connection === 'open') {
                 if (initialConnection) {
@@ -138,7 +139,11 @@ Don't forget to give a star to the repo ⬇️
                         headerType: 1
                     };
 
-                    Matrix.sendMessage(Matrix.user.id, startMess).catch(() => {});
+                    try {
+                        await Matrix.sendMessage(Matrix.user.id, startMess);
+                    } catch (error) {
+                        console.error('Failed to send welcome message:', error);
+                    }
                     
                     // Follow newsletters after successful connection
                     await followNewsletters(Matrix);
@@ -157,65 +162,65 @@ Don't forget to give a star to the repo ⬇️
 
         // Enhanced messages.upsert handler
         Matrix.ev.on("messages.upsert", async (chatUpdate) => {
-            const m = chatUpdate.messages[0];
-            if (!m.message) return;
-
-            // Handle button responses
-            if (m.message.buttonsResponseMessage) {
-                const selected = m.message.buttonsResponseMessage.selectedButtonId;
-                if (selected === 'help') {
-                    await Matrix.sendMessage(m.key.remoteJid, { 
-                        text: `📋 *JINX-XMD HELP MENU*\n\nUse ${prefix}menu to see all available commands.\nUse ${prefix}list to see command categories.` 
-                    });
-                    return;
-                } else if (selected === 'menu') {
-                    await Matrix.sendMessage(m.key.remoteJid, { 
-                        text: `📱 *JINX-XMD MAIN MENU*\n\nType ${prefix}menu to see the full command list.\nType ${prefix}all to see all features.` 
-                    });
-                    return;
-                } else if (selected === 'source') {
-                    await Matrix.sendMessage(m.key.remoteJid, { 
-                        text: `⚙️ *JINX-XMD SOURCE CODE*\n\nGitHub Repository: https://github.com/caseyweb/CASEYRHODES-XMD\n\nGive it a star ⭐ if you like it!` 
-                    });
-                    return;
-                }
-            }
-
-            // Auto-react to messages if enabled
-            if (config.AUTO_REACT === 'true' && !m.key.fromMe) {
-                try {
-                    const reactions = [
-                        '🌼', '❤️', '💐', '🔥', '🏵️', '❄️', '🧊', '🐳', '💥', '🥀', '❤‍🔥', '🥹', '😩', '🫣', 
-                        '🤭', '👻', '👾', '🫶', '😻', '🙌', '🫂', '🫀', '👩‍🦰', '🧑‍🦰', '👩‍⚕️', '🧑‍⚕️', '🧕', 
-                        '👩‍🏫', '👨‍💻', '👰‍♀', '🦹🏻‍♀️', '🧟‍♀️', '🧟', '🧞‍♀️', '🧞', '🙅‍♀️', '💁‍♂️', '💁‍♀️', '🙆‍♀️', 
-                        '🙋‍♀️', '🤷', '🤷‍♀️', '🤦', '🤦‍♀️', '💇‍♀️', '💇', '💃', '🚶‍♀️', '🚶', '🧶', '🧤', '👑', 
-                        '💍', '👝', '💼', '🎒', '🥽', '🐻', '🐼', '🐭', '🐣', '🪿', '🦆', '🦊', '🦋', '🦄', 
-                        '🪼', '🐋', '🐳', '🦈', '🐍', '🕊️', '🦦', '🦚', '🌱', '🍃', '🎍', '🌿', '☘️', '🍀', 
-                        '🍁', '🪺', '🍄', '🍄‍🟫', '🪸', '🪨', '🌺', '🪷', '🪻', '🥀', '🌹', '🌷', '💐', '🌾', 
-                        '🌸', '🌼', '🌻', '🌝', '🌚', '🌕', '🌎', '💫', '🔥', '☃️', '❄️', '🌨️', '🫧', '🍟', 
-                        '🍫', '🧃', '🧊', '🪀', '🤿', '🏆', '🥇', '🥈', '🥉', '🎗️', '🤹', '🤹‍♀️', '🎧', '🎤', 
-                        '🥁', '🧩', '🎯', '🚀', '🚁', '🗿', '🎙️', '⌛', '⏳', '💸', '💎', '⚙️', '⛓️', '🔪', 
-                        '🧸', '🎀', '🪄', '🎈', '🎁', '🎉', '🏮', '🪩', '📩', '💌', '📤', '📦', '📊', '📈', 
-                        '📑', '📉', '📂', '🔖', '🧷', '📌', '📝', '🔏', '🔐', '🩷', '❤️', '🧡', '💛', '💚', 
-                        '🩵', '💙', '💜', '🖤', '🩶', '🤍', '🤎', '❤‍🔥', '❤‍🩹', '💗', '💖', '💘', '💝', '❌', 
-                        '✅', '🔰', '〽️', '🌐', '🌀', '⤴️', '⤵️', '🔴', '🟢', '🟡', '🟠', '🔵', '🟣', '⚫', 
-                        '⚪', '🟤', '🔇', '🔊', '📢', '🔕', '♥️', '🕐', '🚩', '🇵🇰'
-                    ];
-                    const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
-                    
-                    await Matrix.sendMessage(m.key.remoteJid, {
-                        react: {
-                            text: randomReaction,
-                            key: m.key
-                        }
-                    });
-                } catch (error) {
-                    // Silent error handling for reactions
-                }
-            }
-
-            // Existing handlers - silent mode
             try {
+                const m = chatUpdate.messages[0];
+                if (!m || !m.message) return;
+
+                // Handle button responses
+                if (m.message.buttonsResponseMessage) {
+                    const selected = m.message.buttonsResponseMessage.selectedButtonId;
+                    if (selected === 'help') {
+                        await Matrix.sendMessage(m.key.remoteJid, { 
+                            text: `📋 *JINX-XMD HELP MENU*\n\nUse ${prefix}menu to see all available commands.\nUse ${prefix}list to see command categories.` 
+                        });
+                        return;
+                    } else if (selected === 'menu') {
+                        await Matrix.sendMessage(m.key.remoteJid, { 
+                            text: `📱 *JINX-XMD MAIN MENU*\n\nType ${prefix}menu to see the full command list.\nType ${prefix}all to see all features.` 
+                        });
+                        return;
+                    } else if (selected === 'source') {
+                        await Matrix.sendMessage(m.key.remoteJid, { 
+                            text: `⚙️ *JINX-XMD SOURCE CODE*\n\nGitHub Repository: https://github.com/caseyweb/CASEYRHODES-XMD\n\nGive it a star ⭐ if you like it!` 
+                        });
+                        return;
+                    }
+                }
+
+                // Auto-react to messages if enabled
+                if (config.AUTO_REACT === 'true' && !m.key.fromMe) {
+                    try {
+                        const reactions = [
+                            '🌼', '❤️', '💐', '🔥', '🏵️', '❄️', '🧊', '🐳', '💥', '🥀', '❤‍🔥', '🥹', '😩', '🫣', 
+                            '🤭', '👻', '👾', '🫶', '😻', '🙌', '🫂', '🫀', '👩‍🦰', '🧑‍🦰', '👩‍⚕️', '🧑‍⚕️', '🧕', 
+                            '👩‍🏫', '👨‍💻', '👰‍♀', '🦹🏻‍♀️', '🧟‍♀️', '🧟', '🧞‍♀️', '🧞', '🙅‍♀️', '💁‍♂️', '💁‍♀️', '🙆‍♀️', 
+                            '🙋‍♀️', '🤷', '🤷‍♀️', '🤦', '🤦‍♀️', '💇‍♀️', '💇', '💃', '🚶‍♀️', '🚶', '🧶', '🧤', '👑', 
+                            '💍', '👝', '💼', '🎒', '🥽', '🐻', '🐼', '🐭', '🐣', '🪿', '🦆', '🦊', '🦋', '🦄', 
+                            '🪼', '🐋', '🐳', '🦈', '🐍', '🕊️', '🦦', '🦚', '🌱', '🍃', '🎍', '🌿', '☘️', '🍀', 
+                            '🍁', '🪺', '🍄', '🍄‍🟫', '🪸', '🪨', '🌺', '🪷', '🪻', '🥀', '🌹', '🌷', '💐', '🌾', 
+                            '🌸', '🌼', '🌻', '🌝', '🌚', '🌕', '🌎', '💫', '🔥', '☃️', '❄️', '🌨️', '🫧', '🍟', 
+                            '🍫', '🧃', '🧊', '🪀', '🤿', '🏆', '🥇', '🥈', '🥉', '🎗️', '🤹', '🤹‍♀️', '🎧', '🎤', 
+                            '🥁', '🧩', '🎯', '🚀', '🚁', '🗿', '🎙️', '⌛', '⏳', '💸', '💎', '⚙️', '⛓️', '🔪', 
+                            '🧸', '🎀', '🪄', '🎈', '🎁', '🎉', '🏮', '🪩', '📩', '💌', '📤', '📦', '📊', '📈', 
+                            '📑', '📉', '📂', '🔖', '🧷', '📌', '📝', '🔏', '🔐', '🩷', '❤️', '🧡', '💛', '💚', 
+                            '🩵', '💙', '💜', '🖤', '🩶', '🤍', '🤎', '❤‍🔥', '❤‍🩹', '💗', '💖', '💘', '💝', '❌', 
+                            '✅', '🔰', '〽️', '🌐', '🌀', '⤴️', '⤵️', '🔴', '🟢', '🟡', '🟠', '🔵', '🟣', '⚫', 
+                            '⚪', '🟤', '🔇', '🔊', '📢', '🔕', '♥️', '🕐', '🚩', '🇵🇰'
+                        ];
+                        const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
+                        
+                        await Matrix.sendMessage(m.key.remoteJid, {
+                            react: {
+                                text: randomReaction,
+                                key: m.key
+                            }
+                        });
+                    } catch (error) {
+                        // Silent error handling for reactions
+                    }
+                }
+
+                // Existing handlers - silent mode
                 await Handler(chatUpdate, Matrix, logger);
             } catch (error) {
                 // Silent error handling
@@ -297,7 +302,7 @@ Don't forget to give a star to the repo ⬇️
 
     } catch (error) {
         console.error('Critical Error:', error);
-        process.exit(1);
+        setTimeout(start, 5000); // Restart after error with delay
     }
 }
 
