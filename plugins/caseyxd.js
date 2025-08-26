@@ -298,77 +298,18 @@ const menu = async (m, Matrix) => {
 ╰─────────────────⊷
 `;
 
-      // Create button select menu using nativeFlowInfo
+      // Create regular buttons instead of native flow for better compatibility
       const buttons = [
-        {
-          buttonId: "menu-options",
-          buttonText: { displayText: "📂 ᴍᴇɴᴜ ᴏᴘᴛɪᴏɴs" },
-          type: 4, // Native Flow type
-          nativeFlowInfo: {
-            name: "single_select",
-            paramsJson: JSON.stringify({
-              title: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ᴍᴇɴᴜ",
-              sections: [
-                {
-                  title: "ᴄᴀᴛᴇɢᴏʀɪᴇs",
-                  highlight_label: "sᴇʟᴇᴄᴛ ᴀ ᴄᴀᴛᴇɢᴏʀʏ",
-                  rows: [
-                    {
-                      title: "📥 ᴅᴏᴡɴʟᴏᴀᴅ",
-                      description: "ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴏᴍᴍᴀɴᴅs",
-                      id: `${prefix}download-menu`,
-                    },
-                    {
-                      title: "👥 ɢʀᴏᴜᴘ",
-                      description: "ɢʀᴏᴜᴘ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ",
-                      id: `${prefix}group-menu`,
-                    },
-                    {
-                      title: "🎉 ғᴜɴ",
-                      description: "ғᴜɴ ᴄᴏᴍᴍᴀɴᴅs",
-                      id: `${prefix}fun-menu`,
-                    },
-                    {
-                      title: "👑 ᴏᴡɴᴇʀ",
-                      description: "ᴏᴡɴᴇʀ ᴄᴏᴍᴍᴀɴᴅs",
-                      id: `${prefix}owner-menu`,
-                    },
-                    {
-                      title: "🤖 ᴀɪ",
-                      description: "ᴀɪ ᴄᴏᴍᴍᴀɴᴅs",
-                      id: `${prefix}ai-menu`,
-                    },
-                    {
-                      title: "🌸 ᴀɴɪᴍᴇ",
-                      description: "ᴀɴɪᴍᴇ ᴄᴏᴍᴍᴀɴᴅs",
-                      id: `${prefix}anime-menu`,
-                    },
-                    {
-                      title: "🔄 ᴄᴏɴᴠᴇʀᴛᴇʀ",
-                      description: "ᴄᴏɴᴠᴇʀᴛᴇʀ ᴛᴏᴏʟs",
-                      id: `${prefix}converter-menu`,
-                    },
-                    {
-                      title: "🌟 ᴏᴛʜᴇʀ",
-                      description: "ᴏᴛʜᴇʀ ᴄᴏᴍᴍᴀɴᴅs",
-                      id: `${prefix}other-menu`,
-                    },
-                    {
-                      title: "🎭 ʀᴇᴀᴄᴛɪᴏɴs",
-                      description: "ʀᴇᴀᴄᴛɪᴏɴ ᴄᴏᴍᴍᴀɴᴅs",
-                      id: `${prefix}reactions-menu`,
-                    },
-                    {
-                      title: "📂 ᴍᴀɪɴ",
-                      description: "ᴍᴀɪɴ ᴄᴏᴍᴍᴀɴᴅs",
-                      id: `${prefix}main-menu`,
-                    }
-                  ],
-                },
-              ],
-            }),
-          },
-        },
+        { buttonId: `${prefix}download-menu`, buttonText: { displayText: "📥 ᴅᴏᴡɴʟᴏᴀᴅ" }, type: 1 },
+        { buttonId: `${prefix}group-menu`, buttonText: { displayText: "👥 ɢʀᴏᴜᴘ" }, type: 1 },
+        { buttonId: `${prefix}fun-menu`, buttonText: { displayText: "🎉 ғᴜɴ" }, type: 1 },
+        { buttonId: `${prefix}owner-menu`, buttonText: { displayText: "👑 ᴏᴡɴᴇʀ" }, type: 1 },
+        { buttonId: `${prefix}ai-menu`, buttonText: { displayText: "🤖 ᴀɪ" }, type: 1 },
+        { buttonId: `${prefix}anime-menu`, buttonText: { displayText: "🌸 ᴀɴɪᴍᴇ" }, type: 1 },
+        { buttonId: `${prefix}converter-menu`, buttonText: { displayText: "🔄 ᴄᴏɴᴠᴇʀᴛᴇʀ" }, type: 1 },
+        { buttonId: `${prefix}other-menu`, buttonText: { displayText: "🌟 ᴏᴛʜᴇʀ" }, type: 1 },
+        { buttonId: `${prefix}reactions-menu`, buttonText: { displayText: "🎭 ʀᴇᴀᴄᴛɪᴏɴs" }, type: 1 },
+        { buttonId: `${prefix}main-menu`, buttonText: { displayText: "📂 ᴍᴀɪɴ" }, type: 1 }
       ];
 
       const messageOptions = {
@@ -467,33 +408,10 @@ ${menuResponse}
 > ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
 `;
 
-      // Create back button with native flow
+      // Create back button
       const backButton = {
         buttons: [
-          {
-            buttonId: "back-to-main",
-            buttonText: { displayText: "🔙 ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ" },
-            type: 4,
-            nativeFlowInfo: {
-              name: "single_select",
-              paramsJson: JSON.stringify({
-                title: "ɴᴀᴠɪɢᴀᴛɪᴏɴ",
-                sections: [
-                  {
-                    title: "ᴍᴇɴᴜ ᴏᴘᴛɪᴏɴs",
-                    highlight_label: "",
-                    rows: [
-                      {
-                        title: "ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ",
-                        description: "ʀᴇᴛᴜʀɴ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ",
-                        id: `${prefix}menu`,
-                      }
-                    ],
-                  },
-                ],
-              }),
-            },
-          }
+          { buttonId: `${prefix}menu`, buttonText: { displayText: "🔙 ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ" }, type: 1 }
         ],
         contextInfo: {
           isForwarded: true,
@@ -525,6 +443,27 @@ ${menuResponse}
 •`,
     }, { quoted: m });
   }
+};
+
+// Handle button responses
+export const handleButtonResponse = async (m, Matrix) => {
+  const prefix = config.PREFIX;
+  const text = m.body?.toLowerCase() || "";
+  
+  // Check if it's a menu command
+  if (text.startsWith(`${prefix}menu`) || text.startsWith(`${prefix}help`) || text.startsWith(`${prefix}list`)) {
+    await menu(m, Matrix);
+    return true;
+  }
+  
+  // Check if it's a sub-menu command
+  const subMenuCommands = Object.keys(commandCategories).map(cat => `${prefix}${cat}-menu`);
+  if (subMenuCommands.includes(text)) {
+    await menu(m, Matrix);
+    return true;
+  }
+  
+  return false;
 };
 
 export default menu;
