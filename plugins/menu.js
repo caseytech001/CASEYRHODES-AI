@@ -157,7 +157,7 @@ const commandCategories = {
       { command: "gemini", desc: "Google Gemini" },
       { command: "bard", desc: "Google Bard" },
       { command: "blackbox", desc: "Blackbox AI" },
-      { command: "mistral", desc: "Mistral AI" },
+      { function: "mistral", desc: "Mistral AI" },
       { command: "llama", desc: "LLaMA AI" },
       { command: "claude", desc: "Claude AI" },
       { command: "deepseek", desc: "DeepSeek AI" }
@@ -305,7 +305,14 @@ async function executeCommand(m, Matrix, commandName) {
 const menu = async (m, Matrix) => {
   try {
     const prefix = config.PREFIX;
-    const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
+    
+    // Check if message has the correct prefix
+    const hasPrefix = m.body && m.body.startsWith(prefix);
+    if (!hasPrefix && !m.message?.nativeFlowResponseMessage && !m.message?.buttonsResponseMessage) {
+      return; // Ignore messages without prefix
+    }
+    
+    const cmd = hasPrefix ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
     const mode = config.MODE === "public" ? "public" : "private";
     const totalCommands = Object.values(commandCategories).reduce((acc, category) => acc + category.commands.length, 0);
 
@@ -338,6 +345,10 @@ const menu = async (m, Matrix) => {
         }
       } catch (error) {
         console.error("Error parsing native flow response:", error);
+        await Matrix.sendMessage(m.from, {
+          text: "❌ Error processing menu selection. Please try again."
+        }, { quoted: m });
+        return;
       }
     }
 
