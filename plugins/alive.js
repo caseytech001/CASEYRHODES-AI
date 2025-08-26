@@ -48,7 +48,7 @@ const alive = async (m, Matrix) => {
         if (isButtonResponse) {
             const selectedButtonId = m.message.buttonsResponseMessage.selectedButtonId;
             
-            if (selectedButtonId === `${prefix}audio`) {
+            if (selectedButtonId === `${prefix}sendaudio`) {
                 const audioUrls = [
                     'https://files.catbox.moe/m0xfku.mp3',
                     'https://files.catbox.moe/8stziq.mp3',
@@ -102,7 +102,7 @@ const alive = async (m, Matrix) => {
                 type: 1
             },
             {
-                buttonId: `${prefix}audio`,
+                buttonId: `${prefix}sendaudio`,
                 buttonText: { displayText: '🎵 Audio' },
                 type: 1
             }
