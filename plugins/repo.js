@@ -25,8 +25,8 @@ const repo = async (m, gss) => {
       // Create buttons
       const buttons = [
         {
-          buttonId: `${prefix}sendaudio`,
-          buttonText: { displayText: "🔊 Send Audio" },
+          buttonId: `${prefix}owner`,
+          buttonText: { displayText: "👤 Owner" },
           type: 1
         },
         {
@@ -63,20 +63,19 @@ const repo = async (m, gss) => {
   if (m.message?.buttonsResponseMessage) {
     const selectedButtonId = m.message.buttonsResponseMessage.selectedButtonId;
     
-    if (selectedButtonId === `${prefix}sendaudio`) {
+    if (selectedButtonId === `${prefix}owner`) {
       try {
+        // Send owner information or contact details
         await gss.sendMessage(
           m.from,
           {
-            audio: { url: "https://files.catbox.moe/a95ye6.aac" },
-            mimetype: "audio/mp4",
-            ptt: true
+            text: "*👤 Owner Information*\n\n*Name:* Casey Rhodes\n*Contact:* Add owner contact details here\n*GitHub:* https://github.com/caseyweb\n\n*Feel free to contact for any queries!*"
           },
           { quoted: m }
         );
       } catch (error) {
-        console.error("Error sending audio:", error);
-        m.reply("Failed to send audio. Please try again.");
+        console.error("Error sending owner info:", error);
+        m.reply("Failed to send owner information. Please try again.");
       }
     }
     else if (selectedButtonId === `${prefix}joinchannel`) {
