@@ -40,7 +40,7 @@ const alive = async (m, Matrix) => {
         const currentTime = now.format("HH:mm:ss");
         const currentDate = now.format("dddd, MMMM Do YYYY");
         const pushname = m.pushName || "User";
-        const prefix = config.PREFIX;
+        const prefix = config.PREFIX || '!'; // Default prefix if not in config
 
         // Check if it's a button response
         const isButtonResponse = m.message?.buttonsResponseMessage;
@@ -48,27 +48,12 @@ const alive = async (m, Matrix) => {
         if (isButtonResponse) {
             const selectedButtonId = m.message.buttonsResponseMessage.selectedButtonId;
             
-            if (selectedButtonId === `${prefix}sendaudio`) {
-                const audioUrls = [
-                    'https://files.catbox.moe/m0xfku.mp3',
-                    'https://files.catbox.moe/8stziq.mp3',
-                    'https://files.catbox.moe/3au05j.m4a',
-                    'https://files.catbox.moe/dcxfi1.mp3',
-                    'https://files.catbox.moe/ebkzu5.mp3',
-                    'https://files.catbox.moe/xsa1ig.mp3',
-                    'https://files.catbox.moe/iq4ouj.mp3',
-                    'https://files.catbox.moe/wtux78.mp3'
-                ];
-
-                const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
-                
-                // Send audio
-                await Matrix.sendMessage(m.from, {
-                    audio: { url: randomAudioUrl },
-                    mimetype: 'audio/mp4',
-                    ptt: true
+            if (selectedButtonId === `${prefix}menu`) {
+                // Menu button clicked - send menu command
+                // You might need to import or call your menu function here
+                await Matrix.sendMessage(m.from, { 
+                    text: '📋 Opening menu...' 
                 }, { quoted: m });
-                
                 return;
             } else if (selectedButtonId === `${prefix}repo`) {
                 // Repository button clicked
@@ -80,7 +65,8 @@ const alive = async (m, Matrix) => {
         }
         
         // Regular command handling
-        const cmd = m.body?.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+        const body = m.body || '';
+        const cmd = body.startsWith(prefix) ? body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
 
         if (!cmd || !['alive', 'uptime', 'runtime', 'status'].includes(cmd)) return;
 
@@ -98,12 +84,12 @@ const alive = async (m, Matrix) => {
         const buttons = [
             {
                 buttonId: `${prefix}repo`,
-                buttonText: { displayText: '📁 Repository' },
+                buttonText: { displayText: `📁 ${prefix}repo` },
                 type: 1
             },
             {
-                buttonId: `${prefix}sendaudio`,
-                buttonText: { displayText: '🎵 Audio' },
+                buttonId: `${prefix}menu`,
+                buttonText: { displayText: `📋 ${prefix}menu` },
                 type: 1
             }
         ];
@@ -138,6 +124,8 @@ const alive = async (m, Matrix) => {
             buttonMessage.image = imageBuffer;
         } else {
             buttonMessage.text = msg;
+            // Remove caption when there's no image
+            delete buttonMessage.caption;
         }
 
         await Matrix.sendMessage(m.from, buttonMessage, {
