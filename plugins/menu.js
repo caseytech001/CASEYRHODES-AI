@@ -278,6 +278,11 @@ async function executeCommand(m, Matrix, commandName) {
     return;
   }
   
+  // Send a message indicating the command is being executed
+  await Matrix.sendMessage(m.from, {
+    text: `⚡ Executing command: ${prefix}${commandName}\n${commandFound.desc}`
+  }, { quoted: m });
+  
   // Simulate the command being typed by the user
   const simulatedMessage = {
     ...m,
@@ -292,7 +297,7 @@ async function executeCommand(m, Matrix, commandName) {
   } catch (error) {
     console.error(`Error executing command ${commandName}:`, error);
     await Matrix.sendMessage(m.from, {
-      text: `❌ Error executing command "${commandName}": ${error.message}`
+      text: `❌ Error executing command "${commandName}": ${error.message}\n\nMake sure the command file exists in the commands directory.`
     }, { quoted: m });
   }
 }
@@ -309,26 +314,25 @@ const menu = async (m, Matrix) => {
 
     // Check if this is a native flow response (menu selection)
     if (m.message?.nativeFlowResponseMessage) {
-      const selectedId = m.message.nativeFlowResponseMessage.paramsJson;
       try {
-        const params = JSON.parse(selectedId);
-        const selectedCommand = params.id || params.name;
+        const responseParams = JSON.parse(m.message.nativeFlowResponseMessage.paramsJson);
+        const selectedId = responseParams.id || responseParams.name;
         
-        if (selectedCommand) {
+        if (selectedId) {
           // Handle menu navigation
-          if (selectedCommand.endsWith('-menu')) {
+          if (selectedId.endsWith('-menu')) {
             // Simulate the menu command
             const simulatedMessage = {
               ...m,
-              body: `${prefix}${selectedCommand}`
+              body: selectedId
             };
             return menu(simulatedMessage, Matrix);
           }
           
           // Handle direct command execution
-          const commandName = selectedCommand.startsWith(prefix) 
-            ? selectedCommand.slice(prefix.length) 
-            : selectedCommand;
+          const commandName = selectedId.startsWith(prefix) 
+            ? selectedId.slice(prefix.length) 
+            : selectedId;
             
           return executeCommand(m, Matrix, commandName);
         }
@@ -337,11 +341,34 @@ const menu = async (m, Matrix) => {
       }
     }
 
+    // Check if this is a button response (for older WhatsApp versions)
+    if (m.message?.buttonsResponseMessage) {
+      const selectedId = m.message.buttonsResponseMessage.selectedButtonId;
+      
+      if (selectedId) {
+        // Handle menu navigation
+        if (selectedId.endsWith('-menu')) {
+          const simulatedMessage = {
+            ...m,
+            body: selectedId
+          };
+          return menu(simulatedMessage, Matrix);
+        }
+        
+        // Handle direct command execution
+        const commandName = selectedId.startsWith(prefix) 
+          ? selectedId.slice(prefix.length) 
+          : selectedId;
+          
+        return executeCommand(m, Matrix, commandName);
+      }
+    }
+
     // Fetch image for all cases
     const menuImage = await fetchMenuImage();
 
     // Handle main menu
-    if (validCommands.includes(cmd)) {
+    if (validCommands.includes(cmd) || cmd === "") {
       const mainMenu = `*HI 👋* *${pushwish}*
 *╭───────────────┈⊷*
 *┊• 🌟 ʙᴏᴛ ɴᴀᴍᴇ :* *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ*
