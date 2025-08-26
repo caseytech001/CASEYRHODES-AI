@@ -41,17 +41,15 @@ function toFancyFont(text, isUpperCase = false) {
     .join("");
 }
 
-// Image fetch utility - FIXED
+// Image fetch utility
 async function fetchMenuImage() {
   const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
   for (let i = 0; i < 3; i++) {
     try {
       const response = await axios.get(imageUrl, { 
         responseType: "arraybuffer",
-        timeout: 10000 // Add timeout to prevent hanging
+        timeout: 10000
       });
-      
-      // Properly convert ArrayBuffer to Buffer
       return Buffer.from(response.data);
     } catch (error) {
       if (error.response?.status === 429 && i < 2) {
@@ -65,20 +63,209 @@ async function fetchMenuImage() {
   }
 }
 
+// Command categories
+const commandCategories = {
+  "download": {
+    title: "📥 Download Menu",
+    commands: [
+      { command: "apk", desc: "Download APK files" },
+      { command: "facebook", desc: "Download from Facebook" },
+      { command: "mediafire", desc: "Download from Mediafire" },
+      { command: "pinterest", desc: "Download from Pinterest" },
+      { command: "gitclone", desc: "Clone git repositories" },
+      { command: "gdrive", desc: "Download from Google Drive" },
+      { command: "insta", desc: "Download Instagram content" },
+      { command: "ytmp3", desc: "YouTube to MP3" },
+      { command: "ytmp4", desc: "YouTube to MP4" },
+      { command: "play", desc: "Play music" },
+      { command: "song", desc: "Download songs" },
+      { command: "video", desc: "Download videos" },
+      { command: "ytmp3doc", desc: "YouTube to MP3 (document)" },
+      { command: "ytmp4doc", desc: "YouTube to MP4 (document)" },
+      { command: "tiktok", desc: "Download TikTok videos" }
+    ]
+  },
+  "group": {
+    title: "👥 Group Menu",
+    commands: [
+      { command: "linkgroup", desc: "Get group invite link" },
+      { command: "setppgc", desc: "Set group profile picture" },
+      { command: "setname", desc: "Set group name" },
+      { command: "setdesc", desc: "Set group description" },
+      { command: "group", desc: "Group management" },
+      { command: "gcsetting", desc: "Group settings" },
+      { command: "welcome", desc: "Welcome settings" },
+      { command: "add", desc: "Add members" },
+      { command: "kick", desc: "Remove members" },
+      { command: "hidetag", desc: "Hidden tag" },
+      { command: "tagall", desc: "Tag all members" },
+      { command: "antilink", desc: "Anti-link settings" },
+      { command: "antitoxic", desc: "Anti-toxic settings" },
+      { command: "promote", desc: "Promote members" },
+      { command: "demote", desc: "Demote members" },
+      { command: "getbio", desc: "Get user bio" }
+    ]
+  },
+  "fun": {
+    title: "🎉 Fun Menu",
+    commands: [
+      { command: "gay", desc: "Gay rate checker" },
+      { command: "simp", desc: "Simp rate checker" },
+      { command: "handsome", desc: "Handsome rate" },
+      { command: "stupid", desc: "Stupid rate" },
+      { command: "character", desc: "Character analyzer" },
+      { command: "fact", desc: "Random facts" },
+      { command: "truth", desc: "Truth questions" },
+      { command: "dare", desc: "Dare challenges" },
+      { command: "flirt", desc: "Flirty messages" },
+      { command: "couple", desc: "Couple matching" },
+      { command: "ship", desc: "Ship two people" },
+      { command: "joke", desc: "Random jokes" },
+      { command: "meme", desc: "Random memes" },
+      { command: "quote", desc: "Inspirational quotes" },
+      { command: "roll", desc: "Roll a dice" }
+    ]
+  },
+  "owner": {
+    title: "👑 Owner Menu",
+    commands: [
+      { command: "join", desc: "Join group via link" },
+      { command: "leave", desc: "Leave group" },
+      { command: "block", desc: "Block user" },
+      { command: "unblock", desc: "Unblock user" },
+      { command: "setppbot", desc: "Set bot profile picture" },
+      { command: "anticall", desc: "Anti-call settings" },
+      { command: "setstatus", desc: "Set bot status" },
+      { command: "setnamebot", desc: "Set bot name" },
+      { command: "autorecording", desc: "Auto voice recording" },
+      { command: "autolike", desc: "Auto like messages" },
+      { command: "autotyping", desc: "Auto typing indicator" },
+      { command: "alwaysonline", desc: "Always online mode" },
+      { command: "autoread", desc: "Auto read messages" },
+      { command: "autosview", desc: "Auto view stories" }
+    ]
+  },
+  "ai": {
+    title: "🤖 AI Menu",
+    commands: [
+      { command: "ai", desc: "AI chat" },
+      { command: "bug", desc: "Report bugs" },
+      { command: "report", desc: "Report issues" },
+      { command: "gpt", desc: "ChatGPT" },
+      { command: "dall", desc: "DALL-E image generation" },
+      { command: "remini", desc: "Image enhancement" },
+      { command: "gemini", desc: "Google Gemini" },
+      { command: "bard", desc: "Google Bard" },
+      { command: "blackbox", desc: "Blackbox AI" },
+      { command: "mistral", desc: "Mistral AI" },
+      { command: "llama", desc: "LLaMA AI" },
+      { command: "claude", desc: "Claude AI" },
+      { command: "deepseek", desc: "DeepSeek AI" }
+    ]
+  },
+  "anime": {
+    title: "🌸 Anime Menu",
+    commands: [
+      { command: "anime", desc: "Random anime info" },
+      { command: "animepic", desc: "Random anime pictures" },
+      { command: "animequote", desc: "Anime quotes" },
+      { command: "animewall", desc: "Anime wallpapers" },
+      { command: "animechar", desc: "Anime character search" },
+      { command: "waifu", desc: "Random waifu" },
+      { command: "husbando", desc: "Random husbando" },
+      { command: "neko", desc: "Neko girls" },
+      { command: "shinobu", desc: "Shinobu pictures" },
+      { command: "megumin", desc: "Megumin pictures" },
+      { command: "awoo", desc: "Awoo girls" },
+      { command: "trap", desc: "Trap characters" },
+      { command: "blowjob", desc: "NSFW content" }
+    ]
+  },
+  "converter": {
+    title: "🔄 Converter Menu",
+    commands: [
+      { command: "attp", desc: "Text to sticker" },
+      { command: "attp2", desc: "Text to sticker (style 2)" },
+      { command: "attp3", desc: "Text to sticker (style 3)" },
+      { command: "ebinary", desc: "Encode binary" },
+      { command: "dbinary", desc: "Decode binary" },
+      { command: "emojimix", desc: "Mix two emojis" },
+      { command: "mp3", desc: "Convert to MP3" },
+      { command: "mp4", desc: "Convert to MP4" },
+      { command: "sticker", desc: "Image to sticker" },
+      { command: "toimg", desc: "Sticker to image" },
+      { command: "tovid", desc: "GIF to video" },
+      { command: "togif", desc: "Video to GIF" },
+      { command: "tourl", desc: "Media to URL" },
+      { command: "tinyurl", desc: "URL shortener" }
+    ]
+  },
+  "other": {
+    title: "📌 Other Menu",
+    commands: [
+      { command: "calc", desc: "Calculator" },
+      { command: "tempmail", desc: "Temp email" },
+      { command: "checkmail", desc: "Check temp mail" },
+      { command: "trt", desc: "Translate text" },
+      { command: "tts", desc: "Text to speech" },
+      { command: "ssweb", desc: "Website screenshot" },
+      { command: "readmore", desc: "Create read more" },
+      { command: "styletext", desc: "Stylish text" },
+      { command: "weather", desc: "Weather info" },
+      { command: "clock", desc: "World clock" },
+      { command: "qrcode", desc: "Generate QR code" },
+      { command: "readqr", desc: "Read QR code" },
+      { command: "currency", desc: "Currency converter" }
+    ]
+  },
+  "reactions": {
+    title: "🎭 Reactions Menu",
+    commands: [
+      { command: "like", desc: "Like reaction" },
+      { command: "love", desc: "Love reaction" },
+      { command: "haha", desc: "Haha reaction" },
+      { command: "wow", desc: "Wow reaction" },
+      { command: "sad", desc: "Sad reaction" },
+      { command: "angry", desc: "Angry reaction" },
+      { command: "dislike", desc: "Dislike reaction" },
+      { command: "cry", desc: "Cry reaction" },
+      { command: "kiss", desc: "Kiss reaction" },
+      { command: "pat", desc: "Pat reaction" },
+      { command: "slap", desc: "Slap reaction" },
+      { command: "punch", desc: "Punch reaction" },
+      { command: "kill", desc: "Kill reaction" },
+      { command: "hug", desc: "Hug reaction" }
+    ]
+  },
+  "main": {
+    title: "🏠 Main Menu",
+    commands: [
+      { command: "ping", desc: "Check bot response time" },
+      { command: "alive", desc: "Check if bot is running" },
+      { command: "owner", desc: "Contact owner" },
+      { command: "menu", desc: "Show this menu" },
+      { command: "infobot", desc: "Bot information" },
+      { command: "donate", desc: "Support the bot" },
+      { command: "speed", desc: "Speed test" },
+      { command: "runtime", desc: "Bot uptime" },
+      { command: "sc", desc: "Source code" },
+      { command: "script", desc: "Script info" },
+      { command: "support", desc: "Support group" },
+      { command: "update", desc: "Check updates" },
+      { command: "feedback", desc: "Send feedback" }
+    ]
+  }
+};
+
 const menu = async (m, Matrix) => {
   try {
     const prefix = config.PREFIX;
     const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
     const mode = config.MODE === "public" ? "public" : "private";
-    const totalCommands = 70;
+    const totalCommands = Object.values(commandCategories).reduce((acc, category) => acc + category.commands.length, 0);
 
     const validCommands = ["list", "help", "menu"];
-    const subMenuCommands = [
-      "download-menu", "converter-menu", "ai-menu", "tools-menu",
-      "group-menu", "search-menu", "main-menu", "owner-menu",
-      "stalk-menu", "fun-menu", "anime-menu", "other-menu",
-      "reactions-menu"
-    ];
+    const subMenuCommands = Object.keys(commandCategories).map(cat => `${cat}-menu`);
 
     // Fetch image for all cases
     const menuImage = await fetchMenuImage();
@@ -92,6 +279,7 @@ const menu = async (m, Matrix) => {
 *┊• 📅 ᴅᴀᴛᴇ :* *${xdate}*
 *┊• 🎭 ᴅᴇᴠ :* *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ᴢᴏɴᴇ*
 *┊• 📍 ᴘʀᴇғɪx :*  *[ ${prefix} ]*
+*┊• 📊 ᴛᴏᴛᴀʟ ᴄᴍᴅs :* *${totalCommands}*
 *╰───────────────┈⊷*
 ┏        *【 ᴍᴇɴᴜ ʟɪsᴛ 】⇳︎*
 - . ①  *ᴅᴏᴡɴʟᴏᴀᴅ ᴍᴇɴᴜ*
@@ -100,7 +288,7 @@ const menu = async (m, Matrix) => {
 - . ④  *ᴏᴡɴᴇʀ ᴍᴇɴᴜ*
 - . ⑤  *ᴀɪ ᴍᴇɴᴜ*
 - . ⑥  *ᴀɴɪᴍᴇ ᴍᴇɴᴜ*
-- . ⑦  *ᴄᴏɴᴠᴇʀᴛ ᴍᴇɴᴜ*
+- . ⑦  *ᴄᴏɴᴠᴇʀᴛᴇʀ ᴍᴇɴᴜ*
 - . ⑧  *ᴏᴛʜᴇʀ ᴍᴇɴᴜ*
 - . ⑨  *ʀᴇᴀᴄᴛɪᴏɴs ᴍᴇɴᴜ*
 - . ⑩  *ᴍᴀɪɴ ᴍᴇɴᴜ*
@@ -191,217 +379,20 @@ const menu = async (m, Matrix) => {
   
     // Handle sub-menu commands
     if (subMenuCommands.includes(cmd)) {
-      let menuTitle;
-      let menuResponse;
+      const category = cmd.replace("-menu", "");
+      const categoryData = commandCategories[category];
+      
+      if (!categoryData) return;
 
-      switch (cmd) {
-        case "download-menu":
-          menuTitle = "📥 Download Menu";
-          menuResponse = `
-${toFancyFont(".apk")} - Download APK files
-${toFancyFont(".facebook")} - Download from Facebook
-${toFancyFont(".mediafire")} - Download from Mediafire
-${toFancyFont(".pinterest")} - Download from Pinterest
-${toFancyFont(".gitclone")} - Clone git repositories
-${toFancyFont(".gdrive")} - Download from Google Drive
-${toFancyFont(".insta")} - Download Instagram content
-${toFancyFont(".ytmp3")} - YouTube to MP3
-${toFancyFont(".ytmp4")} - YouTube to MP4
-${toFancyFont(".play")} - Play music
-${toFancyFont(".song")} - Download songs
-${toFancyFont(".video")} - Download videos
-${toFancyFont(".ytmp3doc")} - YouTube to MP3 (document)
-${toFancyFont(".ytmp4doc")} - YouTube to MP4 (document)
-${toFancyFont(".tiktok")} - Download TikTok videos
-`;
-          break;
-
-        case "group-menu":
-          menuTitle = "👥 Group Menu";
-          menuResponse = `
-${toFancyFont(".linkgroup")} - Get group invite link
-${toFancyFont(".setppgc")} - Set group profile picture
-${toFancyFont(".setname")} - Set group name
-${toFancyFont(".setdesc")} - Set group description
-${toFancyFont(".group")} - Group management
-${toFancyFont(".gcsetting")} - Group settings
-${toFancyFont(".welcome")} - Welcome settings
-${toFancyFont(".add")} - Add members
-${toFancyFont(".kick")} - Remove members
-${toFancyFont(".hidetag")} - Hidden tag
-${toFancyFont(".tagall")} - Tag all members
-${toFancyFont(".antilink")} - Anti-link settings
-${toFancyFont(".antitoxic")} - Anti-toxic settings
-${toFancyFont(".promote")} - Promote members
-${toFancyFont(".demote")} - Demote members
-${toFancyFont(".getbio")} - Get user bio
-`;
-          break;
-
-        case "fun-menu":
-          menuTitle = "🎉 Fun Menu";
-          menuResponse = `
-${toFancyFont(".gay")} - Gay rate checker
-${toFancyFont(".simp")} - Simp rate checker
-${toFancyFont(".handsome")} - Handsome rate
-${toFancyFont(".stupid")} - Stupid rate
-${toFancyFont(".character")} - Character analyzer
-${toFancyFont(".fact")} - Random facts
-${toFancyFont(".truth")} - Truth questions
-${toFancyFont(".dare")} - Dare challenges
-${toFancyFont(".flirt")} - Flirty messages
-${toFancyFont(".couple")} - Couple matching
-${toFancyFont(".ship")} - Ship two people
-${toFancyFont(".joke")} - Random jokes
-${toFancyFont(".meme")} - Random memes
-${toFancyFont(".quote")} - Inspirational quotes
-${toFancyFont(".roll")} - Roll a dice
-`;
-          break;
-
-        case "owner-menu":
-          menuTitle = "👑 Owner Menu";
-          menuResponse = `
-${toFancyFont(".join")} - Join group via link
-${toFancyFont(".leave")} - Leave group
-${toFancyFont(".block")} - Block user
-${toFancyFont(".unblock")} - Unblock user
-${toFancyFont(".setppbot")} - Set bot profile picture
-${toFancyFont(".anticall")} - Anti-call settings
-${toFancyFont(".setstatus")} - Set bot status
-${toFancyFont(".setnamebot")} - Set bot name
-${toFancyFont(".autorecording")} - Auto voice recording
-${toFancyFont(".autolike")} - Auto like messages
-${toFancyFont(".autotyping")} - Auto typing indicator
-${toFancyFont(".alwaysonline")} - Always online mode
-${toFancyFont(".autoread")} - Auto read messages
-${toFancyFont(".autosview")} - Auto view stories
-`;
-          break;
-
-        case "ai-menu":
-          menuTitle = "🤖 AI Menu";
-          menuResponse = `
-${toFancyFont(".ai")} - AI chat
-${toFancyFont(".bug")} - Report bugs
-${toFancyFont(".report")} - Report issues
-${toFancyFont(".gpt")} - ChatGPT
-${toFancyFont(".dall")} - DALL-E image generation
-${toFancyFont(".remini")} - Image enhancement
-${toFancyFont(".gemini")} - Google Gemini
-${toFancyFont(".bard")} - Google Bard
-${toFancyFont(".blackbox")} - Blackbox AI
-${toFancyFont(".mistral")} - Mistral AI
-${toFancyFont(".llama")} - LLaMA AI
-${toFancyFont(".claude")} - Claude AI
-${toFancyFont(".deepseek")} - DeepSeek AI
-`;
-          break;
-
-        case "anime-menu":
-          menuTitle = "🌸 Anime Menu";
-          menuResponse = `
-${toFancyFont(".anime")} - Random anime info
-${toFancyFont(".animepic")} - Random anime pictures
-${toFancyFont(".animequote")} - Anime quotes
-${toFancyFont(".animewall")} - Anime wallpapers
-${toFancyFont(".animechar")} - Anime character search
-${toFancyFont(".waifu")} - Random waifu
-${toFancyFont(".husbando")} - Random husbando
-${toFancyFont(".neko")} - Neko girls
-${toFancyFont(".shinobu")} - Shinobu pictures
-${toFancyFont(".megumin")} - Megumin pictures
-${toFancyFont(".awoo")} - Awoo girls
-${toFancyFont(".trap")} - Trap characters
-${toFancyFont(".blowjob")} - NSFW content
-`;
-          break;
-
-        case "converter-menu":
-          menuTitle = "🔄 Converter Menu";
-          menuResponse = `
-${toFancyFont(".attp")} - Text to sticker
-${toFancyFont(".attp2")} - Text to sticker (style 2)
-${toFancyFont(".attp3")} - Text to sticker (style 3)
-${toFancyFont(".ebinary")} - Encode binary
-${toFancyFont(".dbinary")} - Decode binary
-${toFancyFont(".emojimix")} - Mix two emojis
-${toFancyFont(".mp3")} - Convert to MP3
-${toFancyFont(".mp4")} - Convert to MP4
-${toFancyFont(".sticker")} - Image to sticker
-${toFancyFont(".toimg")} - Sticker to image
-${toFancyFont(".tovid")} - GIF to video
-${toFancyFont(".togif")} - Video to GIF
-${toFancyFont(".tourl")} - Media to URL
-${toFancyFont(".tinyurl")} - URL shortener
-`;
-          break;
-
-        case "other-menu":
-          menuTitle = "📌 Other Menu";
-          menuResponse = `
-${toFancyFont(".calc")} - Calculator
-${toFancyFont(".tempmail")} - Temp email
-${toFancyFont(".checkmail")} - Check temp mail
-${toFancyFont(".trt")} - Translate text
-${toFancyFont(".tts")} - Text to speech
-${toFancyFont(".ssweb")} - Website screenshot
-${toFancyFont(".readmore")} - Create read more
-${toFancyFont(".styletext")} - Stylish text
-${toFancyFont(".weather")} - Weather info
-${toFancyFont(".clock")} - World clock
-${toFancyFont(".qrcode")} - Generate QR code
-${toFancyFont(".readqr")} - Read QR code
-${toFancyFont(".currency")} - Currency converter
-`;
-          break;
-
-        case "reactions-menu":
-          menuTitle = "🎭 Reactions Menu";
-          menuResponse = `
-${toFancyFont(".like")} - Like reaction
-${toFancyFont(".love")} - Love reaction
-${toFancyFont(".haha")} - Haha reaction
-${toFancyFont(".wow")} - Wow reaction
-${toFancyFont(".sad")} - Sad reaction
-${toFancyFont(".angry")} - Angry reaction
-${toFancyFont(".dislike")} - Dislike reaction
-${toFancyFont(".cry")} - Cry reaction
-${toFancyFont(".kiss")} - Kiss reaction
-${toFancyFont(".pat")} - Pat reaction
-${toFancyFont(".slap")} - Slap reaction
-${toFancyFont(".punch")} - Punch reaction
-${toFancyFont(".kill")} - Kill reaction
-${toFancyFont(".hug")} - Hug reaction
-`;
-          break;
-
-        case "main-menu":
-          menuTitle = "🏠 Main Menu";
-          menuResponse = `
-${toFancyFont(".ping")} - Check bot response time
-${toFancyFont(".alive")} - Check if bot is running
-${toFancyFont(".owner")} - Contact owner
-${toFancyFont(".menu")} - Show this menu
-${toFancyFont(".infobot")} - Bot information
-${toFancyFont(".donate")} - Support the bot
-${toFancyFont(".speed")} - Speed test
-${toFancyFont(".runtime")} - Bot uptime
-${toFancyFont(".sc")} - Source code
-${toFancyFont(".script")} - Script info
-${toFancyFont(".support")} - Support group
-${toFancyFont(".update")} - Check updates
-${toFancyFont(".feedback")} - Send feedback
-`;
-          break;
-
-        default:
-          return;
-      }
+      let menuResponse = "";
+      categoryData.commands.forEach((cmdObj, index) => {
+        const num = (index + 1).toString().padStart(2, "0");
+        menuResponse += `${toFancyFont(`.${cmdObj.command}`)} - ${cmdObj.desc}\n`;
+      });
 
       // Format the full response
       const fullResponse = `
-*${menuTitle}*
+*${categoryData.title}*
 
 ${menuResponse}
 
@@ -409,6 +400,7 @@ ${menuResponse}
 *⏰ Time*: ${xtime}
 *⚙️ Prefix*: ${prefix}
 *🌐 Mode*: ${mode}
+*📊 Commands*: ${categoryData.commands.length}
 
 > ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
 `;
