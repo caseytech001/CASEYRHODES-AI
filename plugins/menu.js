@@ -257,6 +257,46 @@ const commandCategories = {
   }
 };
 
+// Function to handle command execution
+async function executeCommand(m, Matrix, commandName) {
+  const prefix = config.PREFIX;
+  
+  // Find the command in the categories
+  let commandFound = null;
+  for (const category of Object.values(commandCategories)) {
+    const cmd = category.commands.find(c => c.command === commandName);
+    if (cmd) {
+      commandFound = cmd;
+      break;
+    }
+  }
+  
+  if (!commandFound) {
+    await Matrix.sendMessage(m.from, {
+      text: `❌ Command "${commandName}" not found. Please try again.`
+    }, { quoted: m });
+    return;
+  }
+  
+  // Simulate the command being typed by the user
+  const simulatedMessage = {
+    ...m,
+    body: `${prefix}${commandName}`
+  };
+  
+  // Import and execute the command handler
+  try {
+    // This assumes you have a command handler that exports a default function
+    const commandHandler = await import(`./commands/${commandName}.js`);
+    await commandHandler.default(simulatedMessage, Matrix);
+  } catch (error) {
+    console.error(`Error executing command ${commandName}:`, error);
+    await Matrix.sendMessage(m.from, {
+      text: `❌ Error executing command "${commandName}": ${error.message}`
+    }, { quoted: m });
+  }
+}
+
 const menu = async (m, Matrix) => {
   try {
     const prefix = config.PREFIX;
@@ -266,6 +306,36 @@ const menu = async (m, Matrix) => {
 
     const validCommands = ["list", "help", "menu"];
     const subMenuCommands = Object.keys(commandCategories).map(cat => `${cat}-menu`);
+
+    // Check if this is a native flow response (menu selection)
+    if (m.message?.nativeFlowResponseMessage) {
+      const selectedId = m.message.nativeFlowResponseMessage.paramsJson;
+      try {
+        const params = JSON.parse(selectedId);
+        const selectedCommand = params.id || params.name;
+        
+        if (selectedCommand) {
+          // Handle menu navigation
+          if (selectedCommand.endsWith('-menu')) {
+            // Simulate the menu command
+            const simulatedMessage = {
+              ...m,
+              body: `${prefix}${selectedCommand}`
+            };
+            return menu(simulatedMessage, Matrix);
+          }
+          
+          // Handle direct command execution
+          const commandName = selectedCommand.startsWith(prefix) 
+            ? selectedCommand.slice(prefix.length) 
+            : selectedCommand;
+            
+          return executeCommand(m, Matrix, commandName);
+        }
+      } catch (error) {
+        console.error("Error parsing native flow response:", error);
+      }
+    }
 
     // Fetch image for all cases
     const menuImage = await fetchMenuImage();
@@ -298,18 +368,77 @@ const menu = async (m, Matrix) => {
 ╰─────────────────⊷
 `;
 
-      // Create regular buttons instead of native flow for better compatibility
+      // Create button select menu using nativeFlowInfo
       const buttons = [
-        { buttonId: `${prefix}download-menu`, buttonText: { displayText: "📥 ᴅᴏᴡɴʟᴏᴀᴅ" }, type: 1 },
-        { buttonId: `${prefix}group-menu`, buttonText: { displayText: "👥 ɢʀᴏᴜᴘ" }, type: 1 },
-        { buttonId: `${prefix}fun-menu`, buttonText: { displayText: "🎉 ғᴜɴ" }, type: 1 },
-        { buttonId: `${prefix}owner-menu`, buttonText: { displayText: "👑 ᴏᴡɴᴇʀ" }, type: 1 },
-        { buttonId: `${prefix}ai-menu`, buttonText: { displayText: "🤖 ᴀɪ" }, type: 1 },
-        { buttonId: `${prefix}anime-menu`, buttonText: { displayText: "🌸 ᴀɴɪᴍᴇ" }, type: 1 },
-        { buttonId: `${prefix}converter-menu`, buttonText: { displayText: "🔄 ᴄᴏɴᴠᴇʀᴛᴇʀ" }, type: 1 },
-        { buttonId: `${prefix}other-menu`, buttonText: { displayText: "🌟 ᴏᴛʜᴇʀ" }, type: 1 },
-        { buttonId: `${prefix}reactions-menu`, buttonText: { displayText: "🎭 ʀᴇᴀᴄᴛɪᴏɴs" }, type: 1 },
-        { buttonId: `${prefix}main-menu`, buttonText: { displayText: "📂 ᴍᴀɪɴ" }, type: 1 }
+        {
+          buttonId: "menu-options",
+          buttonText: { displayText: "📂 ᴍᴇɴᴜ ᴏᴘᴛɪᴏɴs" },
+          type: 4, // Native Flow type
+          nativeFlowInfo: {
+            name: "single_select",
+            paramsJson: JSON.stringify({
+              title: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ᴍᴇɴᴜ",
+              sections: [
+                {
+                  title: "ᴄᴀᴛᴇɢᴏʀɪᴇs",
+                  highlight_label: "sᴇʟᴇᴄᴛ ᴀ ᴄᴀᴛᴇɢᴏʀʏ",
+                  rows: [
+                    {
+                      title: "📥 ᴅᴏᴡɴʟᴏᴀᴅ",
+                      description: "ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}download-menu`,
+                    },
+                    {
+                      title: "👥 ɢʀᴏᴜᴘ",
+                      description: "ɢʀᴏᴜᴘ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ",
+                      id: `${prefix}group-menu`,
+                    },
+                    {
+                      title: "🎉 ғᴜɴ",
+                      description: "ғᴜɴ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}fun-menu`,
+                    },
+                    {
+                      title: "👑 ᴏᴡɴᴇʀ",
+                      description: "ᴏᴡɴᴇʀ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}owner-menu`,
+                    },
+                    {
+                      title: "🤖 ᴀɪ",
+                      description: "ᴀɪ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}ai-menu`,
+                    },
+                    {
+                      title: "🌸 ᴀɴɪᴍᴇ",
+                      description: "ᴀɴɪᴍᴇ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}anime-menu`,
+                    },
+                    {
+                      title: "🔄 ᴄᴏɴᴠᴇʀᴛᴇʀ",
+                      description: "ᴄᴏɴᴠᴇʀᴛᴇʀ ᴛᴏᴏʟs",
+                      id: `${prefix}converter-menu`,
+                    },
+                    {
+                      title: "🌟 ᴏᴛʜᴇʀ",
+                      description: "ᴏᴛʜᴇʀ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}other-menu`,
+                    },
+                    {
+                      title: "🎭 ʀᴇᴀᴄᴛɪᴏɴs",
+                      description: "ʀᴇᴀᴄᴛɪᴏɴ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}reactions-menu`,
+                    },
+                    {
+                      title: "📂 ᴍᴀɪɴ",
+                      description: "ᴍᴀɪɴ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}main-menu`,
+                    }
+                  ],
+                },
+              ],
+            }),
+          },
+        },
       ];
 
       const messageOptions = {
@@ -408,10 +537,41 @@ ${menuResponse}
 > ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
 `;
 
-      // Create back button
+      // Create command selection buttons
+      const commandButtons = categoryData.commands.map(cmdObj => ({
+        title: cmdObj.command,
+        description: cmdObj.desc,
+        id: `${prefix}${cmdObj.command}`,
+      }));
+
+      // Create back button with native flow
       const backButton = {
         buttons: [
-          { buttonId: `${prefix}menu`, buttonText: { displayText: "🔙 ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ" }, type: 1 }
+          {
+            buttonId: "menu-navigation",
+            buttonText: { displayText: "📂 ᴍᴇɴᴜ ɴᴀᴠɪɢᴀᴛɪᴏɴ" },
+            type: 4,
+            nativeFlowInfo: {
+              name: "single_select",
+              paramsJson: JSON.stringify({
+                title: "ɴᴀᴠɪɢᴀᴛɪᴏɴ",
+                sections: [
+                  {
+                    title: "ᴄᴏᴍᴍᴀɴᴅs",
+                    highlight_label: "sᴇʟᴇᴄᴛ ᴀ ᴄᴏᴍᴍᴀɴᴅ",
+                    rows: [
+                      ...commandButtons,
+                      {
+                        title: "ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ",
+                        description: "ʀᴇᴛᴜʀɴ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ",
+                        id: `${prefix}menu`,
+                      }
+                    ],
+                  },
+                ],
+              }),
+            },
+          }
         ],
         contextInfo: {
           isForwarded: true,
@@ -443,27 +603,6 @@ ${menuResponse}
 •`,
     }, { quoted: m });
   }
-};
-
-// Handle button responses
-export const handleButtonResponse = async (m, Matrix) => {
-  const prefix = config.PREFIX;
-  const text = m.body?.toLowerCase() || "";
-  
-  // Check if it's a menu command
-  if (text.startsWith(`${prefix}menu`) || text.startsWith(`${prefix}help`) || text.startsWith(`${prefix}list`)) {
-    await menu(m, Matrix);
-    return true;
-  }
-  
-  // Check if it's a sub-menu command
-  const subMenuCommands = Object.keys(commandCategories).map(cat => `${prefix}${cat}-menu`);
-  if (subMenuCommands.includes(text)) {
-    await menu(m, Matrix);
-    return true;
-  }
-  
-  return false;
 };
 
 export default menu;
