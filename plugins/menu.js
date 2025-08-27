@@ -256,6 +256,7 @@ const commandCategories = {
     ]
   }
 };
+
 // Function to create interactive native flow message
 function createInteractiveMessage(body, sections, footer = "") {
   const interactiveMessage = {
@@ -287,13 +288,31 @@ function createInteractiveMessage(body, sections, footer = "") {
 }
 
 // Function to create interactive message with image
-function createInteractiveMessageWithImage(image, body, sections, footer = "") {
+function createInteractiveMessageWithImage(imageBuffer, body, sections, footer = "") {
+  // Create a proper image message object
+  const imageMessage = {
+    url: 'https://example.com/image.jpg', // This is a placeholder
+    mimetype: 'image/jpeg',
+    caption: body,
+    fileLength: imageBuffer.length,
+    height: 1080,
+    width: 1080,
+    mediaKey: Buffer.from('placeholder').toString('base64'),
+    fileSha256: imageBuffer,
+    directPath: '/v/t62.7118-24/',
+    mediaKeyTimestamp: Date.now(),
+    jpegThumbnail: imageBuffer.slice(0, 1024), // Small thumbnail
+    scanLengths: [imageBuffer.length],
+    scansSidecar: Buffer.from('placeholder'),
+    uploadHash: Buffer.from('placeholder').toString('base64')
+  };
+
   const interactiveMessage = {
     body: { text: body },
     footer: { text: footer },
     header: {
       hasMediaAttachment: true,
-      imageMessage: image
+      imageMessage: imageMessage
     },
     nativeFlowMessage: {
       buttons: [
@@ -553,11 +572,8 @@ const menu = async (m, Matrix) => {
       let interactiveMsg;
       
       if (menuImage) {
-        // Upload image first
-        const imageMsg = await Matrix.sendMessage(m.from, { image: menuImage }, { quoted: m });
-        
         interactiveMsg = createInteractiveMessageWithImage(
-          imageMsg.message.imageMessage,
+          menuImage,
           mainMenuText,
           menuSections,
           "✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟"
@@ -651,10 +667,8 @@ ${menuResponse}
       let subInteractiveMsg;
       
       if (menuImage) {
-        const imageMsg = await Matrix.sendMessage(m.from, { image: menuImage }, { quoted: m });
-        
         subInteractiveMsg = createInteractiveMessageWithImage(
-          imageMsg.message.imageMessage,
+          menuImage,
           fullResponse,
           commandSections,
           "✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟"
@@ -779,12 +793,9 @@ async function sendInteractiveMenu(Matrix, chatId, menuData, quoted = null) {
       
       if (image) {
         await Matrix.sendMessage(chatId, {
-          image: image,
+          image: { url: 'data:image/jpeg;base64,' + image.toString('base64') },
           caption: text,
           footer: footer,
-          title: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ᴍᴇɴᴜ",
-          buttonText: "📂 ꜱᴇʟᴇᴄᴛ ᴍᴇɴᴜ",
-          sections: sections
         }, { quoted });
       } else {
         await Matrix.sendMessage(chatId, listMessage, { quoted });
@@ -809,7 +820,7 @@ async function sendInteractiveMenu(Matrix, chatId, menuData, quoted = null) {
         
         if (image) {
           await Matrix.sendMessage(chatId, {
-            image: image,
+            image: { url: 'data:image/jpeg;base64,' + image.toString('base64') },
             caption: text,
             footer: footer,
             ...createQuickReplyButtons(quickButtons)
