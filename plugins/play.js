@@ -200,17 +200,26 @@ const play = async (message, client) => {
           timestamp: Date.now()
         });
         
-        // Download thumbnail for image message
-        let imageBuffer = await fetchThumbnail(thumbnailUrl);
+        // Download thumbnails for both images
+        let imageBuffer1 = await fetchThumbnail(thumbnailUrl);
+        let imageBuffer2 = await fetchThumbnail(thumbnailUrl); // Same image for both
         
-        // Create a combined message with both image sections
-        const combinedCaption = `**Vevo**\n${videoInfo.title}\nAvailable on YouTube\nyoutube.com\n\n${songInfo}`;
-        
-        // Send single message with both info and buttons
-        if (imageBuffer) {
+        // Send first image message
+        if (imageBuffer1) {
           await client.sendMessage(message.from, {
-            image: imageBuffer,
-            caption: combinedCaption,
+            image: imageBuffer1,
+            caption: "**Vevo**\n" + videoInfo.title + "\nAvailable on YouTube\nyoutube.com",
+            mentions: [message.sender],
+            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ ❤️",
+            headerType: 1
+          }, { quoted: message });
+        }
+        
+        // Send second image message with song info
+        if (imageBuffer2) {
+          await client.sendMessage(message.from, {
+            image: imageBuffer2,
+            caption: songInfo,
             buttons: [
               {
                 buttonId: `${prefix}audio`,
@@ -226,10 +235,10 @@ const play = async (message, client) => {
             mentions: [message.sender],
             footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ ❤️",
             headerType: 1
-          }, { quoted: message });
+          });
         } else {
           await client.sendMessage(message.from, {
-            text: combinedCaption,
+            text: songInfo,
             buttons: [
               {
                 buttonId: `${prefix}audio`,
@@ -244,7 +253,7 @@ const play = async (message, client) => {
             ],
             mentions: [message.sender],
             footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ ❤️"
-          }, { quoted: message });
+          });
         }
         
         await sendCustomReaction(client, message, "✅");
