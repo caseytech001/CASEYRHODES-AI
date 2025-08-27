@@ -1,55 +1,55 @@
 import axios from 'axios';
-import config from '../config.cjs';
+import { generateWAMessageFromContent, proto, prepareWAMessageMedia } from '@whiskeysockets/baileys';
+
+function toFancyFont(text, isUpperCase = false) {
+  const fonts = {
+    a: "ᴀ", b: "ʙ", c: "ᴄ", d: "ᴅ", e: "ᴇ", f: "ғ", g: "ɢ", h: "ʜ", i: "ɪ", j: "ᴊ",
+    k: "ᴋ", l: "ʟ", m: "ᴍ", n: "ɴ", o: "ᴏ", p: "ᴘ", q: "ǫ", r: "ʀ", s: "s", t: "ᴛ",
+    u: "ᴜ", v: "ᴠ", w: "ᴡ", x: "x", y: "ʏ", z: "ᴢ",
+  };
+  const formattedText = isUpperCase ? text.toUpperCase() : text.toLowerCase();
+  return formattedText
+    .split("")
+    .map((char) => fonts[char] || char)
+    .join("");
+}
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 const imageCommand = async (m, sock) => {
   const prefix = config.PREFIX;
-  const body = m.message?.conversation || m.message?.extendedTextMessage?.text || '';
-  const cmd = body.startsWith(prefix) ? body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-  let query = body.slice(prefix.length + cmd.length).trim();
+  const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+  let query = m.body.slice(prefix.length + cmd.length).trim();
 
   const validCommands = ['image', 'img', 'gimage'];
 
   if (validCommands.includes(cmd)) {
-  
-    if (!query && m.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
-      const quotedMsg = m.message.extendedTextMessage.contextInfo.quotedMessage;
-      query = quotedMsg.conversation || quotedMsg.extendedTextMessage?.text || '';
-    }
-
-    if (!query) {
+    if (!query && !(m.quoted && m.quoted.text)) {
       const buttonMessage = {
-        text: `Please provide some text, Example usage: ${prefix + cmd} black cats\n\nOr reply to a message with text to generate images.`,
-        footer: 'Image Search Bot',
+        text: `*${toFancyFont("Please provide some text, Example usage: " + prefix + cmd + " black cats")}`,
         buttons: [
-          { buttonId: `${prefix}image cats`, buttonText: { displayText: 'Example: Cats' } },
-          { buttonId: `${prefix}image dogs`, buttonText: { displayText: 'Example: Dogs' } }
+          { buttonId: '.help', buttonText: { displayText: toFancyFont("Help") }, type: 1 }
         ],
-        headerType: 1
+        headerType: 1,
+        viewOnce: true
       };
-      
-      return sock.sendMessage(m.key.remoteJid, buttonMessage);
+      return await sock.sendMessage(m.from, buttonMessage);
     }
 
-    const numberOfImages = 5;
+    if (!query && m.quoted && m.quoted.text) {
+      query = m.quoted.text;
+    }
+
+    const numberOfImages = 8; // Changed to 8 as in your reference image
 
     try {
-      // Send initial message with buttons
-      const loadingMessage = {
-        text: `🔍 *Searching for images:* ${query}\n\nPlease wait while I generate your images...`,
-        footer: 'Generating 5 images',
-        buttons: [
-          { buttonId: `${prefix}image ${query}`, buttonText: { displayText: '🔄 Refresh Search' } },
-          { buttonId: `${prefix}help image`, buttonText: { displayText: '❓ Help' } }
-        ],
-        headerType: 1
-      };
-      
-      await sock.sendMessage(m.key.remoteJid, loadingMessage);
+      // Send search initiation message
+      const searchMsg = await sock.sendMessage(m.from, { 
+        text: `*${toFancyFont("Search Results for:")}* ${query}\n*${toFancyFont("Found")}* ${numberOfImages} ${toFancyFont("images")}` 
+      });
 
+      // Fetch images
       const images = [];
-
       for (let i = 0; i < numberOfImages; i++) {
         const endpoint = `https://apis.davidcyriltech.my.id/googleimage?query=${encodeURIComponent(query)}`;
         const response = await axios.get(endpoint, { responseType: 'arraybuffer' });
@@ -62,78 +62,65 @@ const imageCommand = async (m, sock) => {
         }
       }
 
-      // Send images with navigation buttons
+      // Send images in a structured way (simulating grid layout)
       for (let i = 0; i < images.length; i++) {
-        await sleep(500);
+        await sleep(1000); // Delay between images
         
-        const imageMessage = {
-          image: images[i],
-          caption: `🖼️ *Image ${i + 1}/${images.length}*\n📝 Query: ${query}`,
-          footer: 'Image Search Results',
-          buttons: [
-            { 
-              buttonId: `${prefix}image ${query}`, 
-              buttonText: { displayText: '🔄 Get More' } 
-            },
-            { 
-              buttonId: `${prefix}download`, 
-              buttonText: { displayText: '📥 Download' } 
-            }
-          ],
-          headerType: 4
-        };
+        let caption = '';
+        if (i === 0) {
+          caption = `*${toFancyFont("Image")} ${i+1}*\n${toFancyFont("Search:")} ${query}\n${toFancyFont("Scroll to see more images")}`;
+        } else if (i === 1) {
+          caption = `*${toFancyFont("Image")} ${i+1}*\n${toFancyFont("Search:")} ${query}\n${toFancyFont("Scroll to see more")}`;
+        } else if (i === images.length - 1) {
+          caption = `*${toFancyFont("Image")} ${i+1}*\n${toFancyFont("View Original")}`;
+        } else {
+          caption = `*${toFancyFont("Image")} ${i+1}*`;
+        }
         
-        await sock.sendMessage(m.key.remoteJid, imageMessage, { quoted: m });
+        await sock.sendMessage(
+          m.from, 
+          { 
+            image: images[i], 
+            caption: caption,
+            mentions: [m.sender]
+          }, 
+          { quoted: i === 0 ? searchMsg : null }
+        );
       }
 
-      // Send completion message with options
-      const completionMessage = {
-        text: `✅ *Image generation complete!*\n\nGenerated ${images.length} images for: *${query}*`,
-        footer: 'What would you like to do next?',
-        buttons: [
-          { 
-            buttonId: `${prefix}image ${query}`, 
-            buttonText: { displayText: '🔄 Generate More' } 
-          },
-          { 
-            buttonId: `${prefix}image`, 
-            buttonText: { displayText: '🎨 New Search' } 
-          },
-          { 
-            buttonId: `${prefix}help`, 
-            buttonText: { displayText: '❓ Help' } 
-          }
-        ],
+      // Send final options message
+      const templateButtons = [
+        { index: 1, urlButton: { displayText: 'View Original', url: `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch` }},
+        { index: 2, quickReplyButton: { displayText: 'Search Again', id: `${prefix}image ${query}` }}
+      ];
+
+      await sock.sendMessage(m.from, {
+        text: `*${toFancyFont("Search Complete")}*\n\n${toFancyFont("Found")} ${images.length} ${toFancyFont("images for")} "${query}"`,
+        footer: 'Use buttons below for more options',
+        templateButtons: templateButtons,
         headerType: 1
-      };
-      
-      await sock.sendMessage(m.key.remoteJid, completionMessage);
-      
-      // React to the message
-      if (sock.sendReaction) {
-        await sock.sendReaction(m.key.remoteJid, m.key, "✅");
-      }
+      });
+
+      // React to the original message
+      await sock.sendMessage(m.from, {
+        react: {
+          text: "✅",
+          key: m.key
+        }
+      });
       
     } catch (error) {
       console.error("Error fetching images:", error);
       
-      const errorMessage = {
-        text: '*❌ Oops! Something went wrong while generating images.*\n\nPlease try again later or try a different search term.',
-        footer: 'Error occurred',
+      const buttonMessage = {
+        text: `*${toFancyFont("Oops! Something went wrong while generating images. Please try again later.")}*`,
         buttons: [
-          { 
-            buttonId: `${prefix}image ${query}`, 
-            buttonText: { displayText: '🔄 Try Again' } 
-          },
-          { 
-            buttonId: `${prefix}support`, 
-            buttonText: { displayText: '🆘 Support' } 
-          }
+          { buttonId: '.report', buttonText: { displayText: toFancyFont("Report") }, type: 1 }
         ],
         headerType: 1
       };
       
-      await sock.sendMessage(m.key.remoteJid, errorMessage);
+      await sock.sendMessage(m.from, buttonMessage);
     }
   }
 };
