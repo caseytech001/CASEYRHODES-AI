@@ -43,7 +43,7 @@ function toFancyFont(text, isUpperCase = false) {
 
 // Image fetch utility
 async function fetchMenuImage() {
-  const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
+  const imageUrl = "https://files.catbox.moe/y3j3kl.jpg"; // Replace with your actual image URL
   for (let i = 0; i < 3; i++) {
     try {
       const response = await axios.get(imageUrl, { 
@@ -401,9 +401,9 @@ const menu = async (m, Matrix) => {
 - . ⑨  *ʀᴇᴀᴄᴛɪᴏɴs ᴍᴇɴᴜ*
 - . ⑩  *ᴍᴀɪɴ ᴍᴇɴᴜ*
 ┗
-*╭─────────────────⊷*
-*┊Hallo my family ${pushwish}*
-*╰─────────────────⊷*
+╭─────────────────⊷
+┊*Hallo my family ${pushwish}*
+╰─────────────────⊷
 `;
 
       // Create list message for menu navigation
@@ -464,7 +464,7 @@ const menu = async (m, Matrix) => {
               {
                 title: "📂 ᴍᴀɪɴ",
                 rowId: `${prefix}main-menu`,
-                description: "ᴍᴀɪɴ ᴄᴏᴍᴍᴀɴᴅs",
+                description: "ᴍᴀɪɴ ᴄᴏᴡᴍᴍᴀɴᴅs",
               },
             ],
           },
