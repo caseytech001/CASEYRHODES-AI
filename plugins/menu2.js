@@ -316,7 +316,7 @@ const menu = async (m, Matrix) => {
     const mode = config.MODE === "public" ? "public" : "private";
     const totalCommands = Object.values(commandCategories).reduce((acc, category) => acc + category.commands.length, 0);
 
-    const validCommands = ["list2", "help2", "menu2"];
+    const validCommands = ["list", "help", "menu"];
     const subMenuCommands = Object.keys(commandCategories).map(cat => `${cat}-menu`);
 
     // Check if this is a native flow response (menu selection)
