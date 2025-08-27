@@ -3,6 +3,8 @@ import fs from "fs";
 import os from "os";
 import pkg from "@whiskeysockets/baileys";
 const { generateWAMessageFromContent, proto } = pkg;
+const more = String.fromCharCode(8206);
+const readmore = more.repeat(4001);
 import config from "../config.cjs";
 import axios from "axios";
 
@@ -41,15 +43,17 @@ function toFancyFont(text, isUpperCase = false) {
     .join("");
 }
 
-// Image fetch utility
+// Image fetch utility - FIXED
 async function fetchMenuImage() {
-  const imageUrl = "https://files.catbox.moe/y3j3kl.jpg"; // Replace with your actual image URL
+  const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
   for (let i = 0; i < 3; i++) {
     try {
       const response = await axios.get(imageUrl, { 
         responseType: "arraybuffer",
-        timeout: 10000
+        timeout: 10000 // Add timeout to prevent hanging
       });
+      
+      // Properly convert ArrayBuffer to Buffer
       return Buffer.from(response.data);
     } catch (error) {
       if (error.response?.status === 429 && i < 2) {
@@ -63,409 +67,76 @@ async function fetchMenuImage() {
   }
 }
 
-// Command categories
-const commandCategories = {
-  "download": {
-    title: "📥 Download Menu",
-    commands: [
-      { command: "apk", desc: "Download APK files" },
-      { command: "facebook", desc: "Download from Facebook" },
-      { command: "mediafire", desc: "Download from Mediafire" },
-      { command: "pinterest", desc: "Download from Pinterest" },
-      { command: "gitclone", desc: "Clone git repositories" },
-      { command: "gdrive", desc: "Download from Google Drive" },
-      { command: "insta", desc: "Download Instagram content" },
-      { command: "ytmp3", desc: "YouTube to MP3" },
-      { command: "ytmp4", desc: "YouTube to MP4" },
-      { command: "play", desc: "Play music" },
-      { command: "song", desc: "Download songs" },
-      { command: "video", desc: "Download videos" },
-      { command: "ytmp3doc", desc: "YouTube to MP3 (document)" },
-      { command: "ytmp4doc", desc: "YouTube to MP4 (document)" },
-      { command: "tiktok", desc: "Download TikTok videos" }
-    ]
-  },
-  "group": {
-    title: "👥 Group Menu",
-    commands: [
-      { command: "linkgroup", desc: "Get group invite link" },
-      { command: "setppgc", desc: "Set group profile picture" },
-      { command: "setname", desc: "Set group name" },
-      { command: "setdesc", desc: "Set group description" },
-      { command: "group", desc: "Group management" },
-      { command: "gcsetting", desc: "Group settings" },
-      { command: "welcome", desc: "Welcome settings" },
-      { command: "add", desc: "Add members" },
-      { command: "kick", desc: "Remove members" },
-      { command: "hidetag", desc: "Hidden tag" },
-      { command: "tagall", desc: "Tag all members" },
-      { command: "antilink", desc: "Anti-link settings" },
-      { command: "antitoxic", desc: "Anti-toxic settings" },
-      { command: "promote", desc: "Promote members" },
-      { command: "demote", desc: "Demote members" },
-      { command: "getbio", desc: "Get user bio" }
-    ]
-  },
-  "fun": {
-    title: "🎉 Fun Menu",
-    commands: [
-      { command: "gay", desc: "Gay rate checker" },
-      { command: "simp", desc: "Simp rate checker" },
-      { command: "handsome", desc: "Handsome rate" },
-      { command: "stupid", desc: "Stupid rate" },
-      { command: "character", desc: "Character analyzer" },
-      { command: "fact", desc: "Random facts" },
-      { command: "truth", desc: "Truth questions" },
-      { command: "dare", desc: "Dare challenges" },
-      { command: "flirt", desc: "Flirty messages" },
-      { command: "couple", desc: "Couple matching" },
-      { command: "ship", desc: "Ship two people" },
-      { command: "joke", desc: "Random jokes" },
-      { command: "meme", desc: "Random memes" },
-      { command: "quote", desc: "Inspirational quotes" },
-      { command: "roll", desc: "Roll a dice" }
-    ]
-  },
-  "owner": {
-    title: "👑 Owner Menu",
-    commands: [
-      { command: "join", desc: "Join group via link" },
-      { command: "leave", desc: "Leave group" },
-      { command: "block", desc: "Block user" },
-      { command: "unblock", desc: "Unblock user" },
-      { command: "setppbot", desc: "Set bot profile picture" },
-      { command: "anticall", desc: "Anti-call settings" },
-      { command: "setstatus", desc: "Set bot status" },
-      { command: "setnamebot", desc: "Set bot name" },
-      { command: "autorecording", desc: "Auto voice recording" },
-      { command: "autolike", desc: "Auto like messages" },
-      { command: "autotyping", desc: "Auto typing indicator" },
-      { command: "alwaysonline", desc: "Always online mode" },
-      { command: "autoread", desc: "Auto read messages" },
-      { command: "autosview", desc: "Auto view stories" }
-    ]
-  },
-  "ai": {
-    title: "🤖 AI Menu",
-    commands: [
-      { command: "ai", desc: "AI chat" },
-      { command: "bug", desc: "Report bugs" },
-      { command: "report", desc: "Report issues" },
-      { command: "gpt", desc: "ChatGPT" },
-      { command: "dall", desc: "DALL-E image generation" },
-      { command: "remini", desc: "Image enhancement" },
-      { command: "gemini", desc: "Google Gemini" },
-      { command: "bard", desc: "Google Bard" },
-      { command: "blackbox", desc: "Blackbox AI" },
-      { command: "mistral", desc: "Mistral AI" },
-      { command: "llama", desc: "LLaMA AI" },
-      { command: "claude", desc: "Claude AI" },
-      { command: "deepseek", desc: "DeepSeek AI" }
-    ]
-  },
-  "anime": {
-    title: "🌸 Anime Menu",
-    commands: [
-      { command: "anime", desc: "Random anime info" },
-      { command: "animepic", desc: "Random anime pictures" },
-      { command: "animequote", desc: "Anime quotes" },
-      { command: "animewall", desc: "Anime wallpapers" },
-      { command: "animechar", desc: "Anime character search" },
-      { command: "waifu", desc: "Random waifu" },
-      { command: "husbando", desc: "Random husbando" },
-      { command: "neko", desc: "Neko girls" },
-      { command: "shinobu", desc: "Shinobu pictures" },
-      { command: "megumin", desc: "Megumin pictures" },
-      { command: "awoo", desc: "Awoo girls" },
-      { command: "trap", desc: "Trap characters" },
-      { command: "blowjob", desc: "NSFW content" }
-    ]
-  },
-  "converter": {
-    title: "🔄 Converter Menu",
-    commands: [
-      { command: "attp", desc: "Text to sticker" },
-      { command: "attp2", desc: "Text to sticker (style 2)" },
-      { command: "attp3", desc: "Text to sticker (style 3)" },
-      { command: "ebinary", desc: "Encode binary" },
-      { command: "dbinary", desc: "Decode binary" },
-      { command: "emojimix", desc: "Mix two emojis" },
-      { command: "mp3", desc: "Convert to MP3" },
-      { command: "mp4", desc: "Convert to MP4" },
-      { command: "sticker", desc: "Image to sticker" },
-      { command: "toimg", desc: "Sticker to image" },
-      { command: "tovid", desc: "GIF to video" },
-      { command: "togif", desc: "Video to GIF" },
-      { command: "tourl", desc: "Media to URL" },
-      { command: "tinyurl", desc: "URL shortener" }
-    ]
-  },
-  "other": {
-    title: "📌 Other Menu",
-    commands: [
-      { command: "calc", desc: "Calculator" },
-      { command: "tempmail", desc: "Temp email" },
-      { command: "checkmail", desc: "Check temp mail" },
-      { command: "trt", desc: "Translate text" },
-      { command: "tts", desc: "Text to speech" },
-      { command: "ssweb", desc: "Website screenshot" },
-      { command: "readmore", desc: "Create read more" },
-      { command: "styletext", desc: "Stylish text" },
-      { command: "weather", desc: "Weather info" },
-      { command: "clock", desc: "World clock" },
-      { command: "qrcode", desc: "Generate QR code" },
-      { command: "readqr", desc: "Read QR code" },
-      { command: "currency", desc: "Currency converter" }
-    ]
-  },
-  "reactions": {
-    title: "🎭 Reactions Menu",
-    commands: [
-      { command: "like", desc: "Like reaction" },
-      { command: "love", desc: "Love reaction" },
-      { command: "haha", desc: "Haha reaction" },
-      { command: "wow", desc: "Wow reaction" },
-      { command: "sad", desc: "Sad reaction" },
-      { command: "angry", desc: "Angry reaction" },
-      { command: "dislike", desc: "Dislike reaction" },
-      { command: "cry", desc: "Cry reaction" },
-      { command: "kiss", desc: "Kiss reaction" },
-      { command: "pat", desc: "Pat reaction" },
-      { command: "slap", desc: "Slap reaction" },
-      { command: "punch", desc: "Punch reaction" },
-      { command: "kill", desc: "Kill reaction" },
-      { command: "hug", desc: "Hug reaction" }
-    ]
-  },
-  "main": {
-    title: "🏠 Main Menu",
-    commands: [
-      { command: "ping", desc: "Check bot response time" },
-      { command: "alive", desc: "Check if bot is running" },
-      { command: "owner", desc: "Contact owner" },
-      { command: "menu", desc: "Show this menu" },
-      { command: "infobot", desc: "Bot information" },
-      { command: "donate", desc: "Support the bot" },
-      { command: "speed", desc: "Speed test" },
-      { command: "runtime", desc: "Bot uptime" },
-      { command: "sc", desc: "Source code" },
-      { command: "script", desc: "Script info" },
-      { command: "support", desc: "Support group" },
-      { command: "update", desc: "Check updates" },
-      { command: "feedback", desc: "Send feedback" }
-    ]
-  }
-};
-
-// Function to handle command execution
-async function executeCommand(m, Matrix, commandName) {
-  const prefix = config.PREFIX;
-  
-  // Find the command in the categories
-  let commandFound = null;
-  for (const category of Object.values(commandCategories)) {
-    const cmd = category.commands.find(c => c.command === commandName);
-    if (cmd) {
-      commandFound = cmd;
-      break;
-    }
-  }
-  
-  if (!commandFound) {
-    await Matrix.sendMessage(m.from, {
-      text: `❌ Command "${commandName}" not found. Please try again.`
-    }, { quoted: m });
-    return;
-  }
-  
-  // Send a message indicating the command is being executed
-  await Matrix.sendMessage(m.from, {
-    text: `⚡ Executing command: ${prefix}${commandName}\n${commandFound.desc}`
-  }, { quoted: m });
-  
-  // Simulate the command being typed by the user
-  const simulatedMessage = {
-    ...m,
-    body: `${prefix}${commandName}`
-  };
-  
-  // Import and execute the command handler
-  try {
-    // This assumes you have a command handler that exports a default function
-    const commandHandler = await import(`./commands/${commandName}.js`);
-    await commandHandler.default(simulatedMessage, Matrix);
-  } catch (error) {
-    console.error(`Error executing command ${commandName}:`, error);
-    await Matrix.sendMessage(m.from, {
-      text: `❌ Error executing command "${commandName}": ${error.message}\n\nMake sure the command file exists in the commands directory.`
-    }, { quoted: m });
-  }
-}
-
 const menu = async (m, Matrix) => {
   try {
     const prefix = config.PREFIX;
-    
-    // Check if message has the correct prefix
-    const hasPrefix = m.body && m.body.startsWith(prefix);
-    if (!hasPrefix && !m.message?.nativeFlowResponseMessage && !m.message?.buttonsResponseMessage) {
-      return; // Ignore messages without prefix
-    }
-    
-    const cmd = hasPrefix ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
+    const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
     const mode = config.MODE === "public" ? "public" : "private";
-    const totalCommands = Object.values(commandCategories).reduce((acc, category) => acc + category.commands.length, 0);
+    const totalCommands = 70;
 
     const validCommands = ["list", "help", "menu"];
-    const subMenuCommands = Object.keys(commandCategories).map(cat => `${cat}-menu`);
-
-    // Check if this is a native flow response (menu selection)
-    if (m.message?.nativeFlowResponseMessage) {
-      try {
-        const responseParams = JSON.parse(m.message.nativeFlowResponseMessage.paramsJson);
-        const selectedId = responseParams.id || responseParams.name;
-        
-        if (selectedId) {
-          // Handle menu navigation
-          if (selectedId.endsWith('-menu')) {
-            // Simulate the menu command
-            const simulatedMessage = {
-              ...m,
-              body: selectedId
-            };
-            return menu(simulatedMessage, Matrix);
-          }
-          
-          // Handle direct command execution
-          const commandName = selectedId.startsWith(prefix) 
-            ? selectedId.slice(prefix.length) 
-            : selectedId;
-            
-          return executeCommand(m, Matrix, commandName);
-        }
-      } catch (error) {
-        console.error("Error parsing native flow response:", error);
-        await Matrix.sendMessage(m.from, {
-          text: "❌ Error processing menu selection. Please try again."
-        }, { quoted: m });
-        return;
-      }
-    }
-
-    // Check if this is a button response (for older WhatsApp versions)
-    if (m.message?.buttonsResponseMessage) {
-      const selectedId = m.message.buttonsResponseMessage.selectedButtonId;
-      
-      if (selectedId) {
-        // Handle menu navigation
-        if (selectedId.endsWith('-menu')) {
-          const simulatedMessage = {
-            ...m,
-            body: selectedId
-          };
-          return menu(simulatedMessage, Matrix);
-        }
-        
-        // Handle direct command execution
-        const commandName = selectedId.startsWith(prefix) 
-          ? selectedId.slice(prefix.length) 
-          : selectedId;
-          
-        return executeCommand(m, Matrix, commandName);
-      }
-    }
+    const subMenuCommands = [
+      "download-menu", "converter-menu", "ai-menu", "tools-menu",
+      "group-menu", "search-menu", "main-menu", "owner-menu",
+      "stalk-menu", "fun-menu", "anime-menu", "other-menu",
+      "reactions-menu"
+    ];
 
     // Fetch image for all cases
     const menuImage = await fetchMenuImage();
 
     // Handle main menu
-    if (validCommands.includes(cmd) || cmd === "") {
-      const mainMenu = `*${pushwish}*
+    if (validCommands.includes(cmd)) {
+      const mainMenu = `*HI 👋* *${pushwish}*
+*╭───────────────┈⊷*
+*┊• 🌟 ʙᴏᴛ ɴᴀᴍᴇ :* *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ*
+*┊• ⏰ ᴛɪᴍᴇ :* *${xtime}*
+*┊• 📅 ᴅᴀᴛᴇ :* *${xdate}*
+*┊• 🎭 ᴅᴇᴠ :* *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ᴢᴏɴᴇ*
+*┊• 📍 ᴘʀᴇғɪx :*  *[ ${prefix} ]*
+*╰───────────────┈⊷*
+${readmore}
+┏        *【 ᴍᴇɴᴜ ʟɪsᴛ 】⇳︎*
+- . ①  *ᴅᴏᴡɴʟᴏᴀᴅ ᴍᴇɴᴜ*
+- . ②  *ɢʀᴏᴜᴘ ᴍᴇɴᴜ*
+- . ③  *ғᴜɴ ᴍᴇɴᴜ*
+- . ④  *ᴏᴡɴᴇʀ ᴍᴇɴᴜ*
+- . ⑤  *ᴀɪ ᴍᴇɴᴜ*
+- . ⑥  *ᴀɴɪᴍᴇ ᴍᴇɴᴜ*
+- . ⑦  *ᴄᴏɴᴠᴇʀᴛ ᴍᴇɴᴜ*
+- . ⑧  *ᴏᴛʜᴇʀ ᴍᴇɴᴜ*
+- . ⑨  *ʀᴇᴀᴄᴛɪᴏɴs ᴍᴇɴᴜ*
+- . ⑩  *ᴍᴀɪɴ ᴍᴇɴᴜ*
+┗
+*╭─────────────────⊷*
+*┊Hallo my family ${pushwish}*
+*╰─────────────────⊷*
+`;
 
-*BOT NAME* : CASEYRHODES AI  
-*TIME* : ${xtime}  
-*DATE* : ${xdate}  
-*DEV* : CASEYRHODES TECH ZONE  
-*PREFIX* : [ ${prefix} ]  
-*TOTAL CMDS* : ${totalCommands}  
-
-*【 MENU LIST 】♦*  
-1. *DOWNLOAD MENU*  
-2. *GROUP MENU*  
-3. *FUN MENU*  
-4. *OWNER MENU*  
-5. *AI MENU*  
-6. *ANIME MENU*  
-7. *CONVERTER MENU*  
-8. *OTHER MENU*  
-9. *REACTIONS MENU*  
-10. *MAIN MENU*  
-
-*CASEYRHODES AI MENU*`;
-
-      // Create list message for menu navigation
-      const listMessage = {
-        text: "CASEYRHODES AI MENU",
-        footer: "CASEYRHODES AI",
-        title: "CASEYRHODES-AI Menu",
-        buttonText: "Select an option",
-        sections: [
-          {
-            title: "Menu Navigation",
-            rows: [
-              {
-                title: "📥 ᴅᴏᴡɴʟᴏᴀᴅ",
-                rowId: `${prefix}download-menu`,
-                description: "ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴏᴍᴍᴀɴᴅs",
-              },
-              {
-                title: "👥 ɢʀᴏᴜᴘ",
-                rowId: `${prefix}group-menu`,
-                description: "ɢʀᴏᴜᴘ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ",
-              },
-              {
-                title: "🎉 ғᴜɴ",
-                rowId: `${prefix}fun-menu`,
-                description: "ғᴜɴ ᴄᴏᴍᴍᴀɴᴅs",
-              },
-              {
-                title: "👑 ᴏᴡɴᴇʀ",
-                rowId: `${prefix}owner-menu`,
-                description: "ᴏᴡɴᴇʀ ᴄᴏᴍᴍᴀɴᴅs",
-              },
-              {
-                title: "🤖 ᴀɪ",
-                rowId: `${prefix}ai-menu`,
-                description: "ᴀɪ ᴄᴏᴍᴍᴀɴᴅs",
-              },
-              {
-                title: "🌸 ᴀɴɪᴍᴇ",
-                rowId: `${prefix}anime-menu`,
-                description: "ᴀɴɪᴍᴇ ᴄᴏᴍᴍᴀɴᴅs",
-              },
-              {
-                title: "🔄 ᴄᴏɴᴠᴇʀᴛᴇʀ",
-                rowId: `${prefix}converter-menu`,
-                description: "ᴄᴏɴᴠᴇʀᴛᴇʀ ᴛᴏᴏʟs",
-              },
-              {
-                title: "🌟 ᴏᴛʜᴇʀ",
-                rowId: `${prefix}other-menu`,
-                description: "ᴏᴛʜᴇʀ ᴄᴏᴍᴍᴀɴᴅs",
-              },
-              {
-                title: "🎭 ʀᴇᴀᴄᴛɪᴏɴs",
-                rowId: `${prefix}reactions-menu`,
-                description: "ʀᴇᴀᴄᴛɪᴏɴ ᴄᴏᴍᴍᴀɴᴅs",
-              },
-              {
-                title: "📂 ᴍᴀɪɴ",
-                rowId: `${prefix}main-menu`,
-                description: "ᴍᴀɪɴ ᴄᴏᴍᴍᴀɴᴅs",
-              },
-            ],
-          },
+      const messageOptions = {
+        viewOnce: true,
+        buttons: [
+          { buttonId: `${prefix}download-menu`, buttonText: { displayText: `📥 ᴅᴏᴡɴʟᴏᴀᴅ ` }, type: 1 },
+          { buttonId: `${prefix}group-menu`, buttonText: { displayText: `👥 ɢʀᴏᴜᴘ` }, type: 1 },
+          { buttonId: `${prefix}fun-menu`, buttonText: { displayText: `🎉 ғᴜɴ` }, type: 1 },
+          { buttonId: `${prefix}owner-menu`, buttonText: { displayText: `👑 ᴏᴡɴᴇʀ` }, type: 1 },
+          { buttonId: `${prefix}ai-menu`, buttonText: { displayText: `🤖 ᴀɪ` }, type: 1 },
+          { buttonId: `${prefix}anime-menu`, buttonText: { displayText: `🌸 ᴀɴɪᴍᴇ` }, type: 1 },
+          { buttonId: `${prefix}converter-menu`, buttonText: { displayText: `🔄 ᴄᴏɴᴠᴇʀᴛᴇʀ` }, type: 1 },
+          { buttonId: `${prefix}other-menu`, buttonText: { displayText: `🌟 ᴏᴛʜᴇʀ` }, type: 1 },
+          { buttonId: `${prefix}reactions-menu`, buttonText: { displayText: `🎭 ʀᴇᴀᴄᴛɪᴏɴs` }, type: 1 },
+          { buttonId: `${prefix}main-menu`, buttonText: { displayText: `📂 ᴍᴀɪɴ` }, type: 1 }
         ],
+        contextInfo: {
+          mentionedJid: [m.sender],
+          forwardingScore: 999,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363302677217436@newsletter',
+            newsletterName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
+            serverMessageId: 143
+          },
+        },
       };
 
       // Send menu with or without image
@@ -473,7 +144,7 @@ const menu = async (m, Matrix) => {
         await Matrix.sendMessage(m.from, { 
           image: menuImage,
           caption: mainMenu,
-          ...listMessage
+          ...messageOptions
         }, { 
           quoted: {
             key: {
@@ -491,7 +162,7 @@ const menu = async (m, Matrix) => {
         });
       } else {
         // Fallback to text-only if image fails
-        await Matrix.sendMessage(m.from, { text: mainMenu, ...listMessage }, { quoted: m });
+        await Matrix.sendMessage(m.from, { text: mainMenu, ...messageOptions }, { quoted: m });
       }
 
       // Send audio as a voice note
@@ -509,7 +180,7 @@ const menu = async (m, Matrix) => {
             },
             message: {
               contactMessage: {
-                displayName: "CASEYRHODES AI ✅",
+                displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
                 vcard: `BEGIN:VCARD\nVERSION:3.0\nFN: Caseyrhodes VERIFIED ✅\nORG:CASEYRHODES-TECH BOT;\nTEL;type=CELL;type=VOICE;waid=13135550002:+13135550002\nEND:VCARD`
               }
             }
@@ -523,19 +194,217 @@ const menu = async (m, Matrix) => {
   
     // Handle sub-menu commands
     if (subMenuCommands.includes(cmd)) {
-      const category = cmd.replace("-menu", "");
-      const categoryData = commandCategories[category];
-      
-      if (!categoryData) return;
+      let menuTitle;
+      let menuResponse;
 
-      let menuResponse = "";
-      categoryData.commands.forEach((cmdObj, index) => {
-        const num = (index + 1).toString().padStart(2, "0");
-        menuResponse += `${num}. *${cmdObj.command}* - ${cmdObj.desc}\n`;
-      });
+      switch (cmd) {
+        case "download-menu":
+          menuTitle = "📥 Download Menu";
+          menuResponse = `
+${toFancyFont(".apk")} - Download APK files
+${toFancyFont(".facebook")} - Download from Facebook
+${toFancyFont(".mediafire")} - Download from Mediafire
+${toFancyFont(".pinterest")} - Download from Pinterest
+${toFancyFont(".gitclone")} - Clone git repositories
+${toFancyFont(".gdrive")} - Download from Google Drive
+${toFancyFont(".insta")} - Download Instagram content
+${toFancyFont(".ytmp3")} - YouTube to MP3
+${toFancyFont(".ytmp4")} - YouTube to MP4
+${toFancyFont(".play")} - Play music
+${toFancyFont(".song")} - Download songs
+${toFancyFont(".video")} - Download videos
+${toFancyFont(".ytmp3doc")} - YouTube to MP3 (document)
+${toFancyFont(".ytmp4doc")} - YouTube to MP4 (document)
+${toFancyFont(".tiktok")} - Download TikTok videos
+`;
+          break;
+
+        case "group-menu":
+          menuTitle = "👥 Group Menu";
+          menuResponse = `
+${toFancyFont(".linkgroup")} - Get group invite link
+${toFancyFont(".setppgc")} - Set group profile picture
+${toFancyFont(".setname")} - Set group name
+${toFancyFont(".setdesc")} - Set group description
+${toFancyFont(".group")} - Group management
+${toFancyFont(".gcsetting")} - Group settings
+${toFancyFont(".welcome")} - Welcome settings
+${toFancyFont(".add")} - Add members
+${toFancyFont(".kick")} - Remove members
+${toFancyFont(".hidetag")} - Hidden tag
+${toFancyFont(".tagall")} - Tag all members
+${toFancyFont(".antilink")} - Anti-link settings
+${toFancyFont(".antitoxic")} - Anti-toxic settings
+${toFancyFont(".promote")} - Promote members
+${toFancyFont(".demote")} - Demote members
+${toFancyFont(".getbio")} - Get user bio
+`;
+          break;
+
+        case "fun-menu":
+          menuTitle = "🎉 Fun Menu";
+          menuResponse = `
+${toFancyFont(".gay")} - Gay rate checker
+${toFancyFont(".simp")} - Simp rate checker
+${toFancyFont(".handsome")} - Handsome rate
+${toFancyFont(".stupid")} - Stupid rate
+${toFancyFont(".character")} - Character analyzer
+${toFancyFont(".fact")} - Random facts
+${toFancyFont(".truth")} - Truth questions
+${toFancyFont(".dare")} - Dare challenges
+${toFancyFont(".flirt")} - Flirty messages
+${toFancyFont(".couple")} - Couple matching
+${toFancyFont(".ship")} - Ship two people
+${toFancyFont(".joke")} - Random jokes
+${toFancyFont(".meme")} - Random memes
+${toFancyFont(".quote")} - Inspirational quotes
+${toFancyFont(".roll")} - Roll a dice
+`;
+          break;
+
+        case "owner-menu":
+          menuTitle = "👑 Owner Menu";
+          menuResponse = `
+${toFancyFont(".join")} - Join group via link
+${toFancyFont(".leave")} - Leave group
+${toFancyFont(".block")} - Block user
+${toFancyFont(".unblock")} - Unblock user
+${toFancyFont(".setppbot")} - Set bot profile picture
+${toFancyFont(".anticall")} - Anti-call settings
+${toFancyFont(".setstatus")} - Set bot status
+${toFancyFont(".setnamebot")} - Set bot name
+${toFancyFont(".autorecording")} - Auto voice recording
+${toFancyFont(".autolike")} - Auto like messages
+${toFancyFont(".autotyping")} - Auto typing indicator
+${toFancyFont(".alwaysonline")} - Always online mode
+${toFancyFont(".autoread")} - Auto read messages
+${toFancyFont(".autosview")} - Auto view stories
+`;
+          break;
+
+        case "ai-menu":
+          menuTitle = "🤖 AI Menu";
+          menuResponse = `
+${toFancyFont(".ai")} - AI chat
+${toFancyFont(".bug")} - Report bugs
+${toFancyFont(".report")} - Report issues
+${toFancyFont(".gpt")} - ChatGPT
+${toFancyFont(".dall")} - DALL-E image generation
+${toFancyFont(".remini")} - Image enhancement
+${toFancyFont(".gemini")} - Google Gemini
+${toFancyFont(".bard")} - Google Bard
+${toFancyFont(".blackbox")} - Blackbox AI
+${toFancyFont(".mistral")} - Mistral AI
+${toFancyFont(".llama")} - LLaMA AI
+${toFancyFont(".claude")} - Claude AI
+${toFancyFont(".deepseek")} - DeepSeek AI
+`;
+          break;
+
+        case "anime-menu":
+          menuTitle = "🌸 Anime Menu";
+          menuResponse = `
+${toFancyFont(".anime")} - Random anime info
+${toFancyFont(".animepic")} - Random anime pictures
+${toFancyFont(".animequote")} - Anime quotes
+${toFancyFont(".animewall")} - Anime wallpapers
+${toFancyFont(".animechar")} - Anime character search
+${toFancyFont(".waifu")} - Random waifu
+${toFancyFont(".husbando")} - Random husbando
+${toFancyFont(".neko")} - Neko girls
+${toFancyFont(".shinobu")} - Shinobu pictures
+${toFancyFont(".megumin")} - Megumin pictures
+${toFancyFont(".awoo")} - Awoo girls
+${toFancyFont(".trap")} - Trap characters
+${toFancyFont(".blowjob")} - NSFW content
+`;
+          break;
+
+        case "converter-menu":
+          menuTitle = "🔄 Converter Menu";
+          menuResponse = `
+${toFancyFont(".attp")} - Text to sticker
+${toFancyFont(".attp2")} - Text to sticker (style 2)
+${toFancyFont(".attp3")} - Text to sticker (style 3)
+${toFancyFont(".ebinary")} - Encode binary
+${toFancyFont(".dbinary")} - Decode binary
+${toFancyFont(".emojimix")} - Mix two emojis
+${toFancyFont(".mp3")} - Convert to MP3
+${toFancyFont(".mp4")} - Convert to MP4
+${toFancyFont(".sticker")} - Image to sticker
+${toFancyFont(".toimg")} - Sticker to image
+${toFancyFont(".tovid")} - GIF to video
+${toFancyFont(".togif")} - Video to GIF
+${toFancyFont(".tourl")} - Media to URL
+${toFancyFont(".tinyurl")} - URL shortener
+`;
+          break;
+
+        case "other-menu":
+          menuTitle = "📌 Other Menu";
+          menuResponse = `
+${toFancyFont(".calc")} - Calculator
+${toFancyFont(".tempmail")} - Temp email
+${toFancyFont(".checkmail")} - Check temp mail
+${toFancyFont(".trt")} - Translate text
+${toFancyFont(".tts")} - Text to speech
+${toFancyFont(".ssweb")} - Website screenshot
+${toFancyFont(".readmore")} - Create read more
+${toFancyFont(".styletext")} - Stylish text
+${toFancyFont(".weather")} - Weather info
+${toFancyFont(".clock")} - World clock
+${toFancyFont(".qrcode")} - Generate QR code
+${toFancyFont(".readqr")} - Read QR code
+${toFancyFont(".currency")} - Currency converter
+`;
+          break;
+
+        case "reactions-menu":
+          menuTitle = "🎭 Reactions Menu";
+          menuResponse = `
+${toFancyFont(".like")} - Like reaction
+${toFancyFont(".love")} - Love reaction
+${toFancyFont(".haha")} - Haha reaction
+${toFancyFont(".wow")} - Wow reaction
+${toFancyFont(".sad")} - Sad reaction
+${toFancyFont(".angry")} - Angry reaction
+${toFancyFont(".dislike")} - Dislike reaction
+${toFancyFont(".cry")} - Cry reaction
+${toFancyFont(".kiss")} - Kiss reaction
+${toFancyFont(".pat")} - Pat reaction
+${toFancyFont(".slap")} - Slap reaction
+${toFancyFont(".punch")} - Punch reaction
+${toFancyFont(".kill")} - Kill reaction
+${toFancyFont(".hug")} - Hug reaction
+`;
+          break;
+
+        case "main-menu":
+          menuTitle = "🏠 Main Menu";
+          menuResponse = `
+${toFancyFont(".ping")} - Check bot response time
+${toFancyFont(".alive")} - Check if bot is running
+${toFancyFont(".owner")} - Contact owner
+${toFancyFont(".menu")} - Show this menu
+${toFancyFont(".infobot")} - Bot information
+${toFancyFont(".donate")} - Support the bot
+${toFancyFont(".speed")} - Speed test
+${toFancyFont(".runtime")} - Bot uptime
+${toFancyFont(".sc")} - Source code
+${toFancyFont(".script")} - Script info
+${toFancyFont(".support")} - Support group
+${toFancyFont(".update")} - Check updates
+${toFancyFont(".feedback")} - Send feedback
+`;
+          break;
+
+        default:
+          return;
+      }
 
       // Format the full response
-      const fullResponse = `*${categoryData.title}*
+      const fullResponse = `
+*${menuTitle}*
 
 ${menuResponse}
 
@@ -543,35 +412,20 @@ ${menuResponse}
 *⏰ Time*: ${xtime}
 *⚙️ Prefix*: ${prefix}
 *🌐 Mode*: ${mode}
-*📊 Commands*: ${categoryData.commands.length}
 
-*CASEYRHODES AI MENU*`;
+> ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
+`;
 
-      // Create command selection buttons
-      const commandButtons = categoryData.commands.map(cmdObj => ({
-        title: cmdObj.command,
-        description: cmdObj.desc,
-        rowId: `${prefix}${cmdObj.command}`,
-      }));
-
-      // Create back button
       const backButton = {
-        title: "ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ",
-        description: "ʀᴇᴛᴜʀɴ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ",
-        rowId: `${prefix}menu`,
-      };
-
-      const listMessage = {
-        text: fullResponse,
-        footer: "CASEYRHODES AI",
-        title: categoryData.title,
-        buttonText: "Select a command",
-        sections: [
-          {
-            title: "Available Commands",
-            rows: [...commandButtons, backButton],
-          },
+        buttons: [
+          { buttonId: `${prefix}menu`, buttonText: { displayText: `🔙 Back to Main Menu` }, type: 1 }
         ],
+        contextInfo: {
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            serverMessageId: 143,          
+          },
+        },
       };
 
       // Send sub-menu with image
@@ -579,16 +433,21 @@ ${menuResponse}
         await Matrix.sendMessage(m.from, { 
           image: menuImage,
           caption: fullResponse,
-          ...listMessage
+          ...backButton
         }, { quoted: m });
       } else {
-        await Matrix.sendMessage(m.from, listMessage, { quoted: m });
+        await Matrix.sendMessage(m.from, {
+          text: fullResponse,
+          ...backButton
+        }, { quoted: m });
       }
     }
   } catch (error) {
     console.error(`❌ Menu error: ${error.message}`);
     await Matrix.sendMessage(m.from, {
-      text: `*CASEYRHODES AI* hit a snag! Error: ${error.message || "Failed to load menu"} 😡`,
+      text: `•
+• *📁 ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* hit a snag! Error: ${error.message || "Failed to load menu"} 😡
+•`,
     }, { quoted: m });
   }
 };
