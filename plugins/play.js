@@ -113,45 +113,23 @@ async function fetchThumbnail(thumbnailUrl) {
   }
 }
 
-// Function to create template message based on the image reference
-function createTemplateMessage(videoInfo) {
+// Function to format the song info with decorations
+function formatSongInfo(videoInfo, videoUrl) {
   const minutes = Math.floor(videoInfo.duration.seconds / 60);
   const seconds = videoInfo.duration.seconds % 60;
   const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
   
+  // Create a decorated song info with ASCII art
   return `
-# CASEYRHODES XTECH
-~ Kevoh is typing...
-
-**Charismatic**  
-+254 756 861325  
-
-**Glein**  
-+254 759 273594  
-
-${videoInfo.title}  
-
----
-
-## Vevo  
-${videoInfo.title}  
-Available on YouTube  
-youtube.com  
-
----
-
-## Vevo  
-${videoInfo.title}  
-
-**Channel:** ${videoInfo.author.name}  
-
-**Duration:** ${formattedDuration}  
-
-**Views:** ${videoInfo.views.toLocaleString()}  
-
----
-
-**DOWNLOAD OPTIONS - Reply with number:**
+╭───〘  *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* 〙───
+├📝 *ᴛɪᴛʟᴇ:* ${videoInfo.title}
+├👤 *ᴀʀᴛɪsᴛ:* ${videoInfo.author.name}
+├⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${formattedDuration}
+├📅 *ᴜᴘʟᴏᴀᴅᴇᴅ:* ${videoInfo.ago}
+├👁️ *ᴠɪᴇᴡs:* ${videoInfo.views.toLocaleString()}
+├🎵 *Format:* High Quality MP3
+╰───────────────┈ ⊷
+${toFancyFont("choose download format:")}
   `.trim();
 }
 
@@ -207,8 +185,8 @@ const play = async (message, client) => {
         const videoId = extractYouTubeId(videoUrl) || videoInfo.videoId;
         const thumbnailUrl = getYouTubeThumbnail(videoId, 'maxresdefault');
         
-        // Create template message based on the image reference
-        const templateMessage = createTemplateMessage(videoInfo);
+        // Use the decorated song info format
+        const songInfo = formatSongInfo(videoInfo, videoUrl);
         
         // Store session data
         userSessions.set(message.sender, {
@@ -222,11 +200,11 @@ const play = async (message, client) => {
         // Download thumbnail for image message
         let imageBuffer = await fetchThumbnail(thumbnailUrl);
         
-        // Send message with image, template format, and buttons
+        // Send single message with both info and buttons
         if (imageBuffer) {
           await client.sendMessage(message.from, {
             image: imageBuffer,
-            caption: templateMessage,
+            caption: songInfo,
             buttons: [
               {
                 buttonId: `${prefix}audio`,
@@ -240,26 +218,26 @@ const play = async (message, client) => {
               }
             ],
             mentions: [message.sender],
-            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ ❤️",
+            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ",
             headerType: 1
           }, { quoted: message });
         } else {
           await client.sendMessage(message.from, {
-            text: templateMessage,
+            text: songInfo,
             buttons: [
               {
                 buttonId: `${prefix}audio`,
-                buttonText: { displayText: "🎵 ᴀᴜᴅɪᴏ" },
+                buttonText: { displayText: "🎶 ᴀᴜᴅɪᴏ" },
                 type: 1
               },
               {
                 buttonId: `${prefix}document`,
-                buttonText: { displayText: "📄 ᴅᴏᴄᴜᴍᴇɴᴛ" },
+                buttonText: { displayText: "📂 ᴅᴏᴄᴜᴍᴇɴᴛ" },
                 type: 1
               }
             ],
             mentions: [message.sender],
-            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ ❤️"
+            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ"
           }, { quoted: message });
         }
         
@@ -357,8 +335,8 @@ const play = async (message, client) => {
     await client.sendMessage(message.from, {
       text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("encountered an error. Please try again"),
       mentions: [message.sender]
-        }, { quoted: message });
-    }
+    }, { quoted: message });
+  }
 };
 
 export default play;
