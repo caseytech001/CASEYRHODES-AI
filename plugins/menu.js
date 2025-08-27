@@ -380,36 +380,33 @@ const menu = async (m, Matrix) => {
 
     // Handle main menu
     if (validCommands.includes(cmd) || cmd === "") {
-      const mainMenu = `*HI 👋* *${pushwish}*
-*╭───────────────┈⊷*
-*┊• 🌟 ʙᴏᴛ ɴᴀᴍᴇ :* *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ*
-*┊• ⏰ ᴛɪᴍᴇ :* *${xtime}*
-*┊• 📅 ᴅᴀᴛᴇ :* *${xdate}*
-*┊• 🎭 ᴅᴇᴠ :* *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ᴢᴏɴᴇ*
-*┊• 📍 ᴘʀᴇғɪx :*  *[ ${prefix} ]*
-*┊• 📊 ᴛᴏᴛᴀʟ ᴄᴍᴅs :* *${totalCommands}*
-*╰───────────────┈⊷*
-┏        *【 ᴍᴇɴᴜ ʟɪsᴛ 】⇳︎*
-- . ①  *ᴅᴏᴡɴʟᴏᴀᴅ ᴍᴇɴᴜ*
-- . ②  *ɢʀᴏᴜᴘ ᴍᴇɴᴜ*
-- . ③  *ғᴜɴ ᴍᴇɴᴜ*
-- . ④  *ᴏᴡɴᴇʀ ᴍᴇɴᴜ*
-- . ⑤  *ᴀɪ ᴍᴇɴᴜ*
-- . ⑥  *ᴀɴɪᴍᴇ ᴍᴇɴᴜ*
-- . ⑦  *ᴄᴏɴᴠᴇʀᴛᴇʀ ᴍᴇɴᴜ*
-- . ⑧  *ᴏᴛʜᴇʀ ᴍᴇɴᴜ*
-- . ⑨  *ʀᴇᴀᴄᴛɪᴏɴs ᴍᴇɴᴜ*
-- . ⑩  *ᴍᴀɪɴ ᴍᴇɴᴜ*
-┗
-╭─────────────────⊷
-┊*Hallo my family ${pushwish}*
-╰─────────────────⊷
-`;
+      const mainMenu = `*${pushwish}*
+
+*BOT NAME* : CASEYRHODES AI  
+*TIME* : ${xtime}  
+*DATE* : ${xdate}  
+*DEV* : CASEYRHODES TECH ZONE  
+*PREFIX* : [ ${prefix} ]  
+*TOTAL CMDS* : ${totalCommands}  
+
+*【 MENU LIST 】♦*  
+1. *DOWNLOAD MENU*  
+2. *GROUP MENU*  
+3. *FUN MENU*  
+4. *OWNER MENU*  
+5. *AI MENU*  
+6. *ANIME MENU*  
+7. *CONVERTER MENU*  
+8. *OTHER MENU*  
+9. *REACTIONS MENU*  
+10. *MAIN MENU*  
+
+*CASEYRHODES AI MENU*`;
 
       // Create list message for menu navigation
       const listMessage = {
-        text: "Select an option",
-        footer: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
+        text: "CASEYRHODES AI MENU",
+        footer: "CASEYRHODES AI",
         title: "CASEYRHODES-AI Menu",
         buttonText: "Select an option",
         sections: [
@@ -464,7 +461,7 @@ const menu = async (m, Matrix) => {
               {
                 title: "📂 ᴍᴀɪɴ",
                 rowId: `${prefix}main-menu`,
-                description: "ᴍᴀɪɴ ᴄᴏᴡᴍᴍᴀɴᴅs",
+                description: "ᴍᴀɪɴ ᴄᴏᴍᴍᴀɴᴅs",
               },
             ],
           },
@@ -512,7 +509,7 @@ const menu = async (m, Matrix) => {
             },
             message: {
               contactMessage: {
-                displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
+                displayName: "CASEYRHODES AI ✅",
                 vcard: `BEGIN:VCARD\nVERSION:3.0\nFN: Caseyrhodes VERIFIED ✅\nORG:CASEYRHODES-TECH BOT;\nTEL;type=CELL;type=VOICE;waid=13135550002:+13135550002\nEND:VCARD`
               }
             }
@@ -534,12 +531,11 @@ const menu = async (m, Matrix) => {
       let menuResponse = "";
       categoryData.commands.forEach((cmdObj, index) => {
         const num = (index + 1).toString().padStart(2, "0");
-        menuResponse += `${toFancyFont(`${prefix}${cmdObj.command}`)} - ${cmdObj.desc}\n`;
+        menuResponse += `${num}. *${cmdObj.command}* - ${cmdObj.desc}\n`;
       });
 
       // Format the full response
-      const fullResponse = `
-*${categoryData.title}*
+      const fullResponse = `*${categoryData.title}*
 
 ${menuResponse}
 
@@ -549,8 +545,7 @@ ${menuResponse}
 *🌐 Mode*: ${mode}
 *📊 Commands*: ${categoryData.commands.length}
 
-> ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
-`;
+*CASEYRHODES AI MENU*`;
 
       // Create command selection buttons
       const commandButtons = categoryData.commands.map(cmdObj => ({
@@ -568,7 +563,7 @@ ${menuResponse}
 
       const listMessage = {
         text: fullResponse,
-        footer: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
+        footer: "CASEYRHODES AI",
         title: categoryData.title,
         buttonText: "Select a command",
         sections: [
@@ -593,9 +588,7 @@ ${menuResponse}
   } catch (error) {
     console.error(`❌ Menu error: ${error.message}`);
     await Matrix.sendMessage(m.from, {
-      text: `•
-• *📁 ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* hit a snag! Error: ${error.message || "Failed to load menu"} 😡
-•`,
+      text: `*CASEYRHODES AI* hit a snag! Error: ${error.message || "Failed to load menu"} 😡`,
     }, { quoted: m });
   }
 };
