@@ -157,7 +157,7 @@ const commandCategories = {
       { command: "gemini", desc: "Google Gemini" },
       { command: "bard", desc: "Google Bard" },
       { command: "blackbox", desc: "Blackbox AI" },
-      { command: "mistral", desc: "Mistral AI" },
+      { function: "mistral", desc: "Mistral AI" },
       { command: "llama", desc: "LLaMA AI" },
       { command: "claude", desc: "Claude AI" },
       { command: "deepseek", desc: "DeepSeek AI" }
@@ -257,67 +257,6 @@ const commandCategories = {
   }
 };
 
-// Function to create interactive native flow message
-function createInteractiveMessage(body, sections, footer = "") {
-  const interactiveMessage = {
-    body: { text: body },
-    footer: { text: footer },
-    header: {
-      hasMediaAttachment: false
-    },
-    nativeFlowMessage: {
-      buttons: [
-        {
-          name: "single_select",
-          buttonParamsJson: JSON.stringify({
-            title: "📂 ꜱᴇʟᴇᴄᴛ ᴍᴇɴᴜ",
-            sections: sections
-          })
-        }
-      ]
-    }
-  };
-
-  return generateWAMessageFromContent("", {
-    viewOnceMessage: {
-      message: {
-        interactiveMessage
-      }
-    }
-  }, { userJid: "", quoted: null });
-}
-
-// Function to create interactive message with image
-function createInteractiveMessageWithImage(image, body, sections, footer = "") {
-  const interactiveMessage = {
-    body: { text: body },
-    footer: { text: footer },
-    header: {
-      hasMediaAttachment: true,
-      imageMessage: image
-    },
-    nativeFlowMessage: {
-      buttons: [
-        {
-          name: "single_select",
-          buttonParamsJson: JSON.stringify({
-            title: "📂 ꜱᴇʟᴇᴄᴛ ᴍᴇɴᴜ",
-            sections: sections
-          })
-        }
-      ]
-    }
-  };
-
-  return generateWAMessageFromContent("", {
-    viewOnceMessage: {
-      message: {
-        interactiveMessage
-      }
-    }
-  }, { userJid: "", quoted: null });
-}
-
 // Function to handle command execution
 async function executeCommand(m, Matrix, commandName) {
   const prefix = config.PREFIX;
@@ -338,6 +277,7 @@ async function executeCommand(m, Matrix, commandName) {
     }, { quoted: m });
     return;
   }
+  
   // Send a message indicating the command is being executed
   await Matrix.sendMessage(m.from, {
     text: `⚡ Executing command: ${prefix}${commandName}\n${commandFound.desc}`
@@ -351,6 +291,7 @@ async function executeCommand(m, Matrix, commandName) {
   
   // Import and execute the command handler
   try {
+    // This assumes you have a command handler that exports a default function
     const commandHandler = await import(`./commands/${commandName}.js`);
     await commandHandler.default(simulatedMessage, Matrix);
   } catch (error) {
@@ -361,31 +302,14 @@ async function executeCommand(m, Matrix, commandName) {
   }
 }
 
-// Function to handle quick replies
-async function handleQuickReply(m, Matrix, replyId) {
-  const prefix = config.PREFIX;
-  
-  // Handle menu navigation
-  if (replyId.endsWith('-menu')) {
-    const simulatedMessage = {
-      ...m,
-      body: `${prefix}${replyId}`
-    };
-    return menu(simulatedMessage, Matrix);
-  }
-  
-  // Handle direct command execution
-  return executeCommand(m, Matrix, replyId);
-}
-
 const menu = async (m, Matrix) => {
   try {
     const prefix = config.PREFIX;
     
     // Check if message has the correct prefix
     const hasPrefix = m.body && m.body.startsWith(prefix);
-    if (!hasPrefix && !m.message?.nativeFlowResponseMessage && !m.message?.buttonsResponseMessage && !m.message?.listResponseMessage) {
-      return;
+    if (!hasPrefix && !m.message?.nativeFlowResponseMessage && !m.message?.buttonsResponseMessage) {
+      return; // Ignore messages without prefix
     }
     
     const cmd = hasPrefix ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
@@ -395,7 +319,7 @@ const menu = async (m, Matrix) => {
     const validCommands = ["list", "help", "menu"];
     const subMenuCommands = Object.keys(commandCategories).map(cat => `${cat}-menu`);
 
-    // Handle native flow response (interactive message selection)
+    // Check if this is a native flow response (menu selection)
     if (m.message?.nativeFlowResponseMessage) {
       try {
         const responseParams = JSON.parse(m.message.nativeFlowResponseMessage.paramsJson);
@@ -404,6 +328,7 @@ const menu = async (m, Matrix) => {
         if (selectedId) {
           // Handle menu navigation
           if (selectedId.endsWith('-menu')) {
+            // Simulate the menu command
             const simulatedMessage = {
               ...m,
               body: selectedId
@@ -426,32 +351,13 @@ const menu = async (m, Matrix) => {
         return;
       }
     }
-    // Handle list response message (fallback for older versions)
-    if (m.message?.listResponseMessage) {
-      const selectedId = m.message.listResponseMessage.singleSelectReply.selectedRowId;
-      
-      if (selectedId) {
-        if (selectedId.endsWith('-menu')) {
-          const simulatedMessage = {
-            ...m,
-            body: selectedId
-          };
-          return menu(simulatedMessage, Matrix);
-        }
-        
-        const commandName = selectedId.startsWith(prefix) 
-          ? selectedId.slice(prefix.length) 
-          : selectedId;
-          
-        return executeCommand(m, Matrix, commandName);
-      }
-    }
 
-    // Handle button response (for compatibility)
+    // Check if this is a button response (for older WhatsApp versions)
     if (m.message?.buttonsResponseMessage) {
       const selectedId = m.message.buttonsResponseMessage.selectedButtonId;
       
       if (selectedId) {
+        // Handle menu navigation
         if (selectedId.endsWith('-menu')) {
           const simulatedMessage = {
             ...m,
@@ -460,6 +366,7 @@ const menu = async (m, Matrix) => {
           return menu(simulatedMessage, Matrix);
         }
         
+        // Handle direct command execution
         const commandName = selectedId.startsWith(prefix) 
           ? selectedId.slice(prefix.length) 
           : selectedId;
@@ -473,7 +380,7 @@ const menu = async (m, Matrix) => {
 
     // Handle main menu
     if (validCommands.includes(cmd) || cmd === "") {
-      const mainMenuText = `*HI 👋* *${pushwish}*
+      const mainMenu = `*HI 👋* *${pushwish}*
 *╭───────────────┈⊷*
 *┊• 🌟 ʙᴏᴛ ɴᴀᴍᴇ :* *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ*
 *┊• ⏰ ᴛɪᴍᴇ :* *${xtime}*
@@ -485,138 +392,132 @@ const menu = async (m, Matrix) => {
 ┏        *【 ᴍᴇɴᴜ ʟɪsᴛ 】⇳︎*
 - . ①  *ᴅᴏᴡɴʟᴏᴀᴅ ᴍᴇɴᴜ*
 - . ②  *ɢʀᴏᴜᴘ ᴍᴇɴᴜ*
-- . ③  *ғᴜɴ �ᴍᴇɴᴜ*
+- . ③  *ғᴜɴ ᴍᴇɴᴜ*
 - . ④  *ᴏᴡɴᴇʀ ᴍᴇɴᴜ*
 - . ⑤  *ᴀɪ ᴍᴇɴᴜ*
 - . ⑥  *ᴀɴɪᴍᴇ ᴍᴇɴᴜ*
 - . ⑦  *ᴄᴏɴᴠᴇʀᴛᴇʀ ᴍᴇɴᴜ*
 - . ⑧  *ᴏᴛʜᴇʀ ᴍᴇɴᴜ*
-- . ⑨  *ʀᴇᴀᴄᴛɪᴏɴs �ᴍᴇɴᴜ*
+- . ⑨  *ʀᴇᴀᴄᴛɪᴏɴs ᴍᴇɴᴜ*
 - . ⑩  *ᴍᴀɪɴ ᴍᴇɴᴜ*
 ┗
 ╭─────────────────⊷
 ┊*Hallo my family ${pushwish}*
-╰─────────────────⊷`;
+╰─────────────────⊷
+`;
 
-      // Create menu sections for native flow
-      const menuSections = [
+      // Create button select menu using nativeFlowInfo
+      const buttons = [
         {
-          title: "ᴄᴀᴛᴇɢᴏʀɪᴇs",
-          highlight_label: "ꜱᴇʟᴇᴄᴛ ᴀ ᴄᴀᴛᴇɢᴏʀʏ",
-          rows: [
-            {
-              header: "📥 ᴅᴏᴡɴʟᴏᴀᴅ",
-              title: "Download Menu",
-              description: "Access all download commands",
-              id: `download-menu`,
-            },
-            {
-              header: "👥 ɢʀᴏᴜᴘ",
-              title: "Group Menu",
-              description: "Group management commands",
-              id: `group-menu`,
-            },
-            {
-              header: "🎉 ғᴜɴ",
-              title: "Fun Menu",
-              description: "Entertainment and fun commands",
-              id: `fun-menu`,
-            },
-            {
-              header: "👑 ᴏᴡɴᴇʀ",
-              title: "Owner Menu",
-              description: "Owner-only commands",
-              id: `owner-menu`,
-            },
-            {
-              header: "🤖 ᴀɪ",
-              title: "AI Menu",
-              description: "Artificial intelligence commands",
-              id: `ai-menu`,
-            },
-            {
-              header: "🌸 ᴀɴɪᴍᴇ",
-              title: "Anime Menu",
-              description: "Anime-related commands",
-              id: `anime-menu`,
-            },
-            {
-              header: "🔄 ᴄᴏɴᴠᴇʀᴛᴇʀ",
-              title: "Converter Menu",
-              description: "File conversion tools",
-              id: `converter-menu`,
-            },
-            {
-              header: "🌟 ᴏᴛʜᴇʀ",
-              title: "Other Menu",
-              description: "Miscellaneous commands",
-              id: `other-menu`,
-            },
-            {
-              header: "🎭 ʀᴇᴀᴄᴛɪᴏɴs",
-              title: "Reactions Menu",
-              description: "Reaction and emotion commands",
-              id: `reactions-menu`,
-            },
-            {
-              header: "📂 ᴍᴀɪɴ",
-              title: "Main Menu",
-              description: "Core bot commands",
-              id: `main-menu`,
-            }
-          ],
+          buttonId: "menu-options",
+          buttonText: { displayText: "📂 ᴍᴇɴᴜ ᴏᴘᴛɪᴏɴs" },
+          type: 4, // Native Flow type
+          nativeFlowInfo: {
+            name: "single_select",
+            paramsJson: JSON.stringify({
+              title: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ᴍᴇɴᴜ",
+              sections: [
+                {
+                  title: "ᴄᴀᴛᴇɢᴏʀɪᴇs",
+                  highlight_label: "sᴇʟᴇᴄᴛ ᴀ ᴄᴀᴛᴇɢᴏʀʏ",
+                  rows: [
+                    {
+                      title: "📥 ᴅᴏᴡɴʟᴏᴀᴅ",
+                      description: "ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}download-menu`,
+                    },
+                    {
+                      title: "👥 ɢʀᴏᴜᴘ",
+                      description: "ɢʀᴏᴜᴘ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ",
+                      id: `${prefix}group-menu`,
+                    },
+                    {
+                      title: "🎉 ғᴜɴ",
+                      description: "ғᴜɴ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}fun-menu`,
+                    },
+                    {
+                      title: "👑 ᴏᴡɴᴇʀ",
+                      description: "ᴏᴡɴᴇʀ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}owner-menu`,
+                    },
+                    {
+                      title: "🤖 ᴀɪ",
+                      description: "ᴀɪ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}ai-menu`,
+                    },
+                    {
+                      title: "🌸 ᴀɴɪᴍᴇ",
+                      description: "ᴀɴɪᴍᴇ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}anime-menu`,
+                    },
+                    {
+                      title: "🔄 ᴄᴏɴᴠᴇʀᴛᴇʀ",
+                      description: "ᴄᴏɴᴠᴇʀᴛᴇʀ ᴛᴏᴏʟs",
+                      id: `${prefix}converter-menu`,
+                    },
+                    {
+                      title: "🌟 ᴏᴛʜᴇʀ",
+                      description: "ᴏᴛʜᴇʀ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}other-menu`,
+                    },
+                    {
+                      title: "🎭 ʀᴇᴀᴄᴛɪᴏɴs",
+                      description: "ʀᴇᴀᴄᴛɪᴏɴ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}reactions-menu`,
+                    },
+                    {
+                      title: "📂 ᴍᴀɪɴ",
+                      description: "ᴍᴀɪɴ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}main-menu`,
+                    }
+                  ],
+                },
+              ],
+            }),
+          },
         },
       ];
 
-      // Create interactive message
-      let interactiveMsg;
-      
+      const messageOptions = {
+        viewOnce: true,
+        buttons: buttons,
+        contextInfo: {
+          mentionedJid: [m.sender],
+          forwardingScore: 999,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363302677217436@newsletter',
+            newsletterName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
+            serverMessageId: 143
+          },
+        },
+      };
+
+      // Send menu with or without image
       if (menuImage) {
-        // Upload image first
-        const imageMsg = await Matrix.sendMessage(m.from, { image: menuImage }, { quoted: m });
-        
-        interactiveMsg = createInteractiveMessageWithImage(
-          imageMsg.message.imageMessage,
-          mainMenuText,
-          menuSections,
-          "✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟"
-        );
-      } else {
-        interactiveMsg = createInteractiveMessage(
-          mainMenuText,
-          menuSections,
-          "✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟"
-        );
-      }
-
-      // Send the interactive message
-      await Matrix.relayMessage(m.from, interactiveMsg.message, {
-        messageId: interactiveMsg.key.id
-      });
-
-      // Send audio as a voice note
-      try {
         await Matrix.sendMessage(m.from, { 
-          audio: { url: "https://files.catbox.moe/mwohwu.mp3" },
-          mimetype: "audio/mp4", 
-          ptt: true
+          image: menuImage,
+          caption: mainMenu,
+          ...messageOptions
         }, { 
           quoted: {
             key: {
-              fromMe: false,
-              participant: `0@s.whatsapp.net`,
-              remoteJid: "status@broadcast"
+                fromMe: false,
+                participant: `0@s.whatsapp.net`,
+                remoteJid: "status@broadcast"
             },
             message: {
-              contactMessage: {
-                displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
-                vcard: `BEGIN:VCARD\nVERSION:3.0\nFN: Caseyrhodes VERIFIED ✅\nORG:CASEYRHODES-TECH BOT;\nTEL;type=CELL;type=VOICE;waid=13135550002:+13135550002\nEND:VCARD`
-              }
+                contactMessage: {
+                    displayName: "CASEYRHODES VERIFIED ✅",
+                    vcard: "BEGIN:VCARD\nVERSION:3.0\nFN: Caseyrhodes VERIFIED ✅\nORG:CASEYRHODES-TECH BOT;\nTEL;type=CELL;type=VOICE;waid=13135550002:+13135550002\nEND:VCARD"
+                }
             }
           }
         });
-      } catch (audioError) {
-        console.error("❌ Failed to send audio:", audioError.message);
+      } else {
+        // Fallback to text-only if image fails
+        await Matrix.sendMessage(m.from, { text: mainMenu, ...messageOptions }, { quoted: m });
       }
     }
   
@@ -633,88 +534,85 @@ const menu = async (m, Matrix) => {
         menuResponse += `${toFancyFont(`${prefix}${cmdObj.command}`)} - ${cmdObj.desc}\n`;
       });
 
-      const fullResponse = `*${categoryData.title}*
+      // Format the full response
+      const fullResponse = `
+*${categoryData.title}*
 
 ${menuResponse}
+
 *📅 Date*: ${xdate}
 *⏰ Time*: ${xtime}
 *⚙️ Prefix*: ${prefix}
 *🌐 Mode*: ${mode}
-*📊 Commands*: ${categoryData.commands.length}`;
+*📊 Commands*: ${categoryData.commands.length}
 
-      // Create command selection rows
-      const commandRows = categoryData.commands.map(cmdObj => ({
-        header: `${prefix}${cmdObj.command}`,
-        title: cmdObj.command.toUpperCase(),
+> ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
+`;
+
+      // Create command selection buttons
+      const commandButtons = categoryData.commands.map(cmdObj => ({
+        title: cmdObj.command,
         description: cmdObj.desc,
-        id: `${cmdObj.command}`,
+        id: `${prefix}${cmdObj.command}`,
       }));
 
-      // Add back button
-      commandRows.push({
-        header: "⬅️ ʙᴀᴄᴋ",
-        title: "Main Menu",
-        description: "Return to main menu",
-        id: `menu`,
-      });
-
-      const commandSections = [
-        {
-          title: "ᴄᴏᴍᴍᴀɴᴅs",
-          highlight_label: "ꜱᴇʟᴇᴄᴛ ᴀ ᴄᴏᴍᴍᴀɴᴅ",
-          rows: commandRows,
+      // Create back button with native flow
+      const backButton = {
+        buttons: [
+          {
+            buttonId: "menu-navigation",
+            buttonText: { displayText: "📂 ᴍᴇɴᴜ ɴᴀᴠɪɢᴀᴛɪᴏɴ" },
+            type: 4,
+            nativeFlowInfo: {
+              name: "single_select",
+              paramsJson: JSON.stringify({
+                title: "ɴᴀᴠɪɢᴀᴛɪᴏɴ",
+                sections: [
+                  {
+                    title: "ᴄᴏᴍᴍᴀɴᴅs",
+                    highlight_label: "sᴇʟᴇᴄᴛ ᴀ ᴄᴏᴍᴍᴀɴᴅ",
+                    rows: [
+                      ...commandButtons,
+                      {
+                        title: "ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ",
+                        description: "ʀᴇᴛᴜʀɴ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ",
+                        id: `${prefix}menu`,
+                      }
+                    ],
+                  },
+                ],
+              }),
+            },
+          }
+        ],
+        contextInfo: {
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            serverMessageId: 143,          
+          },
         },
-      ];
+      };
 
-      // Create interactive sub-menu
-      let subInteractiveMsg;
-      
+      // Send sub-menu with image
       if (menuImage) {
-        const imageMsg = await Matrix.sendMessage(m.from, { image: menuImage }, { quoted: m });
-        
-        subInteractiveMsg = createInteractiveMessageWithImage(
-          imageMsg.message.imageMessage,
-          fullResponse,
-          commandSections,
-          "✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟"
-        );
+        await Matrix.sendMessage(m.from, { 
+          image: menuImage,
+          caption: fullResponse,
+          ...backButton
+        }, { quoted: m });
       } else {
-        subInteractiveMsg = createInteractiveMessage(
-          fullResponse,
-          commandSections,
-          "✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟"
-        );
+        await Matrix.sendMessage(m.from, {
+          text: fullResponse,
+          ...backButton
+        }, { quoted: m });
       }
-
-      // Send the interactive sub-menu
-      await Matrix.relayMessage(m.from, subInteractiveMsg.message, {
-        messageId: subInteractiveMsg.key.id
-      });
     }
   } catch (error) {
     console.error(`❌ Menu error: ${error.message}`);
-    
-    // Fallback to simple text menu if interactive fails
-    const fallbackMenu = `❌ Interactive menu failed. Here's the text version:
-
-*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ᴍᴇɴᴜ*
-
-Available categories:
-• ${config.PREFIX}download-menu - Download commands
-• ${config.PREFIX}group-menu - Group management
-• ${config.PREFIX}fun-menu - Fun commands  
-• ${config.PREFIX}owner-menu - Owner commands
-• ${config.PREFIX}ai-menu - AI commands
-• ${config.PREFIX}anime-menu - Anime commands
-• ${config.PREFIX}converter-menu - Converter tools
-• ${config.PREFIX}other-menu - Other commands
-• ${config.PREFIX}reactions-menu - Reaction commands
-• ${config.PREFIX}main-menu - Main commands
-
-Error: ${error.message || "Failed to load interactive menu"}`;
-
     await Matrix.sendMessage(m.from, {
-      text: fallbackMenu,
+      text: `•
+• *📁 ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* hit a snag! Error: ${error.message || "Failed to load menu"} 😡
+•`,
     }, { quoted: m });
   }
 };
