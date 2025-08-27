@@ -288,31 +288,13 @@ function createInteractiveMessage(body, sections, footer = "") {
 }
 
 // Function to create interactive message with image
-function createInteractiveMessageWithImage(imageBuffer, body, sections, footer = "") {
-  // Create a proper image message object
-  const imageMessage = {
-    url: 'https://example.com/image.jpg', // This is a placeholder
-    mimetype: 'image/jpeg',
-    caption: body,
-    fileLength: imageBuffer.length,
-    height: 1080,
-    width: 1080,
-    mediaKey: Buffer.from('placeholder').toString('base64'),
-    fileSha256: imageBuffer,
-    directPath: '/v/t62.7118-24/',
-    mediaKeyTimestamp: Date.now(),
-    jpegThumbnail: imageBuffer.slice(0, 1024), // Small thumbnail
-    scanLengths: [imageBuffer.length],
-    scansSidecar: Buffer.from('placeholder'),
-    uploadHash: Buffer.from('placeholder').toString('base64')
-  };
-
+function createInteractiveMessageWithImage(image, body, sections, footer = "") {
   const interactiveMessage = {
     body: { text: body },
     footer: { text: footer },
     header: {
       hasMediaAttachment: true,
-      imageMessage: imageMessage
+      imageMessage: image
     },
     nativeFlowMessage: {
       buttons: [
@@ -377,6 +359,23 @@ async function executeCommand(m, Matrix, commandName) {
       text: `❌ Error executing command "${commandName}": ${error.message}\n\nMake sure the command file exists in the commands directory.`
     }, { quoted: m });
   }
+}
+
+// Function to handle quick replies
+async function handleQuickReply(m, Matrix, replyId) {
+  const prefix = config.PREFIX;
+  
+  // Handle menu navigation
+  if (replyId.endsWith('-menu')) {
+    const simulatedMessage = {
+      ...m,
+      body: `${prefix}${replyId}`
+    };
+    return menu(simulatedMessage, Matrix);
+  }
+  
+  // Handle direct command execution
+  return executeCommand(m, Matrix, replyId);
 }
 
 const menu = async (m, Matrix) => {
@@ -486,19 +485,20 @@ const menu = async (m, Matrix) => {
 ┏        *【 ᴍᴇɴᴜ ʟɪsᴛ 】⇳︎*
 - . ①  *ᴅᴏᴡɴʟᴏᴀᴅ ᴍᴇɴᴜ*
 - . ②  *ɢʀᴏᴜᴘ ᴍᴇɴᴜ*
-- . ③  *ғᴜɴ ᴍᴇɴᴜ*
+- . ③  *ғᴜɴ �ᴍᴇɴᴜ*
 - . ④  *ᴏᴡɴᴇʀ ᴍᴇɴᴜ*
 - . ⑤  *ᴀɪ ᴍᴇɴᴜ*
 - . ⑥  *ᴀɴɪᴍᴇ ᴍᴇɴᴜ*
 - . ⑦  *ᴄᴏɴᴠᴇʀᴛᴇʀ ᴍᴇɴᴜ*
 - . ⑧  *ᴏᴛʜᴇʀ ᴍᴇɴᴜ*
-- . ⑨  *ʀᴇᴀᴄᴛɪᴏɴs ᴍᴇɴᴜ*
+- . ⑨  *ʀᴇᴀᴄᴛɪᴏɴs �ᴍᴇɴᴜ*
 - . ⑩  *ᴍᴀɪɴ ᴍᴇɴᴜ*
 ┗
 ╭─────────────────⊷
 ┊*Hallo my family ${pushwish}*
 ╰─────────────────⊷`;
-// Create menu sections for native flow
+
+      // Create menu sections for native flow
       const menuSections = [
         {
           title: "ᴄᴀᴛᴇɢᴏʀɪᴇs",
@@ -572,8 +572,11 @@ const menu = async (m, Matrix) => {
       let interactiveMsg;
       
       if (menuImage) {
+        // Upload image first
+        const imageMsg = await Matrix.sendMessage(m.from, { image: menuImage }, { quoted: m });
+        
         interactiveMsg = createInteractiveMessageWithImage(
-          menuImage,
+          imageMsg.message.imageMessage,
           mainMenuText,
           menuSections,
           "✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟"
@@ -667,8 +670,10 @@ ${menuResponse}
       let subInteractiveMsg;
       
       if (menuImage) {
+        const imageMsg = await Matrix.sendMessage(m.from, { image: menuImage }, { quoted: m });
+        
         subInteractiveMsg = createInteractiveMessageWithImage(
-          menuImage,
+          imageMsg.message.imageMessage,
           fullResponse,
           commandSections,
           "✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟"
@@ -713,174 +718,5 @@ Error: ${error.message || "Failed to load interactive menu"}`;
     }, { quoted: m });
   }
 };
-
-// Additional helper functions for better button handling
-
-// Function to handle quick replies
-async function handleQuickReply(m, Matrix, replyId) {
-  const prefix = config.PREFIX;
-  
-  // Handle menu navigation
-  if (replyId.endsWith('-menu')) {
-    const simulatedMessage = {
-      ...m,
-      body: `${prefix}${replyId}`
-    };
-    return menu(simulatedMessage, Matrix);
-  }
-  
-  // Handle direct command execution
-  return executeCommand(m, Matrix, replyId);
-}
-
-// Function to create quick reply buttons (fallback for older WhatsApp versions)
-function createQuickReplyButtons(buttons) {
-  return {
-    templateButtons: buttons.map((btn, index) => ({
-      index: index + 1,
-      quickReplyButton: {
-        displayText: btn.text,
-        id: btn.id
-      }
-    }))
-  };
-}
-
-// Function to create URL buttons
-function createUrlButtons(buttons) {
-  return {
-    templateButtons: buttons.map((btn, index) => ({
-      index: index + 1,
-      urlButton: {
-        displayText: btn.text,
-        url: btn.url
-      }
-    }))
-  };
-}
-
-// Enhanced message sending with multiple fallback options
-async function sendInteractiveMenu(Matrix, chatId, menuData, quoted = null) {
-  const { image, text, sections, footer } = menuData;
-  
-  try {
-    // Try native flow first (newest method)
-    let interactiveMsg;
-    
-    if (image) {
-      interactiveMsg = createInteractiveMessageWithImage(image, text, sections, footer);
-    } else {
-      interactiveMsg = createInteractiveMessage(text, sections, footer);
-    }
-    
-    await Matrix.relayMessage(chatId, interactiveMsg.message, {
-      messageId: interactiveMsg.key.id
-    });
-    
-    return true;
-  } catch (error) {
-    console.log("Native flow failed, trying list message...", error.message);
-    
-    try {
-      // Fallback to list message
-      const listMessage = {
-        text: text,
-        footer: footer,
-        title: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ᴍᴇɴᴜ",
-        buttonText: "📂 ꜱᴇʟᴇᴄᴛ ᴍᴇɴᴜ",
-        sections: sections
-      };
-      
-      if (image) {
-        await Matrix.sendMessage(chatId, {
-          image: { url: 'data:image/jpeg;base64,' + image.toString('base64') },
-          caption: text,
-          footer: footer,
-        }, { quoted });
-      } else {
-        await Matrix.sendMessage(chatId, listMessage, { quoted });
-      }
-      
-      return true;
-    } catch (listError) {
-      console.log("List message failed, trying template buttons...", listError.message);
-      
-      try {
-        // Final fallback to template buttons
-        const quickButtons = sections[0].rows.slice(0, 3).map(row => ({
-          text: row.title,
-          id: row.id
-        }));
-        
-        const templateMessage = {
-          text: text,
-          footer: footer,
-          ...createQuickReplyButtons(quickButtons)
-        };
-        
-        if (image) {
-          await Matrix.sendMessage(chatId, {
-            image: { url: 'data:image/jpeg;base64,' + image.toString('base64') },
-            caption: text,
-            footer: footer,
-            ...createQuickReplyButtons(quickButtons)
-          }, { quoted });
-        } else {
-          await Matrix.sendMessage(chatId, templateMessage, { quoted });
-        }
-        
-        return true;
-      } catch (templateError) {
-        console.log("All interactive methods failed, sending text only...", templateError.message);
-        
-        // Ultimate fallback - plain text
-        let fallbackText = text + "\n\n" + footer;
-        fallbackText += "\n\nAvailable options:\n";
-        
-        sections.forEach(section => {
-          section.rows.forEach(row => {
-            fallbackText += `• ${config.PREFIX}${row.id} - ${row.description}\n`;
-          });
-        });
-        
-        await Matrix.sendMessage(chatId, { text: fallbackText }, { quoted });
-        return false;
-      }
-    }
-  }
-}
-
-// Enhanced response handler for better compatibility
-async function handleMenuResponse(m, Matrix) {
-  // Handle different types of responses
-  let selectedId = null;
-  let responseType = "unknown";
-  
-  if (m.message?.nativeFlowResponseMessage) {
-    try {
-      const responseParams = JSON.parse(m.message.nativeFlowResponseMessage.paramsJson);
-      selectedId = responseParams.id || responseParams.name;
-      responseType = "nativeFlow";
-    } catch (error) {
-      console.error("Error parsing native flow response:", error);
-    }
-  } else if (m.message?.listResponseMessage) {
-    selectedId = m.message.listResponseMessage.singleSelectReply.selectedRowId;
-    responseType = "listResponse";
-  } else if (m.message?.buttonsResponseMessage) {
-    selectedId = m.message.buttonsResponseMessage.selectedButtonId;
-    responseType = "buttonResponse";
-  } else if (m.message?.templateButtonReplyMessage) {
-    selectedId = m.message.templateButtonReplyMessage.selectedId;
-    responseType = "templateButton";
-  }
-  
-  if (selectedId) {
-    console.log(`Handling ${responseType} with ID: ${selectedId}`);
-    return handleQuickReply(m, Matrix, selectedId);
-  }
-  
-  return false;
-}
 
 export default menu;
