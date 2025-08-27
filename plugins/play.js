@@ -203,11 +203,14 @@ const play = async (message, client) => {
         // Download thumbnail for image message
         let imageBuffer = await fetchThumbnail(thumbnailUrl);
         
+        // Create a combined message with both image sections
+        const combinedCaption = `**Vevo**\n${videoInfo.title}\nAvailable on YouTube\nyoutube.com\n\n${songInfo}`;
+        
         // Send single message with both info and buttons
         if (imageBuffer) {
           await client.sendMessage(message.from, {
             image: imageBuffer,
-            caption: songInfo,
+            caption: combinedCaption,
             buttons: [
               {
                 buttonId: `${prefix}audio`,
@@ -226,7 +229,7 @@ const play = async (message, client) => {
           }, { quoted: message });
         } else {
           await client.sendMessage(message.from, {
-            text: songInfo,
+            text: combinedCaption,
             buttons: [
               {
                 buttonId: `${prefix}audio`,
