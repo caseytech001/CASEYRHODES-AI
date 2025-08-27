@@ -72,7 +72,7 @@ const menu = async (m, Matrix) => {
     const mode = config.MODE === "public" ? "public" : "private";
     const totalCommands = 70;
 
-    const validCommands = ["list", "help", "menu"];
+    const validCommands = ["list2", "help4", "menu2"];
     const subMenuCommands = [
       "download-menu", "converter-menu", "ai-menu", "tools-menu",
       "group-menu", "search-menu", "main-menu", "owner-menu",
