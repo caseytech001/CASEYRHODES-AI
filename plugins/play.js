@@ -113,26 +113,45 @@ async function fetchThumbnail(thumbnailUrl) {
   }
 }
 
-// Function to format the song info with decorations
-function formatSongInfo(videoInfo, videoUrl) {
+// Function to create template message based on the image reference
+function createTemplateMessage(videoInfo) {
   const minutes = Math.floor(videoInfo.duration.seconds / 60);
   const seconds = videoInfo.duration.seconds % 60;
   const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
   
-  // Create a decorated song info with ASCII art
   return `
-╭───〔🎵 ʏᴏᴜᴛᴜʙᴇ ᴀᴜᴅɪᴏ〕───
-│
-├📝 *ᴛɪᴛʟᴇ:* ${videoInfo.title}
-├👤 *ᴀʀᴛɪsᴛ:* ${videoInfo.author.name}
-├⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${formattedDuration}
-├📅 *ᴜᴘʟᴏᴀᴅᴇᴅ:* ${videoInfo.ago}
-├👁️ *ᴠɪᴇᴡs:* ${videoInfo.views.toLocaleString()}
-├🎵 *Format:* High Quality MP3
-│
-╰───────────────┈ ⊷
-> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ
-${toFancyFont("choose download format:")}
+# CASEYRHODES XTECH
+~ Kevoh is typing...
+
+**Charismatic**  
++254 756 861325  
+
+**Glein**  
++254 759 273594  
+
+${videoInfo.title}  
+
+---
+
+## Vevo  
+${videoInfo.title}  
+Available on YouTube  
+youtube.com  
+
+---
+
+## Vevo  
+${videoInfo.title}  
+
+**Channel:** ${videoInfo.author.name}  
+
+**Duration:** ${formattedDuration}  
+
+**Views:** ${videoInfo.views.toLocaleString()}  
+
+---
+
+**DOWNLOAD OPTIONS - Reply with number:**
   `.trim();
 }
 
@@ -188,8 +207,8 @@ const play = async (message, client) => {
         const videoId = extractYouTubeId(videoUrl) || videoInfo.videoId;
         const thumbnailUrl = getYouTubeThumbnail(videoId, 'maxresdefault');
         
-        // Use the decorated song info format
-        const songInfo = formatSongInfo(videoInfo, videoUrl);
+        // Create template message based on the image reference
+        const templateMessage = createTemplateMessage(videoInfo);
         
         // Store session data
         userSessions.set(message.sender, {
@@ -200,26 +219,14 @@ const play = async (message, client) => {
           timestamp: Date.now()
         });
         
-        // Download thumbnails for both images
-        let imageBuffer1 = await fetchThumbnail(thumbnailUrl);
-        let imageBuffer2 = await fetchThumbnail(thumbnailUrl); // Same image for both
+        // Download thumbnail for image message
+        let imageBuffer = await fetchThumbnail(thumbnailUrl);
         
-        // Send first image message
-        if (imageBuffer1) {
+        // Send message with image, template format, and buttons
+        if (imageBuffer) {
           await client.sendMessage(message.from, {
-            image: imageBuffer1,
-            caption: "**Vevo**\n" + videoInfo.title + "\nAvailable on YouTube\nyoutube.com",
-            mentions: [message.sender],
-            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ ❤️",
-            headerType: 1
-          }, { quoted: message });
-        }
-        
-        // Send second image message with song info
-        if (imageBuffer2) {
-          await client.sendMessage(message.from, {
-            image: imageBuffer2,
-            caption: songInfo,
+            image: imageBuffer,
+            caption: templateMessage,
             buttons: [
               {
                 buttonId: `${prefix}audio`,
@@ -235,10 +242,10 @@ const play = async (message, client) => {
             mentions: [message.sender],
             footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ ❤️",
             headerType: 1
-          });
+          }, { quoted: message });
         } else {
           await client.sendMessage(message.from, {
-            text: songInfo,
+            text: templateMessage,
             buttons: [
               {
                 buttonId: `${prefix}audio`,
@@ -253,7 +260,7 @@ const play = async (message, client) => {
             ],
             mentions: [message.sender],
             footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ ❤️"
-          });
+          }, { quoted: message });
         }
         
         await sendCustomReaction(client, message, "✅");
@@ -350,8 +357,8 @@ const play = async (message, client) => {
     await client.sendMessage(message.from, {
       text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("encountered an error. Please try again"),
       mentions: [message.sender]
-    }, { quoted: message });
-  }
+        }, { quoted: message });
+    }
 };
 
 export default play;
