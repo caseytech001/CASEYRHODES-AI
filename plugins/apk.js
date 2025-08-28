@@ -1,40 +1,17 @@
 import axios from "axios";
 import config from "../config.cjs";
-import { generateWAMessageFromContent, proto, prepareWAMessageMedia } from "@whiskeysockets/baileys";
+import { generateWAMessageFromContent, prepareWAMessageMedia } from "@whiskeysockets/baileys";
 
-function toFancyFont(text, isUpperCase = false) {
+function toFancyFont(text) {
   const fonts = {
-    a: "ᴀ",
-    b: "ʙ",
-    c: "ᴄ",
-    d: "ᴅ",
-    e: "ᴇ",
-    f: "ғ",
-    g: "ɢ",
-    h: "ʜ",
-    i: "ɪ",
-    j: "ᴊ",
-    k: "ᴋ",
-    l: "ʟ",
-    m: "ᴍ",
-    n: "ɴ",
-    o: "ᴏ",
-    p: "ᴘ",
-    q: "ǫ",
-    r: "ʀ",
-    s: "s",
-    t: "ᴛ",
-    u: "ᴜ",
-    v: "ᴠ",
-    w: "ᴡ",
-    x: "x",
-    y: "ʏ",
-    z: "ᴢ",
+    a: "ᴀ", b: "ʙ", c: "ᴄ", d: "ᴅ", e: "ᴇ", f: "ғ", g: "ɢ", h: "ʜ", 
+    i: "ɪ", j: "ᴊ", k: "ᴋ", l: "ʟ", m: "ᴍ", n: "ɴ", o: "ᴏ", p: "ᴘ", 
+    q: "ǫ", r: "ʀ", s: "s", t: "ᴛ", u: "ᴜ", v: "ᴠ", w: "ᴡ", x: "x", 
+    y: "ʏ", z: "ᴢ",
   };
-  const formattedText = isUpperCase ? text.toUpperCase() : text.toLowerCase();
-  return formattedText
+  return text.toLowerCase()
     .split("")
-    .map((char) => fonts[char] || char)
+    .map(char => fonts[char] || char)
     .join("");
 }
 
@@ -44,81 +21,100 @@ const apkDownloader = async (m, Matrix) => {
   const query = m.body.slice(prefix.length + cmd.length).trim();
 
   if (!["apk", "app", "application"].includes(cmd)) return;
+  
   if (!query) {
-    const buttons = [
-      {
-        buttonId: `${prefix}menu`,
-        buttonText: { displayText: `${toFancyFont("Menu")}` },
-        type: 1,
-      },
-    ];
-    const buttonMessage = {
+    return await Matrix.sendMessage(m.from, {
       text: "❌ *Usage:* `.apk <App Name>`",
       footer: "APK Downloader",
-      buttons: buttons,
-      headerType: 1,
       mentions: [m.sender]
-    };
-    return await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
+    }, { quoted: m });
   }
 
   try {
+    // Send processing reaction
     await Matrix.sendMessage(m.from, { react: { text: "⏳", key: m.key } });
 
-    // Use the NexOracle API as in the first example
-    const apiUrl = `https://api.nexoracle.com/downloader/apk`;
-    const params = {
-      apikey: 'free_key@maher_apis',
-      q: query,
-    };
+    // Use multiple API endpoints for better reliability
+    const apiUrls = [
+      `https://api.nexoracle.com/downloader/apk?apikey=free_key@maher_apis&q=${encodeURIComponent(query)}`,
+      `https://apkdownloaders.com/api/search?q=${encodeURIComponent(query)}`
+    ];
 
-    // Call the NexOracle API using GET
-    const response = await axios.get(apiUrl, { params });
+    let apkData = null;
+    let apiError = null;
 
-    // Check if the API response is valid
-    if (!response.data || response.data.status !== 200 || !response.data.result) {
-      const buttons = [
-        {
-          buttonId: `${prefix}menu`,
-          buttonText: { displayText: `${toFancyFont("Menu")}` },
-          type: 1,
-        },
-        {
-          buttonId: `${prefix}apk ${query}`,
-          buttonText: { displayText: `${toFancyFont("Search Again")}` },
-          type: 1,
-        },
-      ];
-      const buttonMessage = {
-        text: "❌ Unable to find the APK. Please try again later.",
-        footer: "APK Downloader",
-        buttons: buttons,
-        headerType: 1,
-        mentions: [m.sender]
-      };
-      return await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
+    // Try multiple APIs concurrently with timeout
+    for (const apiUrl of apiUrls) {
+      try {
+        const response = await Promise.race([
+          axios.get(apiUrl, { timeout: 10000 }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+        ]);
+
+        if (response.data && (response.data.status === 200 || response.data.results)) {
+          apkData = response.data;
+          break;
+        }
+      } catch (error) {
+        apiError = error;
+        continue;
+      }
     }
 
-    // Extract the APK details from the response
-    const { name, lastup, package: packageName, size, icon, dllink } = response.data.result;
+    if (!apkData) {
+      throw new Error(apiError || 'No APK found');
+    }
 
-    // Send a message with the app thumbnail first
-    await Matrix.sendMessage(m.from, {
+    // Extract APK data based on API response format
+    let name, lastup, packageName, size, icon, dllink;
+
+    if (apkData.status === 200 && apkData.result) {
+      // NexOracle format
+      ({ name, lastup, package: packageName, size, icon, dllink } = apkData.result);
+    } else if (apkData.results && apkData.results.length > 0) {
+      // Alternative API format
+      const app = apkData.results[0];
+      name = app.name;
+      lastup = app.updated || app.lastUpdate;
+      packageName = app.packageName || app.package;
+      size = app.size ? (app.size / 1048576).toFixed(2) + ' MB' : 'Unknown';
+      icon = app.icon || app.image;
+      dllink = app.downloadUrl || app.dllink;
+    } else {
+      throw new Error('Invalid API response format');
+    }
+
+    // Send thumbnail immediately while downloading APK in background
+    const thumbnailPromise = Matrix.sendMessage(m.from, {
       image: { url: icon },
-      caption: `📦 *Downloading ${name}... Please wait.*`,
+      caption: `📦 *Downloading ${name}...*\n⏳ *Please wait while we prepare your file...*`,
       mentions: [m.sender]
     }, { quoted: m });
 
-    // Download the APK file
-    const apkResponse = await axios.get(dllink, { responseType: 'arraybuffer' });
+    // Download APK concurrently with thumbnail sending
+    const apkPromise = Promise.race([
+      axios.get(dllink, { 
+        responseType: 'arraybuffer', 
+        timeout: 30000,
+        onDownloadProgress: (progress) => {
+          if (progress.loaded / progress.total > 0.5) {
+            Matrix.sendMessage(m.from, { react: { text: "⬆️", key: m.key } });
+          }
+        }
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Download timeout')), 45000))
+    ]);
+
+    // Wait for both operations
+    const [apkResponse] = await Promise.all([apkPromise, thumbnailPromise]);
+
     if (!apkResponse.data) {
       throw new Error('Failed to download APK file');
     }
 
-    // Prepare the APK file buffer
-    const apkBuffer = Buffer.from(apkResponse.data, 'binary');
+    const apkBuffer = Buffer.from(apkResponse.data);
 
-    // Prepare the message with APK details
+    // Prepare caption
     const caption = `╭━━━〔 *ᴀᴘᴋ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ* 〕━━━┈⊷
 ┃  *Name:* ${name}
 ┃  *Size:* ${size}
@@ -127,66 +123,45 @@ const apkDownloader = async (m, Matrix) => {
 ╰━━━━━━━━━━━━━━━┈⊷
 > *ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ*`;
 
-    try {
-      // Upload the APK file to server
-      const docMedia = await prepareWAMessageMedia(
-        { 
-          document: apkBuffer,
+    // Upload and send APK file
+    const docMedia = await prepareWAMessageMedia(
+      { 
+        document: apkBuffer,
+        fileName: `${name.replace(/[^\w\s]/gi, '')}.apk`,
+        mimetype: "application/vnd.android.package-archive"
+      },
+      { upload: Matrix.waUploadToServer }
+    );
+
+    const message = generateWAMessageFromContent(
+      m.from,
+      {
+        documentMessage: {
+          url: docMedia.document.url,
+          mimetype: docMedia.document.mimetype,
+          fileLength: docMedia.document.fileLength,
           fileName: `${name}.apk`,
-          mimetype: "application/vnd.android.package-archive"
-        },
-        { upload: Matrix.waUploadToServer }
-      );
+          caption: caption,
+        }
+      },
+      { quoted: m }
+    );
 
-      // Create message with document
-      const message = generateWAMessageFromContent(
-        m.from,
-        {
-          documentMessage: {
-            url: docMedia.document.url,
-            mimetype: docMedia.document.mimetype,
-            fileLength: docMedia.document.fileLength,
-            fileName: `${name}.apk`,
-            caption: caption,
-          }
-        },
-        { quoted: m }
-      );
-
-      await Matrix.sendMessage(m.from, { react: { text: "⬆️", key: m.key } });
-      await Matrix.relayMessage(m.from, message.message, { messageId: message.key.id });
-      await Matrix.sendMessage(m.from, { react: { text: "✅", key: m.key } });
-
-    } catch (mediaError) {
-      console.error("Media preparation error:", mediaError);
-      // Fallback to sending download link as text
-      const fallbackMessage = {
-        text: `${caption}\n\n*Download Link:* ${dllink}`,
-        footer: "APK Downloader",
-        headerType: 1,
-        mentions: [m.sender]
-      };
-      await Matrix.sendMessage(m.from, fallbackMessage, { quoted: m });
-    }
+    // Send the APK file
+    await Matrix.relayMessage(m.from, message.message, { messageId: message.key.id });
+    await Matrix.sendMessage(m.from, { react: { text: "✅", key: m.key } });
 
   } catch (error) {
     console.error("APK Downloader Error:", error);
-    const buttons = [
-      {
-        buttonId: `${prefix}menu`,
-        buttonText: { displayText: `${toFancyFont("Menu")}` },
-        type: 1,
-      },
-    ];
-    const buttonMessage = {
-      text: "❌ *An error occurred while fetching the APK. Please try again.*",
-      footer: "APK Downloader",
-      buttons: buttons,
-      headerType: 1,
-      mentions: [m.sender]
-    };
-    await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
+    
+    // Remove processing reaction
     await Matrix.sendMessage(m.from, { react: { text: "❌", key: m.key } });
+    
+    await Matrix.sendMessage(m.from, {
+      text: "❌ *Failed to download APK. Please try again with a different app name.*",
+      footer: "APK Downloader",
+      mentions: [m.sender]
+    }, { quoted: m });
   }
 };
 
