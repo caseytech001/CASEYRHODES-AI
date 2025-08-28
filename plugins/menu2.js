@@ -1,7 +1,8 @@
 import moment from 'moment-timezone';
 import fs from 'fs';
 import os from 'os';
-import { generateWAMessageFromContent, proto } from '@whiskeysockets/baileys';
+import pkg from '@whiskeysockets/baileys';
+const { generateWAMessageFromContent, proto } = pkg;
 const more = String.fromCharCode(8206);
 const readmore = more.repeat(4001);
 import config from '../config.cjs';
@@ -64,8 +65,9 @@ const menu = async (m, Matrix) => {
   const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
   const mode = config.MODE === 'public' ? 'public' : 'private';
   const pref = config.PREFIX;
+  const totalCommands = 100; // Added this variable as it was referenced but not defined
 
-  const validCommands = ['list2', 'help2', 'menu2'];
+  const validCommands = ['list', 'help', 'menu'];
 
   if (validCommands.includes(cmd)) {
     const mainMenu = `
@@ -73,6 +75,7 @@ const menu = async (m, Matrix) => {
 ┃❍⁠⁠⁠⁠╭──────────────
 ┃❍⁠⁠⁠⁠│▸  Usᴇʀ : ${config.OWNER_NAME}
 ┃❍⁠⁠⁠⁠│▸  ʙᴀɪʟᴇʏs : 𝐌𝐮𝐥𝐭𝐢 𝐝𝐞𝐯𝐢𝐜𝐞
+┃❍⁠⁠⁠⁠│▸  ᴛᴏᴛᴀʟ ᴄᴏᴍᴍᴀɴᴅs : *${totalCommands}*
 ┃❍⁠⁠⁠⁠│▸  𝖳ʏᴘᴇ : 𝐍𝐨𝐝𝐞𝐣𝐬
 ┃❍⁠⁠⁠⁠│▸  ᴘʟᴀᴛғᴏʀᴍ : 𝐇𝐞𝐫𝐨𝐤𝐮
 ┃❍⁠⁠⁠⁠│▸  𝖣ᴇᴠᴇʟᴏᴘᴇʀ : ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ
@@ -93,7 +96,7 @@ ${readmore}
 ‎*├⬡ 4.ᴏᴡɴᴇʀ ᴍᴇɴᴜ*
 ‎*├⬡ 5.ᴀɪ ᴍᴇɴᴜ*
 ‎*├⬡ 6.ᴀɴɪᴍᴇ ᴍᴇɴᴜ*
-‎*├⬡ 7.ᴄᴏɴᴜᴇʀᴛ ᴍᴇɴᴜ*
+‎*├⬡ 7.ᴄᴏɴᴠᴇʀᴛ ᴍᴇɴᴜ*
 ‎*├⬡ 8.ᴏᴛʜᴇʀ ᴍᴇɴᴜ*
 ‎*├⬡ 9.ʀᴇᴀᴄᴛɪᴏɴ ᴍᴇɴᴜ*
 ‎*├⬡ 10.ᴍᴀɪɴ ᴍᴇɴᴜ*
@@ -116,22 +119,37 @@ fσr mσrє ínfσ tчpє *.ownєr*`;
           const response = await axios.get(config.MENU_IMAGE, { responseType: 'arraybuffer' });
           return Buffer.from(response.data, 'binary');
         } catch (error) {
-          console.error('Error fetching menu image from URL, falling back to local image:', error);
-          return fs.readFileSync('./media/Casey.jpg');
+          console.error('Error fetching menu image from URL:', error);
+          // Fallback to a default image URL
+          try {
+            const fallbackUrl = "https://files.catbox.moe/y3j3kl.jpg";
+            const response = await axios.get(fallbackUrl, { responseType: 'arraybuffer' });
+            return Buffer.from(response.data, 'binary');
+          } catch (fallbackError) {
+            console.error('Error fetching fallback menu image:', fallbackError);
+            return null; // Return null if both URLs fail
+          }
         }
       } else {
-        return fs.readFileSync('./media/Casey.jpg');
+        // Use default image URL if no MENU_IMAGE is configured
+        try {
+          const defaultUrl = "https://files.catbox.moe/y3j3kl.jpg";
+          const response = await axios.get(defaultUrl, { responseType: 'arraybuffer' });
+          return Buffer.from(response.data, 'binary');
+        } catch (error) {
+          console.error('Error fetching default menu image:', error);
+          return null;
+        }
       }
     };
 
     const menuImage = await getMenuImage();
 
-    // Updated message sending syntax for latest Baileys
-    const sentMessage = await Matrix.sendMessage(m.from, {
-      image: menuImage,
+    // Prepare message options
+    const messageOptions = {
       caption: mainMenu,
-      mentions: [m.sender],
       contextInfo: {
+        mentionedJid: [m.sender],
         forwardingScore: 999,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
@@ -140,6 +158,15 @@ fσr mσrє ínfσ tчpє *.ownєr*`;
           serverMessageId: 143
         }
       }
+    };
+
+    // Add image if available
+    if (menuImage) {
+      messageOptions.image = menuImage;
+    }
+
+    const sentMessage = await Matrix.sendMessage(m.from, messageOptions, {
+      quoted: m
     });
 
     // Send audio after sending the menu
@@ -147,10 +174,10 @@ fσr mσrє ínfσ tчpє *.ownєr*`;
       audio: { url: 'https://files.catbox.moe/d5yxdu.mp3' },
       mimetype: 'audio/mp4',
       ptt: true
-    });
+    }, { quoted: m });
 
     // Set up listener for menu selection
-    Matrix.ev.on('messages.upsert', async (event) => {
+    const messageListener = async (event) => {
       const receivedMessage = event.messages[0];
       if (!receivedMessage?.message?.extendedTextMessage) return;
 
@@ -186,52 +213,6 @@ fσr mσrє ínfσ tчpє *.ownєr*`;
           break;
           
         case "2":
-          menuTitle = "Converter Menu";
-          menuResponse = `
-╭━━〔 *Converter Menu* 〕━━┈⊷
-┃◈╭─────────────·๏
-┃◈┃• attp
-┃◈┃• attp2
-┃◈┃• attp3
-┃◈┃• ebinary
-┃◈┃• dbinary
-┃◈┃• emojimix
-┃◈┃• mp3
-┃◈└───────────┈⊷
-╰──────────────┈⊷`;
-          break;
-          
-        case "3":
-          menuTitle = "AI Menu";
-          menuResponse = `
-╭━━〔 *AI Menu* 〕━━┈⊷
-┃◈╭─────────────·๏
-┃◈┃• ai
-┃◈┃• bug
-┃◈┃• report
-┃◈┃• gpt
-┃◈┃• dalle
-┃◈┃• remini
-┃◈┃• gemini
-┃◈└───────────┈⊷
-╰──────────────┈⊷`;
-          break;
-          
-        case "4":
-          menuTitle = "Tools Menu";
-          menuResponse = `
-╭━━〔 *Tools Menu* 〕━━┈⊷
-┃◈╭─────────────·๏
-┃◈┃• calculator
-┃◈┃• tempmail
-┃◈┃• checkmail
-┃◈┃• trt
-┃◈┃• tts
-┃◈└───────────┈⊷
-╰──────────────┈⊷`;
-          break;
-          
-        case "5":
           menuTitle = "Group Menu";
           menuResponse = `
 ╭━━〔 *Group Menu* 〕━━┈⊷
@@ -256,41 +237,23 @@ fσr mσrє ínfσ tчpє *.ownєr*`;
 ╰──────────────┈⊷`;
           break;
           
-        case "6":
-          menuTitle = "Search Menu";
+        case "3":
+          menuTitle = "Fun Menu";
           menuResponse = `
-╭━━〔 *Search Menu* 〕━━┈⊷
+╭━━〔 *Fun Menu* 〕━━┈⊷
 ┃◈╭─────────────·๏
-┃◈┃• play
-┃◈┃• yts
-┃◈┃• imdb
-┃◈┃• google
-┃◈┃• gimage
-┃◈┃• pinterest
-┃◈┃• wallpaper
-┃◈┃• wikimedia
-┃◈┃• ytsearch
-┃◈┃• ringtone
-┃◈┃• lyrics
+┃◈┃• truth
+┃◈┃• dare
+┃◈┃• fact
+┃◈┃• quote
+┃◈┃• joke
+┃◈┃• meme
+┃◈┃• riddle
 ┃◈└───────────┈⊷
 ╰──────────────┈⊷`;
           break;
           
-        case "7":
-          menuTitle = "Main Menu";
-          menuResponse = `
-╭━━〔 *Main Menu* 〕━━┈⊷
-┃◈╭─────────────·๏
-┃◈┃• ping
-┃◈┃• alive
-┃◈┃• owner
-┃◈┃• menu
-┃◈┃• infobot
-┃◈└───────────┈⊷
-╰──────────────┈⊷`;
-          break;
-          
-        case "8":
+        case "4":
           menuTitle = "Owner Menu";
           menuResponse = `
 ╭━━〔 *Owner Menu* 〕━━┈⊷
@@ -311,21 +274,101 @@ fσr mσrє ínfσ tчpє *.ownєr*`;
 ╰──────────────┈⊷`;
           break;
           
-        case "9":
-          menuTitle = "Stalk Menu";
+        case "5":
+          menuTitle = "AI Menu";
           menuResponse = `
-╭━━〔 *Stalk Menu* 〕━━┈⊷
+╭━━〔 *AI Menu* 〕━━┈⊷
 ┃◈╭─────────────·๏
-┃◈┃• truecaller
-┃◈┃• instastalk
-┃◈┃• githubstalk
+┃◈┃• ai
+┃◈┃• bug
+┃◈┃• report
+┃◈┃• gpt
+┃◈┃• dalle
+┃◈┃• remini
+┃◈┃• gemini
+┃◈└───────────┈⊷
+╰──────────────┈⊷`;
+          break;
+          
+        case "6":
+          menuTitle = "Anime Menu";
+          menuResponse = `
+╭━━〔 *Anime Menu* 〕━━┈⊷
+┃◈╭─────────────·๏
+┃◈┃• anime
+┃◈┃• manga
+┃◈┃• character
+┃◈┃• waifu
+┃◈┃• husbando
+┃◈┃• neko
+┃◈└───────────┈⊷
+╰──────────────┈⊷`;
+          break;
+          
+        case "7":
+          menuTitle = "Converter Menu";
+          menuResponse = `
+╭━━〔 *Converter Menu* 〕━━┈⊷
+┃◈╭─────────────·๏
+┃◈┃• attp
+┃◈┃• attp2
+┃◈┃• attp3
+┃◈┃• ebinary
+┃◈┃• dbinary
+┃◈┃• emojimix
+┃◈┃• mp3
+┃◈└───────────┈⊷
+╰──────────────┈⊷`;
+          break;
+          
+        case "8":
+          menuTitle = "Other Menu";
+          menuResponse = `
+╭━━〔 *Other Menu* 〕━━┈⊷
+┃◈╭─────────────·๏
+┃◈┃• sticker
+┃◈┃• take
+┃◈┃• emoji
+┃◈┃• weather
+┃◈┃• time
+┃◈┃• date
+┃◈┃• qr
+┃◈└───────────┈⊷
+╰──────────────┈⊷`;
+          break;
+          
+        case "9":
+          menuTitle = "Reaction Menu";
+          menuResponse = `
+╭━━〔 *Reaction Menu* 〕━━┈⊷
+┃◈╭─────────────·๏
+┃◈┃• like
+┃◈┃• love
+┃◈┃• haha
+┃◈┃• wow
+┃◈┃• sad
+┃◈┃• angry
+┃◈└───────────┈⊷
+╰──────────────┈⊷`;
+          break;
+          
+        case "10":
+          menuTitle = "Main Menu";
+          menuResponse = `
+╭━━〔 *Main Menu* 〕━━┈⊷
+┃◈╭─────────────·๏
+┃◈┃• ping
+┃◈┃• alive
+┃◈┃• owner
+┃◈┃• menu
+┃◈┃• infobot
 ┃◈└───────────┈⊷
 ╰──────────────┈⊷`;
           break;
           
         default:
           menuTitle = "Invalid Choice";
-          menuResponse = "*Invalid Reply Please Reply With A Number Between 1 to 9*";
+          menuResponse = "*Invalid Reply Please Reply With A Number Between 1 to 10*";
       }
 
       // Format the full response with title and description
@@ -343,22 +386,39 @@ ${menuResponse}
 
 > *${config.DESCRIPTION}*`;
 
-      // Send the response with image and context info
-      await Matrix.sendMessage(m.from, {
-        image: menuImage,
+      // Prepare response message options
+      const responseMessageOptions = {
         caption: fullResponse,
-        mentions: [m.sender],
         contextInfo: {
+          mentionedJid: [m.sender],
           forwardingScore: 999,
           isForwarded: true,
           forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363302677217436@newsletter',
-            newsletterName: "CASEYRHODES-AI",
+            newsletterJid: '120363398040175935@newsletter',
+            newsletterName: "JawadTechX",
             serverMessageId: 143
           }
         }
+      };
+
+      // Add image if available
+      if (menuImage) {
+        responseMessageOptions.image = menuImage;
+      }
+
+      // Send the response with image and context info
+      await Matrix.sendMessage(m.from, responseMessageOptions, {
+        quoted: receivedMessage
       });
-    });
+    };
+
+    // Add the listener
+    Matrix.ev.on('messages.upsert', messageListener);
+    
+    // Remove the listener after a timeout to prevent memory leaks
+    setTimeout(() => {
+      Matrix.ev.off('messages.upsert', messageListener);
+    }, 60000); // Remove after 60 seconds
   }
 };
 
