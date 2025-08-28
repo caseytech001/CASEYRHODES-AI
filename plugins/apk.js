@@ -65,11 +65,18 @@ const apkDownloader = async (m, Matrix) => {
   try {
     await Matrix.sendMessage(m.from, { react: { text: "⏳", key: m.key } });
 
-    // Fixed API endpoint - using a more reliable APK download API
-    const apiUrl = `https://api.apkdownloaders.com/search?q=${encodeURIComponent(query)}`;
-    const { data } = await axios.get(apiUrl);
+    // Use the NexOracle API as in the first example
+    const apiUrl = `https://api.nexoracle.com/downloader/apk`;
+    const params = {
+      apikey: 'free_key@maher_apis',
+      q: query,
+    };
 
-    if (!data?.results?.length) {
+    // Call the NexOracle API using GET
+    const response = await axios.get(apiUrl, { params });
+
+    // Check if the API response is valid
+    if (!response.data || response.data.status !== 200 || !response.data.result) {
       const buttons = [
         {
           buttonId: `${prefix}menu`,
@@ -83,7 +90,7 @@ const apkDownloader = async (m, Matrix) => {
         },
       ];
       const buttonMessage = {
-        text: "⚠️ *No results found for the given app name.*",
+        text: "❌ Unable to find the APK. Please try again later.",
         footer: "APK Downloader",
         buttons: buttons,
         headerType: 1,
@@ -92,24 +99,40 @@ const apkDownloader = async (m, Matrix) => {
       return await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
     }
 
-    const app = data.results[0];
-    const appSize = (app.size / 1048576).toFixed(2); // Convert bytes to MB
+    // Extract the APK details from the response
+    const { name, lastup, package: packageName, size, icon, dllink } = response.data.result;
 
+    // Send a message with the app thumbnail first
+    await Matrix.sendMessage(m.from, {
+      image: { url: icon },
+      caption: `📦 *Downloading ${name}... Please wait.*`,
+      mentions: [m.sender]
+    }, { quoted: m });
+
+    // Download the APK file
+    const apkResponse = await axios.get(dllink, { responseType: 'arraybuffer' });
+    if (!apkResponse.data) {
+      throw new Error('Failed to download APK file');
+    }
+
+    // Prepare the APK file buffer
+    const apkBuffer = Buffer.from(apkResponse.data, 'binary');
+
+    // Prepare the message with APK details
     const caption = `╭━━━〔 *ᴀᴘᴋ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ* 〕━━━┈⊷
-┃  *Name:* ${app.name}
-┃  *Size:* ${appSize} MB
-┃  *Package:* ${app.packageName}
-┃  *Updated On:* ${app.updated}
-┃  *Developer:* ${app.developer}
+┃  *Name:* ${name}
+┃  *Size:* ${size}
+┃  *Package:* ${packageName}
+┃  *Updated On:* ${lastup}
 ╰━━━━━━━━━━━━━━━┈⊷
 > *ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ*`;
 
     try {
-      // Prepare the document with buttons
+      // Upload the APK file to server
       const docMedia = await prepareWAMessageMedia(
         { 
-          document: { url: app.downloadUrl }, 
-          fileName: `${app.name}.apk`,
+          document: apkBuffer,
+          fileName: `${name}.apk`,
           mimetype: "application/vnd.android.package-archive"
         },
         { upload: Matrix.waUploadToServer }
@@ -123,7 +146,7 @@ const apkDownloader = async (m, Matrix) => {
             url: docMedia.document.url,
             mimetype: docMedia.document.mimetype,
             fileLength: docMedia.document.fileLength,
-            fileName: `${app.name}.apk`,
+            fileName: `${name}.apk`,
             caption: caption,
           }
         },
@@ -138,7 +161,7 @@ const apkDownloader = async (m, Matrix) => {
       console.error("Media preparation error:", mediaError);
       // Fallback to sending download link as text
       const fallbackMessage = {
-        text: `${caption}\n\n*Download Link:* ${app.downloadUrl}`,
+        text: `${caption}\n\n*Download Link:* ${dllink}`,
         footer: "APK Downloader",
         headerType: 1,
         mentions: [m.sender]
@@ -163,6 +186,7 @@ const apkDownloader = async (m, Matrix) => {
       mentions: [m.sender]
     };
     await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
+    await Matrix.sendMessage(m.from, { react: { text: "❌", key: m.key } });
   }
 };
 
