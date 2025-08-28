@@ -22,8 +22,7 @@ const repo = async (m, gss) => {
       }
 
       const repoData = response.data;
-      const formattedInfo = `
-*𝐇𝐄𝐋𝐋𝐎 𝐓𝐇𝐄𝐑𝐄 𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒-𝐗𝐌𝐃 𝐖.𝐀 𝐁𝐎𝐓 𝐔𝐒𝐄𝐑!😇👑* 
+      const formattedInfo = `*𝐇𝐄𝐋𝐋𝐎 𝐓𝐇𝐄𝐑𝐄 𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒-𝐗𝐌𝐃 𝐖.𝐀 𝐁𝐎𝐓 𝐔𝐒𝐄𝐑!😇👑* 
 > *sɪᴍᴘʟᴇ, ɪᴄʏ, ᴄᴏʟᴅ  & ʀɪᴄʜ ʟᴏᴀᴅᴇᴅ ʙᴏᴛ ᴡɪᴛʜ ᴀᴍᴀᴢɪɴɢ ғᴇᴀᴛᴜʀᴇs, ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴡʜᴀᴛsᴀᴘᴘ ʙᴏᴛ.*❄️
 
 *𝐓𝐇𝐀𝐍𝐊𝐒 𝐅𝐎𝐑 𝐔𝐒𝐄𝐈𝐍𝐆 𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒-𝐗𝐌𝐃🫶* 
@@ -56,7 +55,7 @@ ${readmore}
       await gss.sendMessage(
         m.from,
         {
-          image: { url: "https://files.catbox.moe/y3j3kl.jpg" },
+          image: { url: "https://files.catbox.moe/n786q5.jpg" },
           caption: formattedInfo,
           buttons: buttons,
           headerType: 1,
@@ -65,7 +64,7 @@ ${readmore}
             isForwarded: true,
             forwardedNewsletterMessageInfo: {
               newsletterJid: '120363302677217436@newsletter',
-              newsletterName: 'POWERED BY CASEYRHODES TECH',
+              newsletterName: 'POWERED BY CASEYRHODES AI',
               serverMessageId: -1
             }
           }
