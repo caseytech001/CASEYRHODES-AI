@@ -1,6 +1,9 @@
 import axios from 'axios';
 import config from '../config.cjs';
 
+// Store user sessions for image searches
+const userSessions = new Map();
+
 const imageCommand = async (m, sock) => {
   const prefix = config.PREFIX;
   const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
@@ -31,69 +34,20 @@ const imageCommand = async (m, sock) => {
       }
 
       const results = response.data.results;
-      const maxImages = Math.min(results.length, 8);
+      const maxImages = Math.min(results.length, 10);
       
-      // Send header message with search info
-      const headerText = `
-╭───「 *IMAGE SEARCH* 」───
-├ Query: ${query}
-├ Found: ${results.length} images
-├ Showing: ${maxImages} results
-╰─────────────────────`;
-      
-      await sock.sendMessage(m.from, { text: headerText });
-
-      // Select random images
-      const selectedImages = results
-        .sort(() => 0.5 - Math.random())
-        .slice(0, maxImages);
-
-      // Group images in sets of 2 for horizontal display
-      for (let i = 0; i < selectedImages.length; i += 2) {
-        const imagePair = selectedImages.slice(i, i + 2);
-        
-        if (imagePair.length === 2) {
-          // Send two images with horizontal layout indication
-          const caption = `🖼️ Images ${i+1}-${i+2} of ${maxImages}\n─────────────────────`;
-          
-          await sock.sendMessage(
-            m.from,
-            {
-              image: { url: imagePair[0] },
-              caption: caption
-            },
-            { quoted: m }
-          );
-          
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          await sock.sendMessage(
-            m.from,
-            {
-              image: { url: imagePair[1] }
-            },
-            { quoted: m }
-          );
-        } else {
-          // Single image if odd number
-          await sock.sendMessage(
-            m.from,
-            {
-              image: { url: imagePair[0] },
-              caption: `🖼️ Image ${i+1} of ${maxImages}\n─────────────────────`
-            },
-            { quoted: m }
-          );
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 1500));
-      }
-
-      // Send footer message
-      await sock.sendMessage(m.from, { 
-        text: `╭───「 *SEARCH COMPLETE* 」───\n╰➤ Powered by Mercedes Bot` 
+      // Store the search results in user session
+      userSessions.set(m.sender, {
+        query,
+        images: results,
+        currentIndex: 0,
+        maxImages,
+        timestamp: Date.now()
       });
-      
+
+      // Send only the first image with next button
+      await sendImageWithNextButton(m, sock, 0, query, results, maxImages);
+
       await sock.sendMessage(m.from, { react: { text: '✅', key: m.key } });
 
     } catch (error) {
@@ -107,4 +61,73 @@ const imageCommand = async (m, sock) => {
   }
 };
 
-export default imageCommand;
+// Function to send image with next button
+async function sendImageWithNextButton(m, sock, index, query, images, maxImages) {
+  const imageUrl = images[index];
+  
+  const caption = `
+╭───[ *ɪᴍᴀɢᴇ sᴇᴀʀᴄʜ* ]───
+├ *ǫᴜᴇʀʏ*: ${query} 🔍
+├ *ʀᴇsᴜʟᴛ*: ${index + 1} of ${maxImages} 🖼️
+╰───[ *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs* ]───
+
+Click *Next* button below for the next image or type *next*`;
+
+  // Create button message with next button
+  const buttonMessage = {
+    image: { url: imageUrl },
+    caption: caption,
+    footer: 'Image Search',
+    buttons: [
+      { buttonId: 'next', buttonText: { displayText: 'Next ▶️' }, type: 1 }
+    ],
+    headerType: 4,
+    contextInfo: { mentionedJid: [m.sender] }
+  };
+
+  await sock.sendMessage(m.from, buttonMessage, { quoted: m });
+}
+
+// Handle button responses and next command
+const handleNextImage = async (m, sock) => {
+  const text = m.body?.toLowerCase()?.trim();
+  const isButtonResponse = m?.message?.buttonsResponseMessage;
+  
+  // Check if it's a button response or text command
+  if ((isButtonResponse && isButtonResponse.selectedButtonId === 'next') || text === 'next') {
+    const session = userSessions.get(m.sender);
+    
+    // Clean up old sessions (older than 10 minutes)
+    const now = Date.now();
+    for (const [key, value] of userSessions.entries()) {
+      if (now - value.timestamp > 600000) { // 10 minutes
+        userSessions.delete(key);
+      }
+    }
+    
+    if (!session) {
+      return sock.sendMessage(m.from, { text: '❌ No active image search session. Please search for images first.' });
+    }
+    
+    const { query, images, currentIndex, maxImages } = session;
+    const nextIndex = currentIndex + 1;
+    
+    if (nextIndex >= maxImages) {
+      userSessions.delete(m.sender); // Clear session
+      return sock.sendMessage(m.from, { text: `❌ No more images available for "${query}"` });
+    }
+    
+    // Update session with new index
+    userSessions.set(m.sender, {
+      ...session,
+      currentIndex: nextIndex,
+      timestamp: Date.now() // Update timestamp
+    });
+    
+    // Send next image
+    await sendImageWithNextButton(m, sock, nextIndex, query, images, maxImages);
+  }
+};
+
+// Export both commands
+export { imageCommand, handleNextImage };
