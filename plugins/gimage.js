@@ -44,7 +44,7 @@ const imageCommand = async (m, sock) => {
 ╭───[ *ɪᴍᴀɢᴇ sᴇᴀʀᴄʜ* ]───
 ├ *ǫᴜᴇʀʏ*: ${query} 🔍
 ├ *ʀᴇsᴜʟᴛ*: ${index + 1} of ${maxImages} 🖼️
-╰───[ *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs* ]───`;
+╰───[ *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴍᴇʀᴄᴇᴅᴇs* ]───`;
 
           await sock.sendMessage(
             m.from,
