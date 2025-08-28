@@ -1,8 +1,7 @@
 import moment from 'moment-timezone';
 import fs from 'fs';
 import os from 'os';
-import pkg from '@whiskeysockets/baileys';
-const { generateWAMessageFromContent, proto } = pkg;
+import { generateWAMessageFromContent, proto } from '@whiskeysockets/baileys';
 const more = String.fromCharCode(8206);
 const readmore = more.repeat(4001);
 import config from '../config.cjs';
@@ -96,7 +95,7 @@ ${readmore}
 ‎*├⬡ 4.ᴏᴡɴᴇʀ ᴍᴇɴᴜ*
 ‎*├⬡ 5.ᴀɪ ᴍᴇɴᴜ*
 ‎*├⬡ 6.ᴀɴɪᴍᴇ ᴍᴇɴᴜ*
-‎*├⬡ 7.ᴄᴏɴᴠᴇʀᴛ ᴍᴇɴᴜ*
+‎*├⬡ 7.ᴄᴏɴᴜᴇʀᴛ ᴍᴇɴᴜ*
 ‎*├⬡ 8.ᴏᴛʜᴇʀ ᴍᴇɴᴜ*
 ‎*├⬡ 9.ʀᴇᴀᴄᴛɪᴏɴ ᴍᴇɴᴜ*
 ‎*├⬡ 10.ᴍᴀɪɴ ᴍᴇɴᴜ*
@@ -132,8 +131,8 @@ fσr mσrє ínfσ tчpє *.ownєr*`;
     const sentMessage = await Matrix.sendMessage(m.from, {
       image: menuImage,
       caption: mainMenu,
+      mentions: [m.sender],
       contextInfo: {
-        mentionedJid: [m.sender],
         forwardingScore: 999,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
@@ -351,8 +350,8 @@ ${menuResponse}
       await Matrix.sendMessage(m.from, {
         image: menuImage,
         caption: fullResponse,
+        mentions: [m.sender],
         contextInfo: {
-          mentionedJid: [m.sender],
           forwardingScore: 999,
           isForwarded: true,
           forwardedNewsletterMessageInfo: {
