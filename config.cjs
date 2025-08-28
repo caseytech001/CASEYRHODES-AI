@@ -25,7 +25,7 @@ const config = {
   AUTO_REACT: process.env.AUTO_REACT || "true",
 // make this true or false for auto react on all msgs
   BOT_NAME: process.env.BOT_NAME || "JINX-MD",
-  MENU_IMAGE: process.env.MENU_IMAGE || "https://files.catbox.moe/6852sf.jpg",
+  MENU_IMAGE: process.env.MENU_IMAGE || "https://files.catbox.moe/y3j3kl.jpg",
   DESCRIPTION: process.env.DESCRIPTION || "© ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ",
   OWNER_NAME: process.env.OWNER_NAME || "Caseyrhodes",
   OWNER_NUMBER: process.env.OWNER_NUMBER || "254112192119",
