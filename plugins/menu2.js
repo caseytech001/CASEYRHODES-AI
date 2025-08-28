@@ -126,6 +126,7 @@ fσr mσrє ínfσ tчpє *.ownєr*`;
 
     const menuImage = await getMenuImage();
 
+    // Updated message sending syntax for latest Baileys
     const sentMessage = await Matrix.sendMessage(m.from, {
       image: menuImage,
       caption: mainMenu,
@@ -139,8 +140,6 @@ fσr mσrє ínfσ tчpє *.ownєr*`;
           serverMessageId: 143
         }
       }
-    }, {
-      quoted: m
     });
 
     // Send audio after sending the menu
@@ -148,7 +147,7 @@ fσr mσrє ínfσ tчpє *.ownєr*`;
       audio: { url: 'https://files.catbox.moe/d5yxdu.mp3' },
       mimetype: 'audio/mp4',
       ptt: true
-    }, { quoted: m });
+    });
 
     // Set up listener for menu selection
     Matrix.ev.on('messages.upsert', async (event) => {
@@ -358,8 +357,6 @@ ${menuResponse}
             serverMessageId: 143
           }
         }
-      }, {
-        quoted: receivedMessage
       });
     });
   }
