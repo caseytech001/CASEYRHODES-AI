@@ -2,6 +2,8 @@ import axios from "axios";
 import config from '../config.cjs';
 
 const repo = async (m, gss) => {
+  const more = String.fromCharCode(8206);
+  const readmore = more.repeat(4001);
   const prefix = config.PREFIX;
   const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
   const args = m.body.slice(prefix.length).trim().split(/ +/).slice(1);
@@ -20,7 +22,16 @@ const repo = async (m, gss) => {
       }
 
       const repoData = response.data;
-      const formattedInfo = `*BOT NAME:*\n> ${repoData.name}\n\n*OWNER NAME:*\n> ${repoData.owner.login}\n\n*STARS:*\n> ${repoData.stargazers_count}\n\n*FORKS:*\n> ${repoData.forks_count}\n\n*GITHUB LINK:*\n> ${repoData.html_url}\n\n*DESCRIPTION:*\n> ${repoData.description || "No description"}\n\n*Don't Forget To Star and Fork Repository*\n\n> *© ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🖤*`;
+      const formattedInfo = `
+*𝐇𝐄𝐋𝐋𝐎 𝐓𝐇𝐄𝐑𝐄 𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒-𝐗𝐌𝐃 𝐖.𝐀 𝐁𝐎𝐓 𝐔𝐒𝐄𝐑!😇👑* 
+> *sɪᴍᴘʟᴇ, ɪᴄʏ, ᴄᴏʟᴅ  & ʀɪᴄʜ ʟᴏᴀᴅᴇᴅ ʙᴏᴛ ᴡɪᴛʜ ᴀᴍᴀᴢɪɴɢ ғᴇᴀᴛᴜʀᴇs, ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴡʜᴀᴛsᴀᴘᴘ ʙᴏᴛ.*❄️
+
+*𝐓𝐇𝐀𝐍𝐊𝐒 𝐅𝐎𝐑 𝐔𝐒𝐄𝐈𝐍𝐆 𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒-𝐗𝐌𝐃🫶* 
+${readmore}
+> *ᴅᴏɴ'ᴛ ғᴏʀɢᴇᴛ ᴛᴏ sᴛᴀʀ & ғᴏʀᴋ ᴛʜᴇ ʀᴇᴘᴏ🌟🍴
+
+
+*BOT NAME:*\n> ${repoData.name}\n\n*OWNER NAME:*\n> ${repoData.owner.login}\n\n*STARS:*\n> ${repoData.stargazers_count}\n\n*FORKS:*\n> ${repoData.forks_count}\n\n*GITHUB LINK:*\n> ${repoData.html_url}\n\n*DESCRIPTION:*\n> ${repoData.description || "No description"}\n\n*Don't Forget To Star and Fork Repository*\n\n> *© ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🖤*`;
 
       // Create buttons
       const buttons = [
@@ -41,18 +52,26 @@ const repo = async (m, gss) => {
         }
       ];
 
-      // Send message with buttons
+      // Send message with buttons and newsletter context
       await gss.sendMessage(
         m.from,
         {
           image: { url: "https://files.catbox.moe/y3j3kl.jpg" },
           caption: formattedInfo,
           buttons: buttons,
-          headerType: 1
+          headerType: 1,
+          contextInfo: {
+            forwardingScore: 1,
+            isForwarded: true,
+            forwardedNewsletterMessageInfo: {
+              newsletterJid: '120363302677217436@newsletter',
+              newsletterName: 'POWERED BY CASEYRHODES TECH',
+              serverMessageId: -1
+            }
+          }
         },
         { quoted: m }
       );
-
     } catch (error) {
       console.error("Error in repo command:", error);
       m.reply("Sorry, something went wrong while fetching the repository information. Please try again later.");
