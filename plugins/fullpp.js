@@ -10,9 +10,12 @@ const setProfilePicture = async (m, sock) => {
 
   if (cmd !== "fullpp") return;
 
-  // Only bot can use this command
-  if (!isBot) {
-    return m.reply("❌ This command can only be used by the bot itself.");
+  // Check if the user is the bot owner
+  const isOwner = config.OWNER_NUMBER && m.sender.endsWith(config.OWNER_NUMBER.replace(/[^0-9]/g, ''));
+  
+  // Allow only bot owner to use this command
+  if (!isOwner) {
+    return m.reply("❌ This command can only be used by the bot owner.");
   }
 
   // Check if the replied message is an image
@@ -54,7 +57,7 @@ const setProfilePicture = async (m, sock) => {
     const buffer = await image.getBufferAsync(Jimp.MIME_JPEG);
 
     // Update profile picture
-    await sock.updateProfilePicture(botNumber, buffer); // Always set bot's own PP
+    await sock.updateProfilePicture(botNumber, buffer);
     await m.react('✅');
 
     // Success response
