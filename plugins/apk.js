@@ -18,13 +18,14 @@ function toFancyFont(text) {
 const apkDownloader = async (m, Matrix) => {
   const prefix = config.PREFIX;
   const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
-  const query = m.body.slice(prefix.length + cmd.length).trim();
+  const text = m.body.slice(prefix.length + cmd.length).trim();
+  const query = text.split(" ")[0]; // Get only the first word as query
 
   if (!["apk", "app", "application"].includes(cmd)) return;
   
   if (!query) {
     return await Matrix.sendMessage(m.from, {
-      text: "❌ *Usage:* `.apk <App Name>`",
+      text: "❌ *Usage:* `.apk <App Name>`\nExample: `.apk whatsapp`",
       footer: "APK Downloader",
       mentions: [m.sender]
     }, { quoted: m });
@@ -34,85 +35,54 @@ const apkDownloader = async (m, Matrix) => {
     // Send processing reaction
     await Matrix.sendMessage(m.from, { react: { text: "⏳", key: m.key } });
 
-    // Use multiple API endpoints for better reliability
-    const apiUrls = [
-      `https://api.nexoracle.com/downloader/apk?apikey=free_key@maher_apis&q=${encodeURIComponent(query)}`,
-      `https://apkdownloaders.com/api/search?q=${encodeURIComponent(query)}`
-    ];
+    // Use a reliable APK API
+    const apiUrl = `https://api.nexoracle.com/downloader/apk`;
+    const params = {
+      apikey: 'free_key@maher_apis',
+      q: query,
+    };
 
-    let apkData = null;
-    let apiError = null;
+    // Call the API with timeout
+    const response = await Promise.race([
+      axios.get(apiUrl, { params, timeout: 15000 }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('API timeout')), 15000))
+    ]);
 
-    // Try multiple APIs concurrently with timeout
-    for (const apiUrl of apiUrls) {
-      try {
-        const response = await Promise.race([
-          axios.get(apiUrl, { timeout: 10000 }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
-        ]);
-
-        if (response.data && (response.data.status === 200 || response.data.results)) {
-          apkData = response.data;
-          break;
-        }
-      } catch (error) {
-        apiError = error;
-        continue;
-      }
+    // Check if API response is valid
+    if (!response.data || response.data.status !== 200 || !response.data.result) {
+      throw new Error('No APK found or invalid API response');
     }
 
-    if (!apkData) {
-      throw new Error(apiError || 'No APK found');
-    }
+    // Extract APK data
+    const { name, lastup, package: packageName, size, icon, dllink } = response.data.result;
 
-    // Extract APK data based on API response format
-    let name, lastup, packageName, size, icon, dllink;
-
-    if (apkData.status === 200 && apkData.result) {
-      // NexOracle format
-      ({ name, lastup, package: packageName, size, icon, dllink } = apkData.result);
-    } else if (apkData.results && apkData.results.length > 0) {
-      // Alternative API format
-      const app = apkData.results[0];
-      name = app.name;
-      lastup = app.updated || app.lastUpdate;
-      packageName = app.packageName || app.package;
-      size = app.size ? (app.size / 1048576).toFixed(2) + ' MB' : 'Unknown';
-      icon = app.icon || app.image;
-      dllink = app.downloadUrl || app.dllink;
-    } else {
-      throw new Error('Invalid API response format');
-    }
-
-    // Send thumbnail immediately while downloading APK in background
-    const thumbnailPromise = Matrix.sendMessage(m.from, {
+    // Send thumbnail immediately
+    await Matrix.sendMessage(m.from, {
       image: { url: icon },
       caption: `📦 *Downloading ${name}...*\n⏳ *Please wait while we prepare your file...*`,
       mentions: [m.sender]
     }, { quoted: m });
 
-    // Download APK concurrently with thumbnail sending
-    const apkPromise = Promise.race([
+    // Download APK file
+    const apkResponse = await Promise.race([
       axios.get(dllink, { 
         responseType: 'arraybuffer', 
-        timeout: 30000,
-        onDownloadProgress: (progress) => {
-          if (progress.loaded / progress.total > 0.5) {
-            Matrix.sendMessage(m.from, { react: { text: "⬆️", key: m.key } });
-          }
-        }
+        timeout: 45000,
+        maxContentLength: 100 * 1024 * 1024 // 100MB limit
       }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Download timeout')), 45000))
     ]);
 
-    // Wait for both operations
-    const [apkResponse] = await Promise.all([apkPromise, thumbnailPromise]);
-
     if (!apkResponse.data) {
-      throw new Error('Failed to download APK file');
+      throw new Error('Failed to download APK file - no data received');
     }
 
     const apkBuffer = Buffer.from(apkResponse.data);
+
+    // Check if file size is reasonable
+    if (apkBuffer.length > 100 * 1024 * 1024) { // 100MB limit
+      throw new Error('APK file too large');
+    }
 
     // Prepare caption
     const caption = `╭━━━〔 *ᴀᴘᴋ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ* 〕━━━┈⊷
@@ -152,13 +122,21 @@ const apkDownloader = async (m, Matrix) => {
     await Matrix.sendMessage(m.from, { react: { text: "✅", key: m.key } });
 
   } catch (error) {
-    console.error("APK Downloader Error:", error);
+    console.error("APK Downloader Error:", error.message);
     
-    // Remove processing reaction
+    // Remove processing reaction and show error
     await Matrix.sendMessage(m.from, { react: { text: "❌", key: m.key } });
     
+    let errorMessage = "❌ *Failed to download APK. Please try again with a different app name.*";
+    
+    if (error.message.includes('timeout')) {
+      errorMessage = "❌ *Request timeout. Please try again.*";
+    } else if (error.message.includes('large')) {
+      errorMessage = "❌ *APK file is too large to send via WhatsApp.*";
+    }
+    
     await Matrix.sendMessage(m.from, {
-      text: "❌ *Failed to download APK. Please try again with a different app name.*",
+      text: errorMessage,
       footer: "APK Downloader",
       mentions: [m.sender]
     }, { quoted: m });
