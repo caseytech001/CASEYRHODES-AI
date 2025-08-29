@@ -43,17 +43,16 @@ function toFancyFont(text, isUpperCase = false) {
     .join("");
 }
 
-// Image fetch utility - FIXED
+// Image fetch utility
 async function fetchMenuImage() {
   const imageUrl = "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg";
   for (let i = 0; i < 3; i++) {
     try {
       const response = await axios.get(imageUrl, { 
         responseType: "arraybuffer",
-        timeout: 10000 // Add timeout to prevent hanging
+        timeout: 10000
       });
       
-      // Properly convert ArrayBuffer to Buffer
       return Buffer.from(response.data);
     } catch (error) {
       if (error.response?.status === 429 && i < 2) {
@@ -67,12 +66,45 @@ async function fetchMenuImage() {
   }
 }
 
+// Function to send audio
+async function sendMenuAudio(Matrix, m) {
+  try {
+    const audioUrls = [
+      'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/ABOUT YOU.mp3',
+      'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/caseytech.mp3'
+    ];
+    
+    const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
+    
+    await Matrix.sendMessage(m.from, {
+      audio: { url: randomAudioUrl },
+      mimetype: 'audio/mp4',
+      ptt: true
+    }, { 
+      quoted: {
+        key: {
+          fromMe: false,
+          participant: `0@s.whatsapp.net`,
+          remoteJid: "status@broadcast"
+        },
+        message: {
+          contactMessage: {
+            displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
+            vcard: `BEGIN:VCARD\nVERSION:3.0\nFN: Caseyrhodes VERIFIED ✅\nORG:CASEYRHODES-TECH BOT;\nTEL;type=CELL;type=VOICE;waid=13135550002:+13135550002\nEND:VCARD`
+          }
+        }
+      }
+    });
+  } catch (audioError) {
+    console.error("❌ Failed to send audio:", audioError.message);
+  }
+}
+
 const menu = async (m, Matrix) => {
   try {
     const prefix = config.PREFIX;
     const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
     const mode = config.MODE === "public" ? "public" : "private";
-    const totalCommands = 70;
 
     const validCommands = ["list", "help", "menu"];
     const subMenuCommands = [
@@ -81,6 +113,23 @@ const menu = async (m, Matrix) => {
       "stalk-menu", "fun-menu", "anime-menu", "other-menu",
       "reactions-menu"
     ];
+
+    // React to menu command with different emojis
+    if (validCommands.includes(cmd)) {
+      const reactionEmojis = ["🌟", "🤖", "✨", "🚀", "💫", "🔥"];
+      const randomEmoji = reactionEmojis[Math.floor(Math.random() * reactionEmojis.length)];
+      
+      try {
+        await Matrix.sendMessage(m.from, {
+          react: {
+            text: randomEmoji,
+            key: m.key
+          }
+        });
+      } catch (reactError) {
+        console.error("Failed to send reaction:", reactError.message);
+      }
+    }
 
     // Fetch image for all cases
     const menuImage = await fetchMenuImage();
@@ -161,16 +210,9 @@ ${readmore}
           }
         });
       } else {
-        // Fallback to text-only if image fails
-        await Matrix.sendMessage(m.from, { text: mainMenu, ...messageOptions }, { quoted: m });
-      }
-
-      // Send audio as a voice note
-      try {
-        await Matrix.sendMessage(m.from, { 
-          audio: { url: "https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/caseytech.mp3" },
-          mimetype: "audio/mp4", 
-          ptt: true
+        await Matrix.sendMessage(m.from, {
+          text: mainMenu,
+          ...messageOptions
         }, { 
           quoted: {
             key: {
@@ -186,10 +228,10 @@ ${readmore}
             }
           }
         });
-      } catch (audioError) {
-        console.error("❌ Failed to send audio:", audioError.message);
-        // Continue without audio if it fails
       }
+      
+      // Send audio after menu
+      await sendMenuAudio(Matrix, m);
     }
   
     // Handle sub-menu commands
@@ -314,7 +356,7 @@ ${toFancyFont(".husbando")} - Random husbando
 ${toFancyFont(".neko")} - Neko girls
 ${toFancyFont(".shinobu")} - Shinobu pictures
 ${toFancyFont(".megumin")} - Megumin pictures
-${toFancyFont(".awoo")} - Awoo girls
+${toFacyFont(".awoo")} - Awoo girls
 ${toFancyFont(".trap")} - Trap characters
 ${toFancyFont(".blowjob")} - NSFW content
 `;
