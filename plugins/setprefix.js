@@ -13,7 +13,7 @@ const setprefixCommand = async (m, Matrix) => {
             return;
         }
 
-        const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
+        const imageUrl = "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg";
         
         if (!text) {
             const buttons = [
