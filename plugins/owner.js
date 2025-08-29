@@ -3,10 +3,11 @@ import config from '../config.cjs';
 const ownerContact = async (m, gss) => {
     const ownernumber = config.OWNER_NUMBER;
     const prefix = config.PREFIX;
+    const channelLink = config.CHANNEL_LINK; // Add this to your config.cjs file
     
     // Check if message starts with prefix OR is a button response
     const isButtonResponse = m.body && !m.body.startsWith(prefix) && 
-                           (m.body === `${prefix}callowner` || m.body === `${prefix}whatsappowner`);
+                           (m.body === `${prefix}callowner` || m.body === `${prefix}whatsappowner` || m.body === `${prefix}joinchannel`);
     
     if (!m.body.startsWith(prefix) && !isButtonResponse) return;
     
@@ -37,7 +38,7 @@ const ownerContact = async (m, gss) => {
                 text: "What would you like to do?",
                 footer: "Owner Contact Options",
                 buttons: [
-                    { buttonId: `${prefix}callowner`, buttonText: { displayText: "📞 Call Owner" }, type: 1 },
+                    { buttonId: `${prefix}joinchannel`, buttonText: { displayText: "📢 Join Channel" }, type: 1 },
                     { buttonId: `${prefix}whatsappowner`, buttonText: { displayText: "💬 Send WhatsApp" }, type: 1 }
                 ],
                 headerType: 6, // Changed to 6 for contact message
@@ -60,22 +61,24 @@ const ownerContact = async (m, gss) => {
         }
     }
     
-    // Handle button interactions
-    else if (cmd === 'callowner') {
+    // Handle join channel button interaction
+    else if (cmd === 'joinchannel') {
         try {
-            // Use config.OWNER_NUMBER directly for the phone number
-            if (!ownernumber) {
-                throw new Error('Owner number not configured');
+            if (!channelLink) {
+                throw new Error('Channel link not configured');
             }
             
-            // Extract phone number from JID (remove @s.whatsapp.net if present)
-            const phoneNumber = ownernumber.includes('@') ? ownernumber.split('@')[0] : ownernumber;
-            await m.reply(`To call the owner, please use this number: ${phoneNumber}`);
-            await m.react("📞");
+            // Send the channel link as a clickable message
+            await gss.sendMessage(m.from, {
+                text: `Click the link below to join our channel:\n\n${channelLink}`,
+                detectLinks: true
+            }, { quoted: m });
+            
+            await m.react("📢");
             
         } catch (error) {
-            console.error('Error handling call request:', error);
-            await m.reply('Error processing call request. Owner number not configured.');
+            console.error('Error sending channel link:', error);
+            await m.reply('Error sending channel link. Channel link not configured.');
             await m.react("❌");
         }
     }
