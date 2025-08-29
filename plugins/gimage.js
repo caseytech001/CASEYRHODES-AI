@@ -51,7 +51,16 @@ const imageCommand = async (m, sock) => {
             {
               image: { url: imageUrl },
               caption,
-              contextInfo: { mentionedJid: [m.sender] }
+              contextInfo: {
+                mentionedJid: [m.sender],
+                forwardingScore: 1,
+                isForwarded: true,
+                forwardedNewsletterMessageInfo: {
+                  newsletterJid: '120363302677217436@newsletter',
+                  newsletterName: 'POWERED BY CASEYRHODES TECH',
+                  serverMessageId: -1
+                }
+              }
             },
             { quoted: m }
           );
