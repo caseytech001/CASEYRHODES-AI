@@ -85,6 +85,13 @@ const ping = async (m, Matrix) => {
       // Context information
       contextInfo: {
         mentionedJid: [m.sender],
+        forwardingScore: 1,
+        isForwarded: true,
+        forwardedNewsletterMessageInfo: {
+          newsletterJid: '120363302677217436@newsletter',
+          newsletterName: 'POWERED BY CASEYRHODES TECH',
+          serverMessageId: -1
+        }
       }
     };
 
