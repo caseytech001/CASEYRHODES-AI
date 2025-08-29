@@ -219,7 +219,16 @@ const play = async (message, client) => {
             ],
             mentions: [message.sender],
             footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ",
-            headerType: 1
+            headerType: 1,
+            contextInfo: {
+              forwardingScore: 1,
+              isForwarded: true,
+              forwardedNewsletterMessageInfo: {
+                newsletterJid: '120363302677217436@newsletter',
+                newsletterName: 'POWERED BY CASEYRHODES TECH',
+                serverMessageId: -1
+              }
+            }
           }, { quoted: message });
         } else {
           await client.sendMessage(message.from, {
@@ -237,7 +246,16 @@ const play = async (message, client) => {
               }
             ],
             mentions: [message.sender],
-            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ"
+            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ",
+            contextInfo: {
+              forwardingScore: 1,
+              isForwarded: true,
+              forwardedNewsletterMessageInfo: {
+                newsletterJid: '120363302677217436@newsletter',
+                newsletterName: 'POWERED BY CASEYRHODES TECH',
+                serverMessageId: -1
+              }
+            }
           }, { quoted: message });
         }
         
@@ -293,13 +311,31 @@ const play = async (message, client) => {
             audio: audioData, 
             mimetype: 'audio/mpeg',
             ptt: false,
-            fileName: fileName + ".mp3"
+            fileName: fileName + ".mp3",
+            contextInfo: {
+              forwardingScore: 1,
+              isForwarded: true,
+              forwardedNewsletterMessageInfo: {
+                newsletterJid: '120363302677217436@newsletter',
+                newsletterName: 'POWERED BY CASEYRHODES TECH',
+                serverMessageId: -1
+              }
+            }
           }, { quoted: message });
         } else {
           await client.sendMessage(message.from, { 
             document: audioData, 
             mimetype: 'audio/mpeg',
-            fileName: fileName + ".mp3"
+            fileName: fileName + ".mp3",
+            contextInfo: {
+              forwardingScore: 1,
+              isForwarded: true,
+              forwardedNewsletterMessageInfo: {
+                newsletterJid: '120363302677217436@newsletter',
+                newsletterName: 'POWERED BY CASEYRHODES TECH',
+                serverMessageId: -1
+              }
+            }
           }, { quoted: message });
         }
         
