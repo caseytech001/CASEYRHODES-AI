@@ -28,7 +28,7 @@ const ping = async (m, Matrix) => {
     // ======================
     // CONTENT DEFINITION
     // ======================
-    const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
+    const imageUrl = "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg";
     const text = `*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ* : ${responseTime.toFixed(2)} s`;
     
     // ======================
