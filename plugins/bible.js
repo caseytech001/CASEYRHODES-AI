@@ -48,7 +48,16 @@ const bibleCommand = async (m, Matrix) => {
           { buttonId: `${prefix}menu`, buttonText: { displayText: `📋 ${toFancyFont("Menu")}` }, type: 1 }
         ],
         mentions: [m.sender],
-        headerType: 1
+        headerType: 1,
+        contextInfo: {
+          forwardingScore: 1,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363302677217436@newsletter',
+            newsletterName: 'POWERED BY CASEYRHODES TECH',
+            serverMessageId: -1
+          }
+        }
       };
       return await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
     }
@@ -65,7 +74,16 @@ const bibleCommand = async (m, Matrix) => {
           { buttonId: `${prefix}menu`, buttonText: { displayText: `📋 ${toFancyFont("Menu")}` }, type: 1 }
         ],
         mentions: [m.sender],
-        headerType: 1
+        headerType: 1,
+        contextInfo: {
+          forwardingScore: 1,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363302677217436@newsletter',
+            newsletterName: 'POWERED BY CASEYRHODES TECH',
+            serverMessageId: -1
+          }
+        }
       };
       return await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
     }
@@ -94,7 +112,16 @@ const bibleCommand = async (m, Matrix) => {
             { buttonId: `${prefix}menu`, buttonText: { displayText: `📋 ${toFancyFont("Menu")}` }, type: 1 }
           ],
           mentions: [m.sender],
-          headerType: 4
+          headerType: 4,
+          contextInfo: {
+            forwardingScore: 1,
+            isForwarded: true,
+            forwardedNewsletterMessageInfo: {
+              newsletterJid: '120363302677217436@newsletter',
+              newsletterName: 'POWERED BY CASEYRHODES TECH',
+              serverMessageId: -1
+            }
+          }
         };
         
         await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
@@ -109,7 +136,16 @@ const bibleCommand = async (m, Matrix) => {
             { buttonId: `${prefix}menu`, buttonText: { displayText: `📋 ${toFancyFont("Menu")}` }, type: 1 }
           ],
           mentions: [m.sender],
-          headerType: 1
+          headerType: 1,
+          contextInfo: {
+            forwardingScore: 1,
+            isForwarded: true,
+            forwardedNewsletterMessageInfo: {
+              newsletterJid: '120363302677217436@newsletter',
+              newsletterName: 'POWERED BY CASEYRHODES TECH',
+              serverMessageId: -1
+            }
+          }
         };
         await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
       }
@@ -123,7 +159,16 @@ const bibleCommand = async (m, Matrix) => {
           { buttonId: `${prefix}menu`, buttonText: { displayText: `📋 ${toFancyFont("Menu")}` }, type: 1 }
         ],
         mentions: [m.sender],
-        headerType: 1
+        headerType: 1,
+        contextInfo: {
+          forwardingScore: 1,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363302677217436@newsletter',
+            newsletterName: 'POWERED BY CASEYRHODES TECH',
+            serverMessageId: -1
+          }
+        }
       };
       await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
     }
@@ -137,7 +182,16 @@ const bibleCommand = async (m, Matrix) => {
         { buttonId: `${config.PREFIX}menu`, buttonText: { displayText: `📋 ${toFancyFont("Menu")}` }, type: 1 }
       ],
       mentions: [m.sender],
-      headerType: 1
+      headerType: 1,
+      contextInfo: {
+        forwardingScore: 1,
+        isForwarded: true,
+        forwardedNewsletterMessageInfo: {
+          newsletterJid: '120363302677217436@newsletter',
+          newsletterName: 'POWERED BY CASEYRHODES TECH',
+          serverMessageId: -1
+        }
+      }
     };
     await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
   }
