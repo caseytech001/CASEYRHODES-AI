@@ -20,7 +20,7 @@ async function uploadMedia(buffer) {
     const formData = new FormData();
     formData.append("image", fs.createReadStream(tempFilePath));
     
-    const response = await axios.post("https://api.imgbb.com/1/upload?key=f07b8d2d9f0593bc853369f251a839de", formData, {
+    const response = await axios.post("https://api.imgbb.com/1/upload?key=0796edd6cf1bb864406a40f75e3eae35", formData, {
       headers: {
         ...formData.getHeaders()
       }
