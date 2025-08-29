@@ -29,7 +29,16 @@ const setprefixCommand = async (m, Matrix) => {
                 caption: "Please specify a new prefix or choose from the options below:",
                 footer: "Prefix Settings",
                 buttons: buttons,
-                headerType: 4
+                headerType: 4,
+                contextInfo: {
+                    forwardingScore: 1,
+                    isForwarded: true,
+                    forwardedNewsletterMessageInfo: {
+                        newsletterJid: '120363302677217436@newsletter',
+                        newsletterName: 'POWERED BY CASEYRHODES TECH',
+                        serverMessageId: -1
+                    }
+                }
             };
             
             await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
@@ -49,7 +58,16 @@ const setprefixCommand = async (m, Matrix) => {
             caption: `✅ Prefix has been changed to '${text}'`,
             footer: "Prefix updated successfully",
             buttons: buttons,
-            headerType: 4
+            headerType: 4,
+            contextInfo: {
+                forwardingScore: 1,
+                isForwarded: true,
+                forwardedNewsletterMessageInfo: {
+                    newsletterJid: '120363302677217436@newsletter',
+                    newsletterName: 'POWERED BY CASEYRHODES TECH',
+                    serverMessageId: -1
+                }
+            }
         };
         
         await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
