@@ -108,13 +108,12 @@ const alive = async (m, Matrix) => {
             buttons: buttons,
             headerType: 4,
             contextInfo: {
-                mentionedJid: [m.sender],
-                forwardingScore: 999,
+                forwardingScore: 1,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
                     newsletterJid: '120363302677217436@newsletter',
-                    newsletterName: "JINX-XMD",
-                    serverMessageId: 143
+                    newsletterName: 'POWERED BY CASEYRHODES TECH',
+                    serverMessageId: -1
                 }
             }
         };
