@@ -168,7 +168,7 @@ ${readmore}
       // Send audio as a voice note
       try {
         await Matrix.sendMessage(m.from, { 
-          audio: { url: "https://files.catbox.moe/mwohwu.mp3" },
+          audio: { url: "https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/caseytech.mp3" },
           mimetype: "audio/mp4", 
           ptt: true
         }, { 
