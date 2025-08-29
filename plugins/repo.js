@@ -55,7 +55,7 @@ ${readmore}
       await gss.sendMessage(
         m.from,
         {
-          image: { url: "https://files.catbox.moe/n786q5.jpg" },
+          image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" },
           caption: formattedInfo,
           buttons: buttons,
           headerType: 1,
