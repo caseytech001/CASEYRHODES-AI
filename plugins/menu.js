@@ -45,7 +45,7 @@ function toFancyFont(text, isUpperCase = false) {
 
 // Image fetch utility - FIXED
 async function fetchMenuImage() {
-  const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
+  const imageUrl = "https://imgur.com/a/MOfNrU0.jpg";
   for (let i = 0; i < 3; i++) {
     try {
       const response = await axios.get(imageUrl, { 
