@@ -1,145 +1,170 @@
 import axios from "axios";
 import config from "../config.cjs";
-import { generateWAMessageFromContent, prepareWAMessageMedia } from "@whiskeysockets/baileys";
 
-function toFancyFont(text) {
+function toFancyFont(text, isUpperCase = false) {
   const fonts = {
-    a: "ᴀ", b: "ʙ", c: "ᴄ", d: "ᴅ", e: "ᴇ", f: "ғ", g: "ɢ", h: "ʜ", 
-    i: "ɪ", j: "ᴊ", k: "ᴋ", l: "ʟ", m: "ᴍ", n: "ɴ", o: "ᴏ", p: "ᴘ", 
-    q: "ǫ", r: "ʀ", s: "s", t: "ᴛ", u: "ᴜ", v: "ᴠ", w: "ᴡ", x: "x", 
-    y: "ʏ", z: "ᴢ",
+    a: "ᴀ", b: "ʙ", c: "ᴄ", d: "ᴅ", e: "ᴇ", f: "ғ", g: "ɢ",
+    h: "ʜ", i: "ɪ", j: "ᴊ", k: "ᴋ", l: "ʟ", m: "ᴍ", n: "ɴ",
+    o: "ᴏ", p: "ᴘ", q: "ǫ", r: "ʀ", s: "s", t: "ᴛ", u: "ᴜ",
+    v: "ᴠ", w: "ᴡ", x: "x", y: "ʏ", z: "ᴢ"
   };
-  return text.toLowerCase()
-    .split("")
-    .map(char => fonts[char] || char)
-    .join("");
+  
+  const formattedText = isUpperCase ? text.toUpperCase() : text.toLowerCase();
+  return formattedText.replace(/[a-z]/g, char => fonts[char] || char);
 }
 
 const apkDownloader = async (m, Matrix) => {
   const prefix = config.PREFIX;
-  const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
-  const text = m.body.slice(prefix.length + cmd.length).trim();
-  const query = text.split(" ")[0]; // Get only the first word as query
+  const body = m.message?.conversation || m.message?.extendedTextMessage?.text || "";
+  const cmd = body.startsWith(prefix) ? body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
+  const query = body.slice(prefix.length + cmd.length).trim();
 
   if (!["apk", "app", "application"].includes(cmd)) return;
   
   if (!query) {
-    return await Matrix.sendMessage(m.from, {
-      text: "❌ *Usage:* `.apk <App Name>`\nExample: `.apk whatsapp`",
+    const buttonMessage = {
+      text: "❌ *Usage:* `.apk <App Name>`",
       footer: "APK Downloader",
+      buttons: [{
+        buttonId: `${prefix}menu`,
+        buttonText: { displayText: `${toFancyFont("Menu")}` },
+        type: 1
+      }],
+      headerType: 1,
       mentions: [m.sender]
-    }, { quoted: m });
+    };
+    
+    return await Matrix.sendMessage(m.key.remoteJid, buttonMessage, { quoted: m });
   }
 
   try {
-    // Send processing reaction
-    await Matrix.sendMessage(m.from, { react: { text: "⏳", key: m.key } });
+    // Send loading reaction immediately
+    await Matrix.sendMessage(m.key.remoteJid, { react: { text: "⏳", key: m.key } });
+    
+    // Use Aptoide API directly
+    const apiUrl = `https://ws75.aptoide.com/api/7/apps/search/query=${encodeURIComponent(query)}/limit=1`;
+    
+    // Set timeout to prevent hanging requests
+    const response = await axios.get(apiUrl, { 
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+    
+    const data = response.data;
 
-    // Use a reliable APK API
-    const apiUrl = `https://api.nexoracle.com/downloader/apk`;
-    const params = {
-      apikey: 'free_key@maher_apis',
-      q: query,
-    };
-
-    // Call the API with timeout
-    const response = await Promise.race([
-      axios.get(apiUrl, { params, timeout: 15000 }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('API timeout')), 15000))
-    ]);
-
-    // Check if API response is valid
-    if (!response.data || response.data.status !== 200 || !response.data.result) {
-      throw new Error('No APK found or invalid API response');
+    if (!data?.datalist?.list?.length) {
+      await Matrix.sendMessage(m.key.remoteJid, { react: { text: "❌", key: m.key } });
+      
+      const buttonMessage = {
+        text: "⚠️ *No results found for the given app name.*",
+        footer: "APK Downloader",
+        buttons: [
+          {
+            buttonId: `${prefix}menu`,
+            buttonText: { displayText: `${toFancyFont("Menu")}` },
+            type: 1
+          },
+          {
+            buttonId: `${prefix}apk ${query}`,
+            buttonText: { displayText: `${toFancyFont("Search Again")}` },
+            type: 1
+          }
+        ],
+        headerType: 1,
+        mentions: [m.sender]
+      };
+      
+      return await Matrix.sendMessage(m.key.remoteJid, buttonMessage, { quoted: m });
     }
 
-    // Extract APK data
-    const { name, lastup, package: packageName, size, icon, dllink } = response.data.result;
+    const app = data.datalist.list[0];
+    const appSize = (app.size / 1048576).toFixed(2);
 
-    // Send thumbnail immediately
-    await Matrix.sendMessage(m.from, {
-      image: { url: icon },
-      caption: `📦 *Downloading ${name}...*\n⏳ *Please wait while we prepare your file...*`,
-      mentions: [m.sender]
-    }, { quoted: m });
-
-    // Download APK file
-    const apkResponse = await Promise.race([
-      axios.get(dllink, { 
-        responseType: 'arraybuffer', 
-        timeout: 45000,
-        maxContentLength: 100 * 1024 * 1024 // 100MB limit
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Download timeout')), 45000))
-    ]);
-
-    if (!apkResponse.data) {
-      throw new Error('Failed to download APK file - no data received');
+    // Check if file exists and is accessible
+    if (!app.file?.path_alt) {
+      throw new Error("APK download link not available");
     }
 
-    const apkBuffer = Buffer.from(apkResponse.data);
-
-    // Check if file size is reasonable
-    if (apkBuffer.length > 100 * 1024 * 1024) { // 100MB limit
-      throw new Error('APK file too large');
-    }
-
-    // Prepare caption
     const caption = `╭━━━〔 *ᴀᴘᴋ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ* 〕━━━┈⊷
-┃  *Name:* ${name}
-┃  *Size:* ${size}
-┃  *Package:* ${packageName}
-┃  *Updated On:* ${lastup}
+┃  *Name:* ${app.name}
+┃  *Size:* ${appSize} MB
+┃  *Package:* ${app.package}
+┃  *Updated On:* ${app.updated}
+┃  *Developer:* ${app.developer?.name || 'Unknown'}
 ╰━━━━━━━━━━━━━━━┈⊷
 > *ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ*`;
 
-    // Upload and send APK file
-    const docMedia = await prepareWAMessageMedia(
-      { 
-        document: apkBuffer,
-        fileName: `${name.replace(/[^\w\s]/gi, '')}.apk`,
-        mimetype: "application/vnd.android.package-archive"
-      },
-      { upload: Matrix.waUploadToServer }
-    );
+    // Send success reaction
+    await Matrix.sendMessage(m.key.remoteJid, { react: { text: "⬆️", key: m.key } });
 
-    const message = generateWAMessageFromContent(
-      m.from,
-      {
-        documentMessage: {
-          url: docMedia.document.url,
-          mimetype: docMedia.document.mimetype,
-          fileLength: docMedia.document.fileLength,
-          fileName: `${name}.apk`,
-          caption: caption,
-        }
-      },
-      { quoted: m }
-    );
-
-    // Send the APK file
-    await Matrix.relayMessage(m.from, message.message, { messageId: message.key.id });
-    await Matrix.sendMessage(m.from, { react: { text: "✅", key: m.key } });
-
-  } catch (error) {
-    console.error("APK Downloader Error:", error.message);
-    
-    // Remove processing reaction and show error
-    await Matrix.sendMessage(m.from, { react: { text: "❌", key: m.key } });
-    
-    let errorMessage = "❌ *Failed to download APK. Please try again with a different app name.*";
-    
-    if (error.message.includes('timeout')) {
-      errorMessage = "❌ *Request timeout. Please try again.*";
-    } else if (error.message.includes('large')) {
-      errorMessage = "❌ *APK file is too large to send via WhatsApp.*";
+    // Prepare the APK icon if available
+    let imageMessage = null;
+    if (app.icon || app.graphic) {
+      try {
+        const iconUrl = app.icon || app.graphic;
+        imageMessage = {
+          image: { url: iconUrl },
+          caption: `📱 *${app.name}* - App Icon`,
+          headerType: 4,
+          mentions: [m.sender]
+        };
+      } catch (iconError) {
+        console.log("Could not load app icon:", iconError);
+      }
     }
-    
-    await Matrix.sendMessage(m.from, {
-      text: errorMessage,
+
+    // Send app icon first if available
+    if (imageMessage) {
+      await Matrix.sendMessage(m.key.remoteJid, imageMessage, { quoted: m });
+    }
+
+    // Send document with APK
+    await Matrix.sendMessage(m.key.remoteJid, {
+      document: { url: app.file.path_alt },
+      fileName: `${app.name.replace(/[^\w\s]/gi, '')}.apk`,
+      mimetype: "application/vnd.android.package-archive",
+      caption: caption,
       footer: "APK Downloader",
+      buttons: [
+        {
+          buttonId: `${prefix}menu`,
+          buttonText: { displayText: `${toFancyFont("Menu")}` },
+          type: 1
+        },
+        {
+          buttonId: `${prefix}apk ${query}`,
+          buttonText: { displayText: `${toFancyFont("Search Again")}` },
+          type: 1
+        }
+      ],
+      headerType: 4,
       mentions: [m.sender]
     }, { quoted: m });
+
+    // Send final success reaction
+    await Matrix.sendMessage(m.key.remoteJid, { react: { text: "✅", key: m.key } });
+
+  } catch (error) {
+    console.error("APK Downloader Error:", error);
+    
+    // Remove loading reaction
+    await Matrix.sendMessage(m.key.remoteJid, { react: { text: "❌", key: m.key } });
+    
+    const errorMessage = {
+      text: "❌ *An error occurred while fetching the APK. Please try again.*",
+      footer: "APK Downloader",
+      buttons: [{
+        buttonId: `${prefix}menu`,
+        buttonText: { displayText: `${toFancyFont("Menu")}` },
+        type: 1
+      }],
+      headerType: 1,
+      mentions: [m.sender]
+    };
+    
+    await Matrix.sendMessage(m.key.remoteJid, errorMessage, { quoted: m });
   }
 };
 
