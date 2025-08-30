@@ -60,24 +60,21 @@ const menu = async (m, Matrix) => {
     const str = `*╰► ${pushwish}* ${m.pushName}
 `;
 
-    let menuImage = null;
-    
     // Function to get image from URL
     const getImageFromURL = async (url) => {
       try {
-        const response = await axios.get(url, { 
-          responseType: 'arraybuffer',
-          timeout: 10000 // 10 second timeout
-        });
-        return Buffer.from(response.data, 'binary');
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        return Buffer.from(response.data);
       } catch (error) {
         console.error("Error fetching image from URL:", error.message);
         return null;
       }
     };
 
+    let menuImage = null;
+    
     // Get image from config.MENU_IMAGE if available
-    if (config.MENU_IMAGE && config.MENU_IMAGE.trim() !== "") {
+    if (config.MENU_IMAGE) {
       menuImage = await getImageFromURL(config.MENU_IMAGE);
     }
     
