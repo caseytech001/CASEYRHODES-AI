@@ -70,9 +70,14 @@ async function fetchMenuImage() {
 async function sendMenuAudio(Matrix, m) {
   try {
     const audioUrls = [
-      'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/ABOUT YOU.mp3',
-      'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/caseytech.mp3'
+      'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/Joel Lwaga - Olodumare (Official Lyric Video).mp3',
+      'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/caseytech.mp3',
+      'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/Roddy Ricch - Down Below [Official Music Video] (Dir. by JMP).mp3',
+      'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/Roddy Ricch - Die Young [Prod. by London on Tha Track] (Dir By JDFilms).mp3'
+      
     ];
+   
+    
     
     const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
     
