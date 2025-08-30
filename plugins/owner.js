@@ -86,7 +86,7 @@ const menu = async (m, Matrix) => {
        buttonParamsJson: JSON.stringify({
       display_text: "📋Copy message",
         id: "copy_code",
-        copy_code: +26777821911  
+        copy_code: +25777821911  
         })
       },
       {
