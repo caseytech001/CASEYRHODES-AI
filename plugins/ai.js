@@ -109,7 +109,7 @@ const aiMenu = async (m, Matrix) => {
       ];
 
       await Matrix.sendMessage(m.from, { 
-        text: `*${toFancyFont(cmd)} ${cmd === 'deepimg' ? 'ɪᴍᴀɢᴇ' : 'ʀᴇsᴘᴏɴsᴇ'}*\n\n${answer}\n\n${toFancyFont('powered by njabulo jb')}`,
+        text: `*${toFancyFont(cmd)} ${cmd === 'deepimg' ? 'ɪᴍᴀɢᴇ' : 'ʀᴇsᴘᴏɴsᴇ'}*\n\n${answer}\n\n${toFancyFont('powered by Caseyrhodes xtech')}`,
         buttons,
         headerType: 1
       }, { quoted: m });
