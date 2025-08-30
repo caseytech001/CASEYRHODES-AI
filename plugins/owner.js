@@ -25,7 +25,7 @@ const day = Math.floor(uptime / (24 * 3600));
 const hours = Math.floor((uptime % (24 * 3600)) / 3600);
 const minutes = Math.floor((uptime % 3600) / 60);
 const seconds = Math.floor(uptime % 60);
-const uptimeMessage = `*I’ve been grindin’ for ${day}d ${hours}h ${minutes}m ${seconds}s* 🕒`;
+const uptimeMessage = `*I've been grindin' for ${day}d ${hours}h ${minutes}m ${seconds}s* 🕒`;
 const runMessage = `*☀️ ${day} Day*\n*🕐 ${hours} Hour*\n*⏰ ${minutes} Min*\n*⏱️ ${seconds} Sec*`;
 
 // Time logic
@@ -60,33 +60,54 @@ const menu = async (m, Matrix) => {
     const str = `*╰► ${pushwish}* ${m.pushName}
 `;
 
-    let menuImage;
-    if (config.MENU_IMAGE && config.MENU_IMAGE.trim() !== "") {
+    let menuImage = null;
+    
+    // Function to get image from URL
+    const getImageFromURL = async (url) => {
       try {
-        const response = await axios.get(config.MENU_IMAGE, { responseType: "arraybuffer" });
-        menuImage = Buffer.from(response.data, "binary");
+        const response = await axios.get(url, { 
+          responseType: 'arraybuffer',
+          timeout: 10000 // 10 second timeout
+        });
+        return Buffer.from(response.data, 'binary');
       } catch (error) {
-        console.error("Error fetching menu image:", error.message);
-        menuImage = fs.readFileSync("./media/Casey.jpg");
+        console.error("Error fetching image from URL:", error.message);
+        return null;
       }
-    } else {
-      menuImage = fs.readFileSync("./media/Casey.jpg");
+    };
+
+    // Get image from config.MENU_IMAGE if available
+    if (config.MENU_IMAGE && config.MENU_IMAGE.trim() !== "") {
+      menuImage = await getImageFromURL(config.MENU_IMAGE);
+    }
+    
+    // If no image from config or failed to fetch, use a default image
+    if (!menuImage) {
+      // You can set a default image URL here or use a local fallback
+      const defaultImageUrl = "https://i.ibb.co/wZ4ypv7Y/caseytech.jpg"; // Replace with your default image URL
+      menuImage = await getImageFromURL(defaultImageUrl);
+      
+      // If still no image, you might want to handle this case
+      if (!menuImage) {
+        console.error("Could not load any image for menu");
+        // Continue without an image or send a text-only message
+      }
     }
 
     const buttons = [
       {
         name: "quick_reply",
-       buttonParamsJson: JSON.stringify({
-       display_text: "💬message",
-        id: "message"
-            })
-          },
+        buttonParamsJson: JSON.stringify({
+          display_text: "💬message",
+          id: "message"
+        })
+      },
       {
-      name: "cta_copy",
-       buttonParamsJson: JSON.stringify({
-      display_text: "📋Copy message",
-        id: "copy_code",
-        copy_code: +25777821911  
+        name: "cta_copy",
+        buttonParamsJson: JSON.stringify({
+          display_text: "📋Copy message",
+          id: "copy_code",
+          copy_code: +254112192119
         })
       },
       {
@@ -98,7 +119,8 @@ const menu = async (m, Matrix) => {
       },
     ];
 
-    const msg = generateWAMessageFromContent(m.from, {
+    // Prepare message content
+    let messageContent = {
       viewOnceMessage: {
         message: {
           interactiveMessage: proto.Message.InteractiveMessage.create({
@@ -107,13 +129,6 @@ const menu = async (m, Matrix) => {
             }),
             footer: proto.Message.InteractiveMessage.Footer.create({
               text: "𝐩𝐨𝐰𝐞𝐫𝐞𝐝 𝐛𝐲 𝐂𝐚𝐬𝐞𝐲𝐫𝐡𝐨𝐝𝐞𝐬 𝐭𝐞𝐜𝐡",
-            }),
-            header: proto.Message.InteractiveMessage.Header.create({
-              imageMessage: (await prepareWAMessageMedia({ image: menuImage }, { upload: Matrix.waUploadToServer })).imageMessage,
-              hasMediaAttachment: true,
-            }),
-            nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
-              buttons,
             }),
             contextInfo: {
               mentionedJid: [m.sender],
@@ -128,13 +143,34 @@ const menu = async (m, Matrix) => {
           }),
         },
       },
-    }, {});
+    };
+
+    // Add header with image if available
+    if (menuImage) {
+      const preparedImage = await prepareWAMessageMedia(
+        { image: menuImage }, 
+        { upload: Matrix.waUploadToServer }
+      );
+      
+      messageContent.viewOnceMessage.message.interactiveMessage.header = 
+        proto.Message.InteractiveMessage.Header.create({
+          imageMessage: preparedImage.imageMessage,
+          hasMediaAttachment: true,
+        });
+    }
+
+    // Add buttons
+    messageContent.viewOnceMessage.message.interactiveMessage.nativeFlowMessage = 
+      proto.Message.InteractiveMessage.NativeFlowMessage.create({
+        buttons,
+      });
+
+    const msg = generateWAMessageFromContent(m.from, messageContent, {});
 
     await Matrix.relayMessage(msg.key.remoteJid, msg.message, {
       messageId: msg.key.id,
     });
 
-    
   } catch (error) {
     console.error(`❌ Menu error: ${error.message}`);
     await Matrix.sendMessage(m.from, {
