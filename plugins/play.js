@@ -200,23 +200,32 @@ const play = async (message, client) => {
         // Download thumbnail for image message
         let imageBuffer = await fetchThumbnail(thumbnailUrl);
         
+        // Create buttons
+        const buttons = [
+          {
+            buttonId: `${prefix}audio`,
+            buttonText: { displayText: "🎶 ᴀᴜᴅɪᴏ" },
+            type: 1
+          },
+          {
+            buttonId: `${prefix}document`,
+            buttonText: { displayText: "📂 ᴅᴏᴄᴜᴍᴇɴᴛ" },
+            type: 1
+          },
+          {
+            urlButton: {
+              displayText: "📚 Follow Channel",
+              url: "https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R"
+            }
+          }
+        ];
+        
         // Send single message with both info and buttons
         if (imageBuffer) {
           await client.sendMessage(message.from, {
             image: imageBuffer,
             caption: songInfo,
-            buttons: [
-              {
-                buttonId: `${prefix}audio`,
-                buttonText: { displayText: "🎶 ᴀᴜᴅɪᴏ" },
-                type: 1
-              },
-              {
-                buttonId: `${prefix}document`,
-                buttonText: { displayText: "📂 ᴅᴏᴄᴜᴍᴇɴᴛ" },
-                type: 1
-              }
-            ],
+            buttons: buttons,
             mentions: [message.sender],
             footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ",
             headerType: 1,
@@ -233,18 +242,7 @@ const play = async (message, client) => {
         } else {
           await client.sendMessage(message.from, {
             text: songInfo,
-            buttons: [
-              {
-                buttonId: `${prefix}audio`,
-                buttonText: { displayText: "🎶 ᴀᴜᴅɪᴏ" },
-                type: 1
-              },
-              {
-                buttonId: `${prefix}document`,
-                buttonText: { displayText: "📂 ᴅᴏᴄᴜᴍᴇɴᴛ" },
-                type: 1
-              }
-            ],
+            buttons: buttons,
             mentions: [message.sender],
             footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ",
             contextInfo: {
