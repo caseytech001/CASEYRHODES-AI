@@ -63,7 +63,10 @@ const menu = async (m, Matrix) => {
     // Function to get image from URL
     const getImageFromURL = async (url) => {
       try {
-        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        const response = await axios.get(url, { 
+          responseType: 'arraybuffer',
+          timeout: 10000
+        });
         return Buffer.from(response.data);
       } catch (error) {
         console.error("Error fetching image from URL:", error.message);
@@ -71,25 +74,9 @@ const menu = async (m, Matrix) => {
       }
     };
 
-    let menuImage = null;
-    
-    // Get image from config.MENU_IMAGE if available
-    if (config.MENU_IMAGE) {
-      menuImage = await getImageFromURL(config.MENU_IMAGE);
-    }
-    
-    // If no image from config or failed to fetch, use a default image
-    if (!menuImage) {
-      // You can set a default image URL here or use a local fallback
-      const defaultImageUrl = "https://i.ibb.co/wZ4ypv7Y/caseytech.jpg"; // Replace with your default image URL
-      menuImage = await getImageFromURL(defaultImageUrl);
-      
-      // If still no image, you might want to handle this case
-      if (!menuImage) {
-        console.error("Could not load any image for menu");
-        // Continue without an image or send a text-only message
-      }
-    }
+    // Use only default image
+    const defaultImageUrl = "https://i.ibb.co/wZ4ypv7Y/caseytech.jpg";
+    const menuImage = await getImageFromURL(defaultImageUrl);
 
     const buttons = [
       {
@@ -142,7 +129,7 @@ const menu = async (m, Matrix) => {
       },
     };
 
-    // Add header with image if available
+    // Add header with default image
     if (menuImage) {
       const preparedImage = await prepareWAMessageMedia(
         { image: menuImage }, 
