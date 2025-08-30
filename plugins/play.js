@@ -200,7 +200,7 @@ const play = async (message, client) => {
         // Download thumbnail for image message
         let imageBuffer = await fetchThumbnail(thumbnailUrl);
         
-        // Create buttons
+        // Create all buttons in a single array
         const buttons = [
           {
             buttonId: `${prefix}audio`,
@@ -367,7 +367,7 @@ const play = async (message, client) => {
     await sendCustomReaction(client, message, "❌");
     
     await client.sendMessage(message.from, {
-      text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("encountered an error. Please try again"),
+      text: "*ᴄᴀsᴇʏʀʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("encountered an error. Please try again"),
       mentions: [message.sender]
     }, { quoted: message });
   }
