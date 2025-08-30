@@ -70,9 +70,9 @@ async function fetchMenuImage() {
 async function sendMenuAudio(Matrix, m) {
   try {
     const audioUrls = [
-      'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/Joel Lwaga - Olodumare (Official Lyric Video).mp3',
-      'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/caseytech.mp3'
-      
+      'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/alive.mp3',
+      'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/roddyrich.mp3',
+      'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/casey.mp3'
     ];
    
     
