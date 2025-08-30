@@ -1,106 +1,146 @@
-import config from '../config.cjs';
+import moment from "moment-timezone";
+import fs from "fs";
+import os from "os";
+import pkg from "@whiskeysockets/baileys";
+const { generateWAMessageFromContent, proto, prepareWAMessageMedia } = pkg;
+import config from "../config.cjs";
+import axios from "axios";
 
-const ownerContact = async (m, gss) => {
-    const ownernumber = config.OWNER_NUMBER;
-    const prefix = config.PREFIX;
-    const channelLink = config.CHANNEL_LINK; // Add this to your config.cjs file
-    
-    // Check if message starts with prefix OR is a button response
-    const isButtonResponse = m.body && !m.body.startsWith(prefix) && 
-                           (m.body === `${prefix}callowner` || m.body === `${prefix}whatsappowner` || m.body === `${prefix}joinchannel`);
-    
-    if (!m.body.startsWith(prefix) && !isButtonResponse) return;
-    
-    let cmd;
-    let text;
-    
-    if (isButtonResponse) {
-        // Handle button responses
-        cmd = m.body.slice(prefix.length).toLowerCase();
-        text = '';
+// System stats
+const totalMemoryBytes = os.totalmem();
+const freeMemoryBytes = os.freemem();
+const byteToKB = 1 / 1024;
+const byteToMB = byteToKB / 1024;
+const byteToGB = byteToMB / 1024;
+
+function formatBytes(bytes) {
+  if (bytes >= Math.pow(1024, 3)) return (bytes * byteToGB).toFixed(2) + " GB";
+  if (bytes >= Math.pow(1024, 2)) return (bytes * byteToMB).toFixed(2) + " MB";
+  if (bytes >= 1024) return (bytes * byteToKB).toFixed(2) + " KB";
+  return bytes.toFixed(2) + " bytes";
+}
+
+const uptime = process.uptime();
+const day = Math.floor(uptime / (24 * 3600));
+const hours = Math.floor((uptime % (24 * 3600)) / 3600);
+const minutes = Math.floor((uptime % 3600) / 60);
+const seconds = Math.floor(uptime % 60);
+const uptimeMessage = `*I’ve been grindin’ for ${day}d ${hours}h ${minutes}m ${seconds}s* 🕒`;
+const runMessage = `*☀️ ${day} Day*\n*🕐 ${hours} Hour*\n*⏰ ${minutes} Min*\n*⏱️ ${seconds} Sec*`;
+
+// Time logic
+const xtime = moment.tz("Africa/Nairobi").format("HH:mm:ss");
+const xdate = moment.tz("Africa/Nairobi").format("DD/MM/YYYY");
+const time2 = moment().tz("Africa/Nairobi").format("HH:mm:ss");
+let pushwish = "";
+
+if (time2 < "05:00:00") {
+  pushwish = `🌄 𝐆𝐨𝐨𝐝 𝐌𝐨𝐫𝐧𝐢𝐧𝐠`;
+} else if (time2 < "11:00:00") {
+  pushwish = `🌄 𝐆𝐨𝐨𝐝 𝐌𝐨𝐫𝐧𝐢𝐧𝐠`;
+} else if (time2 < "15:00:00") {
+  pushwish = `🌅𝐆𝐨𝐨𝐝 𝐀𝐟𝐭𝐞𝐫𝐧𝐨𝐨𝐧`;
+} else if (time2 < "18:00:00") {
+  pushwish = `🌃 𝐆𝐨𝐨𝐝 𝐄𝐯𝐞𝐧𝐢𝐧𝐠`;
+} else if (time2 < "19:00:00") {
+  pushwish = `🌃𝐆𝐨𝐨𝐝 𝐄𝐯𝐞𝐧𝐢𝐧𝐠`;
+} else {
+  pushwish = `🌌 𝐆𝐨𝐨𝐝 𝐍𝐢𝐠𝐡𝐭`;
+} 
+
+const menu = async (m, Matrix) => {
+  try {
+    const prefix = config.Prefix || config.PREFIX || ".";
+    const cmd = m.body?.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
+    const validCommands = ["owner", "oownernumber", "ownerbot"];
+
+    if (!validCommands.includes(cmd)) return;
+
+    const mode = config.MODE === "public" ? "public" : "private";
+    const str = `*╰► ${pushwish}* ${m.pushName}
+`;
+
+    let menuImage;
+    if (config.MENU_IMAGE && config.MENU_IMAGE.trim() !== "") {
+      try {
+        const response = await axios.get(config.MENU_IMAGE, { responseType: "arraybuffer" });
+        menuImage = Buffer.from(response.data, "binary");
+      } catch (error) {
+        console.error("Error fetching menu image:", error.message);
+        menuImage = fs.readFileSync("./media/Casey.jpg");
+      }
     } else {
-        // Handle regular prefixed commands
-        const bodyText = m.body.startsWith(prefix) ? m.body : `${prefix}${m.body}`;
-        cmd = bodyText.slice(prefix.length).split(' ')[0].toLowerCase();
-        text = bodyText.slice(prefix.length + cmd.length).trim();
+      menuImage = fs.readFileSync("./media/Casey.jpg");
     }
 
-    // Handle owner command
-    if (cmd === 'owner') {
-        try {
-            // Validate owner number format
-            if (!ownernumber) {
-                throw new Error('Owner number not configured');
-            }
+    const buttons = [
+      {
+        name: "quick_reply",
+       buttonParamsJson: JSON.stringify({
+       display_text: "💬message",
+        id: "message"
+            })
+          },
+      {
+      name: "cta_copy",
+       buttonParamsJson: JSON.stringify({
+      display_text: "📋Copy message",
+        id: "copy_code",
+        copy_code: +26777821911  
+        })
+      },
+      {
+        name: "cta_url",
+        buttonParamsJson: JSON.stringify({
+          display_text: "📚Follow Channel",
+          url: `https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R`
+        }),
+      },
+    ];
 
-            // Send contact with buttons in a single message
-            const contactMessage = {
-                text: "What would you like to do?",
-                footer: "Owner Contact Options",
-                buttons: [
-                    { buttonId: `${prefix}joinchannel`, buttonText: { displayText: "📢 Join Channel" }, type: 1 },
-                    { buttonId: `${prefix}whatsappowner`, buttonText: { displayText: "💬 Send WhatsApp" }, type: 1 }
-                ],
-                headerType: 6, // Changed to 6 for contact message
-                contacts: {
-                    displayName: "Owner",
-                    contacts: [{ 
-                        displayName: "Owner", 
-                        vcard: `BEGIN:VCARD\nVERSION:3.0\nN:;Owner;;;\nFN:Owner\nTEL;type=CELL;type=VOICE;waid=${ownernumber.replace('@s.whatsapp.net', '')}:${ownernumber.replace('@s.whatsapp.net', '')}\nEND:VCARD`
-                    }]
-                }
-            };
-            
-            await gss.sendMessage(m.from, contactMessage, { quoted: m });
-            await m.react("✅");
-            
-        } catch (error) {
-            console.error('Error sending owner contact:', error);
-            await m.reply('Error sending owner contact. Please make sure the owner number is properly configured.');
-            await m.react("❌");
-        }
-    }
+    const msg = generateWAMessageFromContent(m.from, {
+      viewOnceMessage: {
+        message: {
+          interactiveMessage: proto.Message.InteractiveMessage.create({
+            body: proto.Message.InteractiveMessage.Body.create({
+              text: str,
+            }),
+            footer: proto.Message.InteractiveMessage.Footer.create({
+              text: "𝐩𝐨𝐰𝐞𝐫𝐞𝐝 𝐛𝐲 𝐂𝐚𝐬𝐞𝐲𝐫𝐡𝐨𝐝𝐞𝐬 𝐭𝐞𝐜𝐡",
+            }),
+            header: proto.Message.InteractiveMessage.Header.create({
+              imageMessage: (await prepareWAMessageMedia({ image: menuImage }, { upload: Matrix.waUploadToServer })).imageMessage,
+              hasMediaAttachment: true,
+            }),
+            nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+              buttons,
+            }),
+            contextInfo: {
+              mentionedJid: [m.sender],
+              forwardingScore: 999,
+              isForwarded: true,
+              forwardedNewsletterMessageInfo: {
+                newsletterJid: "120363302677217436@newsletter",
+                newsletterName: "𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒 𝐀𝐈",
+                serverMessageId: 143,
+              },
+            },
+          }),
+        },
+      },
+    }, {});
+
+    await Matrix.relayMessage(msg.key.remoteJid, msg.message, {
+      messageId: msg.key.id,
+    });
+
     
-    // Handle join channel button interaction
-    else if (cmd === 'joinchannel') {
-        try {
-            if (!channelLink) {
-                throw new Error('Channel link not configured');
-            }
-            
-            // Send the channel link as a clickable message
-            await gss.sendMessage(m.from, {
-                text: `Click the link below to join our channel:\n\n${channelLink}`,
-                detectLinks: true
-            }, { quoted: m });
-            
-            await m.react("📢");
-            
-        } catch (error) {
-            console.error('Error sending channel link:', error);
-            await m.reply('Error sending channel link. Channel link not configured.');
-            await m.react("❌");
-        }
-    }
-    
-    else if (cmd === 'whatsappowner') {
-        try {
-            // Validate owner number format
-            if (!ownernumber) {
-                throw new Error('Owner number not configured');
-            }
-
-            // Send contact again when WhatsApp button is clicked
-            await gss.sendContact(m.from, [ownernumber], m);
-            await m.reply("Owner contact sent again! 📱");
-            await m.react("💬");
-            
-        } catch (error) {
-            console.error('Error sending owner contact:', error);
-            await m.reply('Error sending owner contact. Owner number not configured.');
-            await m.react("❌");
-        }
-    }
+  } catch (error) {
+    console.error(`❌ Menu error: ${error.message}`);
+    await Matrix.sendMessage(m.from, {
+      text: `*Caseyrhodes* hit a snag, fam! Try again! 😈`,
+    }, { quoted: m });
+  }
 };
 
-export default ownerContact;
+export default menu;
