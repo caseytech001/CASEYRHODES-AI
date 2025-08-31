@@ -28,6 +28,19 @@ async function uploadMedia(buffer) {
   }
 }
 
+const getMediaType = (mtype) => {
+  switch (mtype) {
+    case 'imageMessage':
+      return 'image';
+    case 'videoMessage':
+      return 'video';
+    case 'audioMessage':
+      return 'audio';
+    default:
+      return null;
+  }
+};
+
 const tourl = async (m, bot) => {
   const prefixMatch = m.body.match(/^[\\/!#.]/);
   const prefix = prefixMatch ? prefixMatch[0] : '/';
@@ -62,83 +75,27 @@ const tourl = async (m, bot) => {
         }
       };
 
-      // Create buttons with copy functionality
-      const buttons = [
-        {
-          buttonId: `id-copy-${Date.now()}`,
-          buttonText: { displayText: '📋 Copy URL' },
-          type: 2  // Type 2 is for URL buttons which can copy to clipboard
-        },
-        {
-          buttonId: `${prefix}download`,
-          buttonText: { displayText: '⬇️ Download' },
-          type: 1
-        }
-      ];
-
-      // For the copy button, we need to use a URL button with the copy action
-      const buttonMessage = {
+      // Create a single message with a copy button
+      const message = {
         text: `*Hey ${m.pushName} Here Is Your Media URL*\n\n*URL:* ${mediaUrl}`,
-        footer: 'Click the buttons below to interact',
-        buttons: buttons,
-        headerType: 1,
+        footer: 'Click the button below to copy the URL',
+        templateButtons: [
+          {
+            urlButton: {
+              displayText: '📋 Copy URL',
+              url: mediaUrl
+            }
+          }
+        ],
         contextInfo: contextInfo
       };
 
-      if (mediaType === 'audio') {
-        await bot.sendMessage(m.from, buttonMessage, { quoted: m });
-      } else {
-        const message = {
-          [mediaType]: { url: mediaUrl },
-          caption: `*Hey ${m.pushName} Here Is Your Media*\n*URL:* ${mediaUrl}`,
-          footer: 'Click the buttons below to interact',
-          buttons: buttons,
-          headerType: 4,
-          contextInfo: contextInfo
-        };
-        await bot.sendMessage(m.from, message, { quoted: m });
-      }
+      await bot.sendMessage(m.from, message, { quoted: m });
 
     } catch (error) {
       console.error('Error processing media:', error);
       m.reply('Error processing media.');
     }
-  }
-};
-
-// Handle the copy button callback
-export const handleCopyButton = async (m, bot) => {
-  if (m.type === 'buttonsResponseMessage' && m.body.startsWith('id-copy-')) {
-    try {
-      // Extract the URL from the message text
-      const urlMatch = m.message.conversation.match(/\*URL:\* (\S+)/) || 
-                       m.message.extendedTextMessage?.text.match(/\*URL:\* (\S+)/);
-      
-      if (urlMatch && urlMatch[1]) {
-        const mediaUrl = urlMatch[1];
-        
-        // Create a message with the URL that can be easily copied
-        await bot.sendMessage(m.from, {
-          text: `Here's your URL to copy:\n${mediaUrl}\n\nLong press to copy the text.`,
-          mentions: [m.sender]
-        }, { quoted: m });
-      }
-    } catch (error) {
-      console.error('Error handling copy button:', error);
-    }
-  }
-};
-
-const getMediaType = (mtype) => {
-  switch (mtype) {
-    case 'imageMessage':
-      return 'image';
-    case 'videoMessage':
-      return 'video';
-    case 'audioMessage':
-      return 'audio';
-    default:
-      return null;
   }
 };
 
