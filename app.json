@@ -81,7 +81,7 @@
     "AUTO_REACT": {
       "description": "Make it true if you want react on every message.",
       "required": false,
-      "value": "true"
+      "value": "false"
     },
     "AUTO_TYPING": {
       "description": "make it true if you want bot to show typing",
@@ -91,7 +91,7 @@
     "AUTO_RECORDING": {
       "description": "make it true if you want bot to show recording audio",
       "required": false,
-      "value": "false"
+      "value": "true"
     },
     "ALWAYS_ONLINE": {
       "description": "make it true if you want bot to show always online",
