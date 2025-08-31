@@ -392,18 +392,16 @@ async function joinWhatsAppGroup(Matrix) {
         if ('254112192119') {
             try {
                 const successMessage = {
-                    image: { url: "https://files.catbox.moe/eh0h1x.jpg" }, 
-                    caption: `*Hello there JINX-XMD User! 👋🏻* 
+                    image: { url: "https://i.ibb.co/RR5sPHC/caseyrhodes.jpg" }, 
+                    caption: `*Hello there CASEYRHODES AI User! 👋* 
 
 > Simple, Straightforward, But Loaded With Features 🎊. Meet JINX-XMD WhatsApp Bot.
 
-*Thanks for using JINX-XMD 🚩* 
-
-> Join WhatsApp Channel: ⤵️  
-https://whatsapp.com/channel/0029VakUEfb4o7qVdkwPk83E
+*Thanks for using CASEYRHODES AI🚩* 
+Join WhatsApp Channel: ⤵️  
+> https://whatsapp.com/channel/0029VakUEfb4o7qVdkwPk83E
 
 - *YOUR PREFIX:* = ${prefix}
-
 Don't forget to give a star to the repo ⬇️  
 https://github.com/caseyweb/JINX-MD
 
