@@ -92,29 +92,9 @@ async function start() {
             }
         });
 
-        // Auto Bio Configuration - FIXED
-        const autobio = config.AUTO_BIO || 'off'; // Default to 'off' if not configured
-        let bioInterval;
-
-        if (autobio === 'on') {
-            const updateBio = () => {
-                const date = new Date();
-                const bioText = `CASEYRHODES AI🎉: ${date.toLocaleString('en-US', { timeZone: 'Africa/Nairobi' })} | DAY: ${date.toLocaleString('en-US', { weekday: 'long', timeZone: 'Africa/Nairobi'})} | CASEYRHODES HUB REPRESENTS CONSTANCY EVEN IN CHAOS⚡`;
-                
-                Matrix.updateProfileStatus(bioText)
-                    .then(() => console.log('Bio updated successfully'))
-                    .catch(err => console.error('Error updating bio:', err));
-            };
-
-            // Update immediately and then every 10 seconds
-            updateBio();
-            bioInterval = setInterval(updateBio, 10 * 1000);
-        }
-
         Matrix.ev.on('connection.update', async (update) => {
             try {
-                const { connection, lastDisconnect, qr } = update;
-                
+                const { connection, lastDisconnect } = update;
                 if (connection === 'close') {
                     if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
                         setTimeout(start, 3000);
