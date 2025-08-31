@@ -41,23 +41,6 @@ if (!fs.existsSync(sessionDir)) {
     fs.mkdirSync(sessionDir, { recursive: true });
 }
 
-// Function to format uptime
-function runtime(seconds) {
-    seconds = Math.floor(seconds);
-    const days = Math.floor(seconds / (24 * 60 * 60));
-    const hours = Math.floor((seconds % (24 * 60 * 60)) / (60 * 60));
-    const minutes = Math.floor((seconds % (60 * 60)) / 60);
-    const secs = seconds % 60;
-    
-    let result = '';
-    if (days > 0) result += `${days}d `;
-    if (hours > 0) result += `${hours}h `;
-    if (minutes > 0) result += `${minutes}m `;
-    result += `${secs}s`;
-    
-    return result.trim();
-}
-
 async function downloadSessionData() {
     try {
         if (!config.SESSION_ID) {
@@ -109,44 +92,30 @@ async function start() {
             }
         });
 
-        // AUTO_BIO functionality
+        // Auto Bio Configuration - FIXED
+        const autobio = config.AUTO_BIO || 'off'; // Default to 'off' if not configured
         let bioInterval;
-        if (config.AUTO_BIO === 'true') {
-            let lastBioUpdate = 0;
-            const bioUpdateInterval = 60000; // Update every 1 minute
-            
-            // Function to update bio
-            async function updateBio() {
-                try {
-                    const currentTime = new Date() * 1;
-                    if (currentTime - lastBioUpdate > bioUpdateInterval) {
-                        const uptime = runtime(process.uptime());
-                        const bioText = config.BIO_TEXT || `𝐈𝐌 𝐋𝐎𝐑𝐃 𝐀𝐍𝐈𝐌𝐄 𝐂𝐋𝐈𝐄𝐍𝐓 | Uptime: ${uptime}`;
-                        
-                        await Matrix.updateProfileStatus(bioText);
-                        lastBioUpdate = currentTime;
-                        
-                        console.log(chalk.green(`[✅] Bio updated: ${bioText}`));
-                    }
-                } catch (error) {
-                    console.error(chalk.red(`[❌] Error updating bio: ${error.message}`));
-                }
-            }
-            
-            // Update bio immediately and then set interval
+
+        if (autobio === 'on') {
+            const updateBio = () => {
+                const date = new Date();
+                const bioText = `CASEYRHODES AI🎉: ${date.toLocaleString('en-US', { timeZone: 'Africa/Nairobi' })} | DAY: ${date.toLocaleString('en-US', { weekday: 'long', timeZone: 'Africa/Nairobi'})} | CASEYRHODES HUB REPRESENTS CONSTANCY EVEN IN CHAOS⚡`;
+                
+                Matrix.updateProfileStatus(bioText)
+                    .then(() => console.log('Bio updated successfully'))
+                    .catch(err => console.error('Error updating bio:', err));
+            };
+
+            // Update immediately and then every 10 seconds
             updateBio();
-            bioInterval = setInterval(updateBio, bioUpdateInterval);
+            bioInterval = setInterval(updateBio, 10 * 1000);
         }
 
         Matrix.ev.on('connection.update', async (update) => {
             try {
-                const { connection, lastDisconnect } = update;
+                const { connection, lastDisconnect, qr } = update;
+                
                 if (connection === 'close') {
-                    // Clear bio interval on disconnect
-                    if (bioInterval) {
-                        clearInterval(bioInterval);
-                    }
-                    
                     if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
                         setTimeout(start, 3000);
                     }
