@@ -204,12 +204,12 @@ const play = async (message, client) => {
         const buttons = [
           {
             buttonId: `${prefix}audio`,
-            buttonText: { displayText: "🎶 ᴀᴜᴅɪᴏ" },
+            buttonText: { displayText: "🎶 ❯❯ ᴀᴜᴅɪᴏ" },
             type: 1
           },
           {
             buttonId: `${prefix}document`,
-            buttonText: { displayText: "📂 ᴅᴏᴄᴜᴍᴇɴᴛ" },
+            buttonText: { displayText: "📂 ❯❯ᴅᴏᴄᴜᴍᴇɴᴛ" },
             type: 1
           },
           {
