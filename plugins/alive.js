@@ -3,7 +3,7 @@ import process from 'process';
 import config from '../config.cjs';
 import moment from 'moment';
 import { generateWAMessageFromContent } from '@whiskeysockets/baileys';
-import proto from '@whiskeysockets/baileys/lib/WAProto/index.js';
+import { proto } from '@whiskeysockets/baileys';
 
 // Helper function for tiny caps text
 const toTinyCap = (text) =>
@@ -49,20 +49,8 @@ const alive = async (m, Matrix) => {
         
         if (isButtonResponse) {
             const selectedButtonId = m.message.buttonsResponseMessage.selectedButtonId;
-            
-            if (selectedButtonId === `${prefix}menu`) {
-                // Menu button clicked - send menu command
-                await Matrix.sendMessage(m.from, { 
-                    text: '📋 Opening menu...' 
-                }, { quoted: m });
-                return;
-            } else if (selectedButtonId === `${prefix}repo`) {
-                // Repository button clicked
-                await Matrix.sendMessage(m.from, { 
-                    text: '📁 Repository: https://github.com/your-username/your-repo' 
-                }, { quoted: m });
-                return;
-            }
+            // Handle button response if needed
+            return;
         }
         
         // Regular command handling
@@ -80,7 +68,7 @@ const alive = async (m, Matrix) => {
 │ ⚙️ ᴍᴏᴅᴇ: *${config.MODE || 'default'}*
 │ 🔰 ᴠᴇʀsɪᴏɴ: *${config.version || '1.0.0'}*
 ╰─────────❖
-      `;
+        `.trim();
 
         const buttons = [
             {
@@ -93,9 +81,9 @@ const alive = async (m, Matrix) => {
             {
                 name: "cta_copy",
                 buttonParamsJson: JSON.stringify({
-                    display_text: "Copy",
+                    display_text: "Copy Uptime",
                     id: "copy_code",
-                    copy_code: uptimeMessage
+                    copy_code: uptime
                 })
             },
             {
@@ -114,47 +102,29 @@ const alive = async (m, Matrix) => {
             }
         ];
 
-        const msg = generateWAMessageFromContent(m.from, {
-            viewOnceMessage: {
-                message: {
-                    messageContextInfo: {
-                        deviceListMetadata: {},
-                        deviceListMetadataVersion: 2
-                    },
-                    interactiveMessage: proto.Message.InteractiveMessage.create({
-                        body: proto.Message.InteractiveMessage.Body.create({
-                            text: uptimeMessage
-                        }),
-                        footer: proto.Message.InteractiveMessage.Footer.create({
-                            text: "© Powered By Njabulo Jb"
-                        }),
-                        header: proto.Message.InteractiveMessage.Header.create({
-                            title: "",
-                            gifPlayback: true,
-                            subtitle: "",
-                            hasMediaAttachment: false 
-                        }),
-                        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
-                            buttons
-                        }),
-                        contextInfo: {
-                            mentionedJid: [m.sender], 
-                            forwardingScore: 999,
-                            isForwarded: true,
-                            forwardedNewsletterMessageInfo: {
-                                newsletterJid: '120363399999197102@newsletter',
-                                newsletterName: "╭••➤®Njabulo Jb",
-                                serverMessageId: 143
-                            }
-                        }
-                    })
-                }
+        const interactiveMessage = {
+            body: {
+                text: uptimeMessage
+            },
+            footer: {
+                text: "© Powered By Njabulo Jb"
+            },
+            header: {
+                title: "Bot Status",
+                subtitle: "Current bot information",
+                hasMediaAttachment: false
+            },
+            nativeFlowMessage: {
+                buttons: buttons
             }
-        }, {});
+        };
 
-        await Matrix.relayMessage(msg.key.remoteJid, msg.message, {
-            messageId: msg.key.id
-        });
+        const message = generateWAMessageFromContent(m.from, {
+            interactive: interactiveMessage
+        }, { quoted: m });
+
+        await Matrix.relayMessage(m.from, message.message, { messageId: message.key.id });
+
     } catch (error) {
         console.error('Error in alive command:', error);
         await Matrix.sendMessage(m.from, { 
