@@ -228,32 +228,14 @@ const play = async (message, client) => {
             buttons: buttons,
             mentions: [message.sender],
             footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ",
-            headerType: 1,
-            contextInfo: {
-              forwardingScore: 1,
-              isForwarded: true,
-              forwardedNewsletterMessageInfo: {
-                newsletterJid: '120363302677217436@newsletter',
-                newsletterName: 'POWERED BY CASEYRHODES TECH',
-                serverMessageId: -1
-              }
-            }
+            headerType: 1
           }, { quoted: message });
         } else {
           await client.sendMessage(message.from, {
             text: songInfo,
             buttons: buttons,
             mentions: [message.sender],
-            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ",
-            contextInfo: {
-              forwardingScore: 1,
-              isForwarded: true,
-              forwardedNewsletterMessageInfo: {
-                newsletterJid: '120363302677217436@newsletter',
-                newsletterName: 'POWERED BY CASEYRHODES TECH',
-                serverMessageId: -1
-              }
-            }
+            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ"
           }, { quoted: message });
         }
         
@@ -304,36 +286,35 @@ const play = async (message, client) => {
         
         const audioData = fs.readFileSync(filePath);
         
+        // Fetch thumbnail for the audio
+        let thumbnailBuffer = await fetchThumbnail(session.thumbnailUrl);
+        
         if (command === "audio") {
+          // Format the audio message similar to the example image
+          const audioCaption = `
+╭───〘  *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* 〙───
+├📝 *ᴛɪᴛʟᴇ:* ${session.videoTitle}
+├🔗 *sᴏᴜʀᴄᴇ:* ${session.videoUrl}
+├🎵 *ғᴏʀᴍᴀᴛ:* High Quality MP3
+╰───────────────┈ ⊷
+          `.trim();
+          
           await client.sendMessage(message.from, { 
             audio: audioData, 
             mimetype: 'audio/mpeg',
             ptt: false,
             fileName: fileName + ".mp3",
-            contextInfo: {
-              forwardingScore: 1,
-              isForwarded: true,
-              forwardedNewsletterMessageInfo: {
-                newsletterJid: '120363302677217436@newsletter',
-                newsletterName: 'POWERED BY CASEYRHODES TECH',
-                serverMessageId: -1
-              }
-            }
+            ...(thumbnailBuffer && { jpegThumbnail: thumbnailBuffer }),
+            caption: audioCaption,
+            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ"
           }, { quoted: message });
         } else {
           await client.sendMessage(message.from, { 
             document: audioData, 
             mimetype: 'audio/mpeg',
             fileName: fileName + ".mp3",
-            contextInfo: {
-              forwardingScore: 1,
-              isForwarded: true,
-              forwardedNewsletterMessageInfo: {
-                newsletterJid: '120363302677217436@newsletter',
-                newsletterName: 'POWERED BY CASEYRHODES TECH',
-                serverMessageId: -1
-              }
-            }
+            caption: `*${session.videoTitle}* - Downloaded as document`,
+            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ"
           }, { quoted: message });
         }
         
