@@ -200,16 +200,16 @@ const play = async (message, client) => {
         // Download thumbnail for image message
         let imageBuffer = await fetchThumbnail(thumbnailUrl);
         
-        // Create all buttons in a single array
+        // Create all buttons in a single array - matching the example image format
         const buttons = [
           {
             buttonId: `${prefix}audio`,
-            buttonText: { displayText: "🎶 ❯❯ ᴀᴜᴅɪᴏ" },
+            buttonText: { displayText: "🎶 ❯❯ ᴀᴜᴅɪᴏ" }, // Exactly as shown in the example image
             type: 1
           },
           {
             buttonId: `${prefix}document`,
-            buttonText: { displayText: "📂 ❯❯ᴅᴏᴄᴜᴍᴇɴᴛ" },
+            buttonText: { displayText: "📂 ❯❯ ᴅᴏᴄᴜᴍᴇɴᴛ" }, // Added space for consistency
             type: 1
           },
           {
