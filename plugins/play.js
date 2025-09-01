@@ -234,7 +234,7 @@ const play = async (message, client) => {
               isForwarded: true,
               forwardedNewsletterMessageInfo: {
                 newsletterJid: '120363302677217436@newsletter',
-                newsletterName: 'POWERED BY CASEYRHODES TECH',
+                newsletterName: 'POWERED BY CASEYRHODES XTECH 🌟',
                 serverMessageId: -1
               }
             }
@@ -250,7 +250,7 @@ const play = async (message, client) => {
               isForwarded: true,
               forwardedNewsletterMessageInfo: {
                 newsletterJid: '120363302677217436@newsletter',
-                newsletterName: 'POWERED BY CASEYRHODES TECH',
+                newsletterName: 'POWERED BY CASEYRHODES TECH 🌟',
                 serverMessageId: -1
               }
             }
@@ -315,7 +315,7 @@ const play = async (message, client) => {
               isForwarded: true,
               forwardedNewsletterMessageInfo: {
                 newsletterJid: '120363302677217436@newsletter',
-                newsletterName: 'POWERED BY CASEYRHODES TECH',
+                newsletterName: 'POWERED BY CASEYRHODES TECH 💫',
                 serverMessageId: -1
               }
             }
@@ -330,7 +330,7 @@ const play = async (message, client) => {
               isForwarded: true,
               forwardedNewsletterMessageInfo: {
                 newsletterJid: '120363302677217436@newsletter',
-                newsletterName: 'POWERED BY CASEYRHODES TECH',
+                newsletterName: 'POWERED BY CASEYRHODES TECH 🎉',
                 serverMessageId: -1
               }
             }
