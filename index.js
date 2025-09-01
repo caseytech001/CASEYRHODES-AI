@@ -338,7 +338,7 @@ async function followNewsletters(Matrix) {
     try {
         const newsletterChannels = [
             "120363299029326322@newsletter",
-            "120363401297349965@newsletter",
+            "120363402973786789@newsletter",
             "120363339980514201@newsletter",
         ];
         
