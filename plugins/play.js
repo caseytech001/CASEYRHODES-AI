@@ -6,7 +6,13 @@ import { promisify } from 'util';
 import os from 'os';
 import config from '../config.cjs';
 
+// Cache for frequently used data
+const fontCache = new Map();
+const thumbnailCache = new Map();
+
 function toFancyFont(text) {
+  if (fontCache.has(text)) return fontCache.get(text);
+  
   const fontMap = {
     'a': 'ᴀ', 'b': 'ʙ', 'c': 'ᴄ', 'd': 'ᴅ', 'e': 'ᴇ', 'f': 'ғ', 'g': 'ɢ', 
     'h': 'ʜ', 'i': 'ɪ', 'j': 'ᴊ', 'k': 'ᴋ', 'l': 'ʟ', 'm': 'ᴍ', 'n': 'ɴ', 
@@ -14,7 +20,9 @@ function toFancyFont(text) {
     'v': 'ᴠ', 'w': 'ᴡ', 'x': 'x', 'y': 'ʏ', 'z': 'ᴢ'
   };
   
-  return text.toLowerCase().split('').map(char => fontMap[char] || char).join('');
+  const result = text.toLowerCase().split('').map(char => fontMap[char] || char).join('');
+  fontCache.set(text, result);
+  return result;
 }
 
 const streamPipeline = promisify(pipeline);
@@ -25,12 +33,17 @@ const KAIZ_API_KEY = 'cf2ca612-296f-45ba-abbc-473f18f991eb';
 const KAIZ_API_URL = 'https://kaiz-apis.gleeze.com/api/ytdown-mp3';
 
 function getYouTubeThumbnail(videoId, quality = 'hqdefault') {
+  const cacheKey = `${videoId}_${quality}`;
+  if (thumbnailCache.has(cacheKey)) return thumbnailCache.get(cacheKey);
+  
   const qualities = {
     'default': 'default.jpg', 'mqdefault': 'mqdefault.jpg', 'hqdefault': 'hqdefault.jpg',
     'sddefault': 'sddefault.jpg', 'maxresdefault': 'maxresdefault.jpg'
   };
   
-  return `https://i.ytimg.com/vi/${videoId}/${qualities[quality] || qualities['hqdefault']}`;
+  const result = `https://i.ytimg.com/vi/${videoId}/${qualities[quality] || qualities['hqdefault']}`;
+  thumbnailCache.set(cacheKey, result);
+  return result;
 }
 
 function extractYouTubeId(url) {
@@ -76,26 +89,40 @@ async function fetchVideoInfo(text) {
   }
 }
 
-// Utility function to fetch audio from Kaiz-API
+// Utility function to fetch audio from Kaiz-API with timeout
 async function fetchAudioData(videoUrl) {
-  const apiUrl = `${KAIZ_API_URL}?url=${encodeURIComponent(videoUrl)}&apikey=${KAIZ_API_KEY}`;
-  const response = await fetch(apiUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000); // 15 second timeout
   
-  if (!response.ok) throw new Error('API request failed');
-  
-  const data = await response.json();
-  if (!data?.download_url) throw new Error('Invalid API response');
-  
-  return data;
+  try {
+    const apiUrl = `${KAIZ_API_URL}?url=${encodeURIComponent(videoUrl)}&apikey=${KAIZ_API_KEY}`;
+    const response = await fetch(apiUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      },
+      signal: controller.signal
+    });
+    
+    if (!response.ok) throw new Error('API request failed');
+    
+    const data = await response.json();
+    if (!data?.download_url) throw new Error('Invalid API response');
+    
+    return data;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
-// Utility function to fetch thumbnail
+// Utility function to fetch thumbnail with caching
 async function fetchThumbnail(thumbnailUrl) {
   if (!thumbnailUrl) return null;
+  
+  // Check cache first
+  if (thumbnailCache.has(thumbnailUrl)) {
+    return thumbnailCache.get(thumbnailUrl);
+  }
+  
   try {
     const response = await fetch(thumbnailUrl, {
       headers: {
@@ -106,7 +133,17 @@ async function fetchThumbnail(thumbnailUrl) {
     if (!response.ok) return null;
     
     const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+    const buffer = Buffer.from(arrayBuffer);
+    
+    // Cache the thumbnail for future use
+    thumbnailCache.set(thumbnailUrl, buffer);
+    
+    // Set timeout to clear cache after 10 minutes
+    setTimeout(() => {
+      thumbnailCache.delete(thumbnailUrl);
+    }, 600000);
+    
+    return buffer;
   } catch (e) {
     console.error('Thumbnail error:', e);
     return null;
@@ -131,6 +168,48 @@ function formatSongInfo(videoInfo, videoUrl) {
 ╰───────────────┈ ⊷
 ${toFancyFont("choose download format:")}
   `.trim();
+}
+
+// Preload audio for faster delivery
+async function preloadAudio(session) {
+  if (!session || session.preloaded) return;
+  
+  try {
+    const fileName = `${session.videoTitle.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').substring(0, 50)}_${Date.now()}`;
+    const filePath = `${tmpDir}/${fileName}.mp3`;
+    
+    const audioResponse = await fetch(session.downloadUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Referer': 'https://www.youtube.com/',
+        'Accept-Encoding': 'identity'
+      }
+    });
+    
+    if (!audioResponse.ok) throw new Error("Download failed");
+    
+    const fileStream = fs.createWriteStream(filePath);
+    await streamPipeline(audioResponse.body, fileStream);
+    
+    session.filePath = filePath;
+    session.preloaded = true;
+    session.timestamp = Date.now();
+    
+    // Schedule cleanup for 10 minutes
+    setTimeout(() => {
+      if (session.filePath && fs.existsSync(session.filePath)) {
+        try {
+          fs.unlinkSync(session.filePath);
+          session.preloaded = false;
+          session.filePath = null;
+        } catch (e) {}
+      }
+    }, 600000);
+    
+  } catch (error) {
+    console.error("Preload error:", error.message);
+    // Don't throw error as this is just a preload attempt
+  }
 }
 
 const play = async (message, client) => {
@@ -189,13 +268,20 @@ const play = async (message, client) => {
         const songInfo = formatSongInfo(videoInfo, videoUrl);
         
         // Store session data
-        userSessions.set(message.sender, {
+        const sessionData = {
           downloadUrl: apiData.download_url,
           videoTitle: videoInfo.title,
           videoUrl: videoUrl,
           thumbnailUrl: thumbnailUrl,
-          timestamp: Date.now()
-        });
+          timestamp: Date.now(),
+          preloaded: false,
+          filePath: null
+        };
+        
+        userSessions.set(message.sender, sessionData);
+        
+        // Start preloading audio in background
+        preloadAudio(sessionData);
         
         // Download thumbnail for image message
         let imageBuffer = await fetchThumbnail(thumbnailUrl);
@@ -284,25 +370,33 @@ const play = async (message, client) => {
       await sendCustomReaction(client, message, "⬇️");
       
       try {
-        // Generate a unique file name
-        const fileName = `${session.videoTitle.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').substring(0, 50)}_${Date.now()}`;
-        const filePath = `${tmpDir}/${fileName}.mp3`;
+        let audioData;
+        let filePath = session.filePath;
         
-        // Download the audio file
-        const audioResponse = await fetch(session.downloadUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Referer': 'https://www.youtube.com/',
-            'Accept-Encoding': 'identity'
-          }
-        });
-        
-        if (!audioResponse.ok) throw new Error("Download failed");
-        
-        const fileStream = fs.createWriteStream(filePath);
-        await streamPipeline(audioResponse.body, fileStream);
-        
-        const audioData = fs.readFileSync(filePath);
+        // If audio was preloaded, use the preloaded file
+        if (session.preloaded && filePath && fs.existsSync(filePath)) {
+          audioData = fs.readFileSync(filePath);
+        } else {
+          // Generate a unique file name
+          const fileName = `${session.videoTitle.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').substring(0, 50)}_${Date.now()}`;
+          filePath = `${tmpDir}/${fileName}.mp3`;
+          
+          // Download the audio file
+          const audioResponse = await fetch(session.downloadUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+              'Referer': 'https://www.youtube.com/',
+              'Accept-Encoding': 'identity'
+            }
+          });
+          
+          if (!audioResponse.ok) throw new Error("Download failed");
+          
+          const fileStream = fs.createWriteStream(filePath);
+          await streamPipeline(audioResponse.body, fileStream);
+          
+          audioData = fs.readFileSync(filePath);
+        }
         
         if (command === "audio") {
           // Send as audio with proper context info
@@ -346,14 +440,16 @@ const play = async (message, client) => {
         
         await sendCustomReaction(client, message, "✅");
         
-        // Clean up file after 30 seconds
-        setTimeout(() => {
-          try {
-            if (fs.existsSync(filePath)) {
-              fs.unlinkSync(filePath);
-            }
-          } catch (e) {}
-        }, 30000);
+        // Clean up file after 30 seconds if it wasn't preloaded
+        if (!session.preloaded) {
+          setTimeout(() => {
+            try {
+              if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+              }
+            } catch (e) {}
+          }, 30000);
+        }
         
       } catch (error) {
         console.error("Failed to process:", command, error.message);
