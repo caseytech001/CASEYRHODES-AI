@@ -14,6 +14,7 @@ import fs from 'fs';
 import { File } from 'megajs';
 import NodeCache from 'node-cache';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import config from './config.cjs';
 import pkg from './lib/autoreact.cjs';
@@ -31,7 +32,7 @@ logger.level = "silent";
 
 const msgRetryCounterCache = new NodeCache();
 
-const __filename = new URL(import.meta.url).pathname;
+const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const sessionDir = path.join(__dirname, 'session');
@@ -461,5 +462,5 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    // Silent server start
+    console.log(`Server is running on port ${PORT}`);
 });
