@@ -43,9 +43,21 @@ function toFancyFont(text, isUpperCase = false) {
     .join("");
 }
 
-// Image fetch utility
+// Fixed image URLs array
+const menuImages = [
+  "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg",
+  "https://i.ibb.co/20ryR2pN/caseywebs.jpg",
+  "https://i.ibb.co/Ng6PQcMv/caseyweb.jpg" // Add your third image URL here
+];
+
+// Image fetch utility - now selects a random image
 async function fetchMenuImage() {
-  const imageUrl = "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg";
+  // Select a random image from the array
+  const randomIndex = Math.floor(Math.random() * menuImages.length);
+  const imageUrl = menuImages[randomIndex];
+  
+  console.log(`🖼️ Trying to fetch image: ${imageUrl}`);
+  
   for (let i = 0; i < 3; i++) {
     try {
       const response = await axios.get(imageUrl, { 
@@ -53,10 +65,11 @@ async function fetchMenuImage() {
         timeout: 10000
       });
       
+      console.log(`✅ Successfully fetched image ${randomIndex + 1}`);
       return Buffer.from(response.data);
     } catch (error) {
       if (error.response?.status === 429 && i < 2) {
-        console.log(`Rate limit hit, retrying in 2s...`);
+        console.log(`⏳ Rate limit hit, retrying in 2s...`);
         await new Promise((resolve) => setTimeout(resolve, 2000));
         continue;
       }
@@ -75,8 +88,6 @@ async function sendMenuAudio(Matrix, m) {
       'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/casey.mp3'
     ];
    
-    
-    
     const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
     
     await Matrix.sendMessage(m.from, {
@@ -99,7 +110,7 @@ async function sendMenuAudio(Matrix, m) {
       }
     });
   } catch (audioError) {
-    console.error("❌ Failed to send audio:", audioError.message);
+  console.error("❌ Failed to send audio:", audioError.message);
   }
 }
 
@@ -246,201 +257,211 @@ ${readmore}
         case "download-menu":
           menuTitle = "📥 Download Menu";
           menuResponse = `
-${toFancyFont(".apk")} - Download APK files
-${toFancyFont(".facebook")} - Download from Facebook
-${toFancyFont(".mediafire")} - Download from Mediafire
-${toFancyFont(".pinterest")} - Download from Pinterest
-${toFancyFont(".gitclone")} - Clone git repositories
-${toFancyFont(".gdrive")} - Download from Google Drive
-${toFancyFont(".insta")} - Download Instagram content
-${toFancyFont(".ytmp3")} - YouTube to MP3
-${toFancyFont(".ytmp4")} - YouTube to MP4
-${toFancyFont(".play")} - Play music
-${toFancyFont(".song")} - Download songs
-${toFancyFont(".video")} - Download videos
-${toFancyFont(".ytmp3doc")} - YouTube to MP3 (document)
-${toFancyFont(".ytmp4doc")} - YouTube to MP4 (document)
-${toFancyFont(".tiktok")} - Download TikTok videos
-`;
+╭─ 乂  
+╎${toFancyFont("ᴀᴘᴋ")}
+╎${toFancyFont("ғᴀᴄᴇʙᴏᴏᴋ")}
+╎${toFancyFont("ᴍᴇᴅɪᴀғɪʀᴇ")}
+╎${toFancyFont("ᴘɪɴᴛᴇʀᴇsᴛ")}
+╎${toFancyFont("ɢɪᴛᴄʟᴏɴᴇ")}
+╎${toFancyFont("ɢᴅʀɪᴠᴇ")}
+╎${toFancyFont("ɪɴsᴛᴀ")}
+╎${toFancyFont("ʏᴛᴍᴘ3")}
+╎${toFancyFont("ʏᴛᴍᴘ4")}
+╎${toFancyFont("ᴘʟᴀʏ")}
+╎${toFancyFont("sᴏɴɢ")}
+╎${toFancyFont("ᴠɪᴅᴇᴏ")}
+╎${toFancyFont("ʏᴛᴍᴘ3ᴅᴏᴄ")}
+╎${toFancyFont("ʏᴛᴍᴘ4ᴅᴏᴄ")}
+╎${toFancyFont("ᴛɪᴋᴛᴏᴋ")}
+╰───────────◦•◦❥•`;
           break;
 
         case "group-menu":
           menuTitle = "👥 Group Menu";
           menuResponse = `
-${toFancyFont(".linkgroup")} - Get group invite link
-${toFancyFont(".setppgc")} - Set group profile picture
-${toFancyFont(".setname")} - Set group name
-${toFancyFont(".setdesc")} - Set group description
-${toFancyFont(".group")} - Group management
-${toFancyFont(".gcsetting")} - Group settings
-${toFancyFont(".welcome")} - Welcome settings
-${toFancyFont(".add")} - Add members
-${toFancyFont(".kick")} - Remove members
-${toFancyFont(".hidetag")} - Hidden tag
-${toFancyFont(".tagall")} - Tag all members
-${toFancyFont(".antilink")} - Anti-link settings
-${toFancyFont(".antitoxic")} - Anti-toxic settings
-${toFancyFont(".promote")} - Promote members
-${toFancyFont(".demote")} - Demote members
-${toFancyFont(".getbio")} - Get user bio
-`;
+╭─ 乂  
+╎${toFancyFont("ʟɪɴᴋɢʀᴏᴜᴘ")}
+╎${toFancyFont("sᴇᴛᴘᴘɢᴄ")}
+╎${toFancyFont("sᴇᴛɴᴀᴍᴇ")}
+╎${toFancyFont("sᴇᴛᴅᴇsᴄ")}
+╎${toFancyFont("ɢʀᴏᴜᴘ")}
+╎${toFancyFont("ɢᴄsᴇᴛᴛɪɴɢ")}
+╎${toFancyFont("ᴡᴇʟᴄᴏᴍᴇ")}
+╎${toFancyFont("ᴀᴅᴅ")}
+╎${toFancyFont("ᴋɪᴄᴋ")}
+╎${toFancyFont("ʜɪᴅᴇᴛᴀɢ")}
+╎${toFancyFont("ᴛᴀɢᴀʟʟ")}
+╎${toFancyFont("ᴀɴᴛɪʟɪɴᴋ")}
+╎${toFancyFont("ᴀɴᴛɪᴛᴏxɪᴄ")}
+╎${toFancyFont("ᴘʀᴏᴍᴏᴛᴇ")}
+╎${toFancyFont("ᴅᴇᴍᴏᴇ")}
+╎${toFancyFont("ɢᴇᴛʙɪᴏ")}
+╰───────────◦•◦❥•`;
           break;
 
         case "fun-menu":
           menuTitle = "🎉 Fun Menu";
           menuResponse = `
-${toFancyFont(".gay")} - Gay rate checker
-${toFancyFont(".simp")} - Simp rate checker
-${toFancyFont(".handsome")} - Handsome rate
-${toFancyFont(".stupid")} - Stupid rate
-${toFancyFont(".character")} - Character analyzer
-${toFancyFont(".fact")} - Random facts
-${toFancyFont(".truth")} - Truth questions
-${toFancyFont(".dare")} - Dare challenges
-${toFancyFont(".flirt")} - Flirty messages
-${toFancyFont(".couple")} - Couple matching
-${toFancyFont(".ship")} - Ship two people
-${toFancyFont(".joke")} - Random jokes
-${toFancyFont(".meme")} - Random memes
-${toFancyFont(".quote")} - Inspirational quotes
-${toFancyFont(".roll")} - Roll a dice
-`;
+╭─ 乂  
+╎${toFancyFont("ɢᴀʏ")}
+╎${toFancyFont("sɪᴍᴘ")}
+╎${toFancyFont("ʜᴀɴᴅsᴏᴍᴇ")}
+╎${toFancyFont("sᴛᴜᴘɪᴅ")}
+╎${toFancyFont("ᴄʜᴀʀᴀᴄᴛᴇʀ")}
+╎${toFancyFont("ғᴀᴄᴛ")}
+╎${toFancyFont("ᴛʀᴜᴛʜ")}
+╎${toFancyFont("ᴅᴀʀᴇ")}
+╎${toFancyFont("ғʟɪʀᴛ")}
+╎${toFancyFont("ᴄᴏᴜᴘʟᴇ")}
+╎${toFancyFont("sʜɪᴘ")}
+╎${toFancyFont("ᴊᴏᴋᴇ")}
+╎${toFancyFont("ᴍᴇᴍᴇ")}
+╎${toFancyFont("ǫᴜᴏᴛᴇ")}
+╎${toFancyFont("ʀᴏʟʟ")}
+╰─────────◦•◦❥•`;
           break;
 
         case "owner-menu":
           menuTitle = "👑 Owner Menu";
           menuResponse = `
-${toFancyFont(".join")} - Join group via link
-${toFancyFont(".leave")} - Leave group
-${toFancyFont(".block")} - Block user
-${toFancyFont(".unblock")} - Unblock user
-${toFancyFont(".setppbot")} - Set bot profile picture
-${toFancyFont(".anticall")} - Anti-call settings
-${toFancyFont(".setstatus")} - Set bot status
-${toFancyFont(".setnamebot")} - Set bot name
-${toFancyFont(".autorecording")} - Auto voice recording
-${toFancyFont(".autolike")} - Auto like messages
-${toFancyFont(".autotyping")} - Auto typing indicator
-${toFancyFont(".alwaysonline")} - Always online mode
-${toFancyFont(".autoread")} - Auto read messages
-${toFancyFont(".autosview")} - Auto view stories
-`;
+╭─ 乂  
+╎${toFancyFont("ᴊᴏɪɴ")}
+╎${toFancyFont("ʟᴇᴀᴠᴇ")}
+╎${toFancyFont("ʙʟᴏᴄᴋ")}
+╎${toFancyFont("ᴜɴʙʟᴏᴄᴋ")}
+╎${toFancyFont("sᴇᴛᴘᴘʙᴏᴛ")}
+╎${toFancyFont("ᴀɴᴛɪᴄᴀʟʟ")}
+╎${toFancyFont("sᴇᴛsᴛᴀᴛᴜs")}
+╎${toFancyFont("sᴇᴛɴᴀᴍᴇʙᴏᴛ")}
+╎${toFancyFont("ᴀᴜᴛᴏʀᴇᴄᴏʀᴅɪɴɢ")}
+╎${toFancyFont("ᴀᴜᴛᴏʟɪᴋᴇ")}
+╎${toFancyFont("ᴀᴜᴛᴏᴛʏᴘɪɴɢ")}
+╎${toFancyFont("ᴀʟᴡᴀʏsᴏɴʟɪɴᴇ")}
+╎${toFancyFont("ᴀᴜᴛᴏʀᴇᴀᴅ")}
+╎${toFancyFont("ᴀᴜᴛᴏsᴠɪᴇᴡ")}
+╰───────────◦•◦❥•`;
           break;
 
         case "ai-menu":
           menuTitle = "🤖 AI Menu";
           menuResponse = `
-${toFancyFont(".ai")} - AI chat
-${toFancyFont(".bug")} - Report bugs
-${toFancyFont(".report")} - Report issues
-${toFancyFont(".gpt")} - ChatGPT
-${toFancyFont(".dall")} - DALL-E image generation
-${toFancyFont(".remini")} - Image enhancement
-${toFancyFont(".gemini")} - Google Gemini
-${toFancyFont(".bard")} - Google Bard
-${toFancyFont(".blackbox")} - Blackbox AI
-${toFancyFont(".mistral")} - Mistral AI
-${toFancyFont(".llama")} - LLaMA AI
-${toFancyFont(".claude")} - Claude AI
-${toFancyFont(".deepseek")} - DeepSeek AI
-`;
+╭─ 乂  
+╎${toFancyFont("ᴀɪ")}
+╎${toFancyFont("ʙᴜɢ")}
+╎${toFancyFont("ʀᴇᴘᴏʀᴛ")}
+╎${toFancyFont("ɢᴘᴛ")}
+╎${toFancyFont("ᴅᴀʟʟ")}
+╎${toFancyFont("ʀᴇᴍɪɴɪ")}
+╎${toFancyFont("ɢᴇᴍɪɴɪ")}
+╎${toFancyFont("ʙᴀʀᴅ")}
+╎${toFancyFont("ʙʟᴀᴄᴋʙᴏx")}
+╎${toFancyFont("ᴍɪsᴛʀᴀʟ")}
+╎${toFancyFont("ʟʟᴀᴍᴀ")}
+╎${toFancyFont("ᴄʟᴀᴜᴅᴇ")}
+╎${toFancyFont("ᴅᴇᴇᴘsᴇᴇᴋ")}
+╰──────────◦•◦❥•`;
           break;
 
         case "anime-menu":
           menuTitle = "🌸 Anime Menu";
           menuResponse = `
-${toFancyFont(".anime")} - Random anime info
-${toFancyFont(".animepic")} - Random anime pictures
-${toFancyFont(".animequote")} - Anime quotes
-${toFancyFont(".animewall")} - Anime wallpapers
-${toFancyFont(".animechar")} - Anime character search
-${toFancyFont(".waifu")} - Random waifu
-${toFancyFont(".husbando")} - Random husbando
-${toFancyFont(".neko")} - Neko girls
-${toFancyFont(".shinobu")} - Shinobu pictures
-${toFancyFont(".megumin")} - Megumin pictures
-${toFacyFont(".awoo")} - Awoo girls
-${toFancyFont(".trap")} - Trap characters
-${toFancyFont(".blowjob")} - NSFW content
-`;
+╭─ 乂  
+╎${toFancyFont("ᴀɴɪᴍᴇ")}
+╎${toFancyFont("ᴀɴɪᴍᴇᴘɪᴄ")}
+╎${toFancyFont("ᴀɴɪᴍᴇǫᴜᴏᴛᴇ")}
+╎${toFancyFont("ᴀɴɪᴍᴇᴡᴀʟʟ")}
+╎${toFancyFont("ᴀɴɪᴍᴇᴄʜᴀʀ")}
+╎${toFancyFont("ᴡᴀɪғᴜ")}
+╎${toFancyFont("ʜᴜsʙᴀɴᴅᴏ")}
+╎${toFancyFont("ɴᴇᴋᴏ")}
+╎${toFancyFont("sʜɪɴᴏʙᴜ")}
+╎${toFancyFont("ᴍᴇɢᴜᴍɪɴ")}
+╎${toFancyFont("ᴀᴡᴏᴏ")}
+╎${toFancyFont("ᴛʀᴀᴘ")}
+╎${toFancyFont("ʙʟᴏᴡᴊᴏʙ")}
+╰─────────◦•◦❥•`;
           break;
 
         case "converter-menu":
           menuTitle = "🔄 Converter Menu";
           menuResponse = `
-${toFancyFont(".attp")} - Text to sticker
-${toFancyFont(".attp2")} - Text to sticker (style 2)
-${toFancyFont(".attp3")} - Text to sticker (style 3)
-${toFancyFont(".ebinary")} - Encode binary
-${toFancyFont(".dbinary")} - Decode binary
-${toFancyFont(".emojimix")} - Mix two emojis
-${toFancyFont(".mp3")} - Convert to MP3
-${toFancyFont(".mp4")} - Convert to MP4
-${toFancyFont(".sticker")} - Image to sticker
-${toFancyFont(".toimg")} - Sticker to image
-${toFancyFont(".tovid")} - GIF to video
-${toFancyFont(".togif")} - Video to GIF
-${toFancyFont(".tourl")} - Media to URL
-${toFancyFont(".tinyurl")} - URL shortener
-`;
+╭─ 乂  
+╎${toFancyFont("ᴀᴛᴛᴘ")}
+╎${toFancyFont("ᴀᴛᴛᴘ2")}
+╎${toFancyFont("ᴀᴘᴛᴘ3")}
+╎${toFancyFont("ᴇʙɪɴᴀʀʏ")}
+╎${toFancyFont("ᴅʙɪɴᴀʀʏ")}
+╎${toFancyFont("ᴇᴍᴏᴊɪᴍɪx")}
+╎${toFancyFont("ᴍᴘ3")}
+╎${toFancyFont("ᴍᴘ4")}
+╎${toFancyFont("sᴛɪᴄᴋᴇʀ")}
+╎${toFancyFont("ᴛᴏɪᴍɢ")}
+╎${toFancyFont("ᴛᴏᴠɪᴅ")}
+╎${toFancyFont("ᴛᴏɢɪғ")}
+╎${toFancyFont("ᴛᴏᴜʀʟ")}
+╎${toFancyFont("ᴛɪɴʏᴜʀʟ")}
+╰──────────◦•◦❥•`;
           break;
 
         case "other-menu":
           menuTitle = "📌 Other Menu";
           menuResponse = `
-${toFancyFont(".calc")} - Calculator
-${toFancyFont(".tempmail")} - Temp email
-${toFancyFont(".checkmail")} - Check temp mail
-${toFancyFont(".trt")} - Translate text
-${toFancyFont(".tts")} - Text to speech
-${toFancyFont(".ssweb")} - Website screenshot
-${toFancyFont(".readmore")} - Create read more
-${toFancyFont(".styletext")} - Stylish text
-${toFancyFont(".weather")} - Weather info
-${toFancyFont(".clock")} - World clock
-${toFancyFont(".qrcode")} - Generate QR code
-${toFancyFont(".readqr")} - Read QR code
-${toFancyFont(".currency")} - Currency converter
-`;
+╭─ 乂  
+╎${toFancyFont("ᴄᴀʟᴄ")}
+╎${toFancyFont("ᴛᴇᴍᴘᴍᴀɪʟ")}
+╎${toFancyFont("ᴄʜᴇᴄᴋᴍᴀɪʟ")}
+╎${toFancyFont("ᴛʀᴛ")}
+╎${toFancyFont("ᴛᴛs")}
+╎${toFancyFont("ssᴡᴇʙ")}
+╎${toFancyFont("ʀᴇᴀᴅᴍᴏʀᴇ")}
+╎${toFancyFont("sᴛʏʟᴇᴛᴇxᴛ")}
+╎${toFancyFont("ᴡᴇᴀᴛʜᴇʀ")}
+╎${toFancyFont("ᴄʟᴏᴄᴋ")}
+╎${toFancyFont("ǫʀᴄᴏᴅᴇ")}
+╎${toFancyFont("ʀᴇᴀᴅǫʀ")}
+╎${toFancyFont("ᴄᴜʀʀᴇɴᴄʏ")}
+╰─────────◦•◦❥•`;
           break;
 
         case "reactions-menu":
           menuTitle = "🎭 Reactions Menu";
           menuResponse = `
-${toFancyFont(".like")} - Like reaction
-${toFancyFont(".love")} - Love reaction
-${toFancyFont(".haha")} - Haha reaction
-${toFancyFont(".wow")} - Wow reaction
-${toFancyFont(".sad")} - Sad reaction
-${toFancyFont(".angry")} - Angry reaction
-${toFancyFont(".dislike")} - Dislike reaction
-${toFancyFont(".cry")} - Cry reaction
-${toFancyFont(".kiss")} - Kiss reaction
-${toFancyFont(".pat")} - Pat reaction
-${toFancyFont(".slap")} - Slap reaction
-${toFancyFont(".punch")} - Punch reaction
-${toFancyFont(".kill")} - Kill reaction
-${toFancyFont(".hug")} - Hug reaction
-`;
+╭─ 乂  
+╎${toFancyFont("ʟɪᴋᴇ")}
+╎${toFancyFont("ʟᴏᴠᴇ")}
+╎${toFancyFont("ʜᴀʜᴀ")}
+╎${toFancyFont("ᴡᴏᴡ")}
+╎${toFancyFont("sᴀᴅ")}
+╎${toFancyFont("ᴀɴɢʀʏ")}
+╎${toFancyFont("ᴅɪsʟɪᴋᴇ")}
+╎${toFancyFont("ᴄʀʏ")}
+╎${toFancyFont("ᴋɪss")}
+╎${toFancyFont("ᴘᴀᴛ")}
+╎${toFancyFont("sʟᴀᴘ")}
+╎${toFancyFont("ᴘᴜɴᴄʜ")}
+╎${toFancyFont("ᴋɪʟʟ")}
+╎${toFancyFont("ʜᴜɢ")}
+╰──────◦•◦❥•`;
           break;
 
         case "main-menu":
           menuTitle = "🏠 Main Menu";
           menuResponse = `
-${toFancyFont(".ping")} - Check bot response time
-${toFancyFont(".alive")} - Check if bot is running
-${toFancyFont(".owner")} - Contact owner
-${toFancyFont(".menu")} - Show this menu
-${toFancyFont(".infobot")} - Bot information
-${toFancyFont(".donate")} - Support the bot
-${toFancyFont(".speed")} - Speed test
-${toFancyFont(".runtime")} - Bot uptime
-${toFancyFont(".sc")} - Source code
-${toFancyFont(".script")} - Script info
-${toFancyFont(".support")} - Support group
-${toFancyFont(".update")} - Check updates
-${toFancyFont(".feedback")} - Send feedback
-`;
+╭─ 乂  
+╎${toFancyFont("ᴘɪɴɢ")}
+╎${toFancyFont("ᴀʟɪᴠᴇ")}
+╎${toFancyFont("ᴏᴡɴᴇʀ")}
+╎${toFancyFont("ᴍᴇɴᴜ")}
+╎${toFancyFont("ɪɴғᴏʙᴏᴛ")}
+╎${toFancyFont("ᴅᴏɴᴀᴛᴇ")}
+╎${toFancyFont("sᴘᴇᴇᴅ")}
+╎${toFancyFont("ʀᴜɴᴛɪᴍᴇ")}
+╎${toFancyFont("sᴄ")}
+╎${toFancyFont("sᴄʀɪᴘᴛ")}
+╎${toFancyFont("sᴜᴘᴘᴏʀᴛ")}
+╎${toFancyFont("ᴜᴘᴅᴀᴛᴇ")}
+╎${toFancyFont("ғᴇᴇᴅʙᴀᴄᴋ")}
+╰──────────◦•◦❥•`;
           break;
 
         default:
@@ -458,12 +479,12 @@ ${menuResponse}
 *⚙️ Prefix*: ${prefix}
 *🌐 Mode*: ${mode}
 
-> ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
+> ︎®ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
 `;
 
       const backButton = {
         buttons: [
-          { buttonId: `${prefix}menu`, buttonText: { displayText: `🔙 Back to Main Menu` }, type: 1 }
+          { buttonId: `${prefix}menu`, buttonText: { displayText: `🔙 ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ` }, type: 1 }
         ],
         contextInfo: {
           isForwarded: true,
