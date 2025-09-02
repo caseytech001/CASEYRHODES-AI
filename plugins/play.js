@@ -1,629 +1,479 @@
-import moment from "moment-timezone";
-import fs from "fs";
-import os from "os";
-import pkg from "@whiskeysockets/baileys";
-const { generateWAMessageFromContent, proto } = pkg;
-import config from "../config.cjs";
-import axios from "axios";
+import fetch from 'node-fetch';
+import ytSearch from 'yt-search';
+import fs from 'fs';
+import { pipeline } from 'stream';
+import { promisify } from 'util';
+import os from 'os';
+import config from '../config.cjs';
 
-// Time logic
-const xtime = moment.tz("Africa/Nairobi").format("HH:mm:ss");
-const xdate = moment.tz("Africa/Nairobi").format("DD/MM/YYYY");
-const time2 = moment().tz("Africa/Nairobi").format("HH:mm:ss");
-let pushwish = "";
+// Cache for frequently used data
+const fontCache = new Map();
+const thumbnailCache = new Map();
 
-if (time2 < "05:00:00") {
-  pushwish = `Good Morning 🌄`;
-} else if (time2 < "11:00:00") {
-  pushwish = `Good Morning 🌄`;
-} else if (time2 < "15:00:00") {
-  pushwish = `Good Afternoon 🌅`;
-} else if (time2 < "18:00:00") {
-  pushwish = `Good Evening 🌃`;
-} else if (time2 < "19:00:00") {
-  pushwish = `Good Evening 🌃`;
-} else {
-  pushwish = `Good Night 🌌`;
-}
-
-// Fancy font utility
-function toFancyFont(text, isUpperCase = false) {
-  const fonts = {
-    a: "ᴀ", b: "ʙ", c: "ᴄ", d: "ᴅ", e: "ᴇ", f: "ғ", g: "ɢ", h: "ʜ", 
-    i: "ɪ", j: "ᴊ", k: "ᴋ", l: "ʟ", m: "ᴍ", n: "ɴ", o: "ᴏ", p: "ᴘ", 
-    q: "ǫ", r: "ʀ", s: "s", t: "ᴛ", u: "ᴜ", v: "ᴠ", w: "ᴡ", x: "x", 
-    y: "ʏ", z: "ᴢ",
-  };
-  const formattedText = isUpperCase ? text.toUpperCase() : text.toLowerCase();
-  return formattedText
-    .split("")
-    .map((char) => fonts[char] || char)
-    .join("");
-}
-
-// Image fetch utility
-async function fetchMenuImage() {
-  const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
-  for (let i = 0; i < 3; i++) {
-    try {
-      const response = await axios.get(imageUrl, { 
-        responseType: "arraybuffer",
-        timeout: 10000
-      });
-      return Buffer.from(response.data);
-    } catch (error) {
-      if (error.response?.status === 429 && i < 2) {
-        console.log(`Rate limit hit, retrying in 2s...`);
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        continue;
-      }
-      console.error("❌ Failed to fetch image:", error.message);
-      return null;
-    }
-  }
-}
-
-// Command categories
-const commandCategories = {
-  "download": {
-    title: "📥 Download Menu",
-    commands: [
-      { command: "apk", desc: "Download APK files" },
-      { command: "facebook", desc: "Download from Facebook" },
-      { command: "mediafire", desc: "Download from Mediafire" },
-      { command: "pinterest", desc: "Download from Pinterest" },
-      { command: "gitclone", desc: "Clone git repositories" },
-      { command: "gdrive", desc: "Download from Google Drive" },
-      { command: "insta", desc: "Download Instagram content" },
-      { command: "ytmp3", desc: "YouTube to MP3" },
-      { command: "ytmp4", desc: "YouTube to MP4" },
-      { command: "play", desc: "Play music" },
-      { command: "song", desc: "Download songs" },
-      { command: "video", desc: "Download videos" },
-      { command: "ytmp3doc", desc: "YouTube to MP3 (document)" },
-      { command: "ytmp4doc", desc: "YouTube to MP4 (document)" },
-      { command: "tiktok", desc: "Download TikTok videos" }
-    ]
-  },
-  "group": {
-    title: "👥 Group Menu",
-    commands: [
-      { command: "linkgroup", desc: "Get group invite link" },
-      { command: "setppgc", desc: "Set group profile picture" },
-      { command: "setname", desc: "Set group name" },
-      { command: "setdesc", desc: "Set group description" },
-      { command: "group", desc: "Group management" },
-      { command: "gcsetting", desc: "Group settings" },
-      { command: "welcome", desc: "Welcome settings" },
-      { command: "add", desc: "Add members" },
-      { command: "kick", desc: "Remove members" },
-      { command: "hidetag", desc: "Hidden tag" },
-      { command: "tagall", desc: "Tag all members" },
-      { command: "antilink", desc: "Anti-link settings" },
-      { command: "antitoxic", desc: "Anti-toxic settings" },
-      { command: "promote", desc: "Promote members" },
-      { command: "demote", desc: "Demote members" },
-      { command: "getbio", desc: "Get user bio" }
-    ]
-  },
-  "fun": {
-    title: "🎉 Fun Menu",
-    commands: [
-      { command: "gay", desc: "Gay rate checker" },
-      { command: "simp", desc: "Simp rate checker" },
-      { command: "handsome", desc: "Handsome rate" },
-      { command: "stupid", desc: "Stupid rate" },
-      { command: "character", desc: "Character analyzer" },
-      { command: "fact", desc: "Random facts" },
-      { command: "truth", desc: "Truth questions" },
-      { command: "dare", desc: "Dare challenges" },
-      { command: "flirt", desc: "Flirty messages" },
-      { command: "couple", desc: "Couple matching" },
-      { command: "ship", desc: "Ship two people" },
-      { command: "joke", desc: "Random jokes" },
-      { command: "meme", desc: "Random memes" },
-      { command: "quote", desc: "Inspirational quotes" },
-      { command: "roll", desc: "Roll a dice" }
-    ]
-  },
-  "owner": {
-    title: "👑 Owner Menu",
-    commands: [
-      { command: "join", desc: "Join group via link" },
-      { command: "leave", desc: "Leave group" },
-      { command: "block", desc: "Block user" },
-      { command: "unblock", desc: "Unblock user" },
-      { command: "setppbot", desc: "Set bot profile picture" },
-      { command: "anticall", desc: "Anti-call settings" },
-      { command: "setstatus", desc: "Set bot status" },
-      { command: "setnamebot", desc: "Set bot name" },
-      { command: "autorecording", desc: "Auto voice recording" },
-      { command: "autolike", desc: "Auto like messages" },
-      { command: "autotyping", desc: "Auto typing indicator" },
-      { command: "alwaysonline", desc: "Always online mode" },
-      { command: "autoread", desc: "Auto read messages" },
-      { command: "autosview", desc: "Auto view stories" }
-    ]
-  },
-  "ai": {
-    title: "🤖 AI Menu",
-    commands: [
-      { command: "ai", desc: "AI chat" },
-      { command: "bug", desc: "Report bugs" },
-      { command: "report", desc: "Report issues" },
-      { command: "gpt", desc: "ChatGPT" },
-      { command: "dall", desc: "DALL-E image generation" },
-      { command: "remini", desc: "Image enhancement" },
-      { command: "gemini", desc: "Google Gemini" },
-      { command: "bard", desc: "Google Bard" },
-      { command: "blackbox", desc: "Blackbox AI" },
-      { function: "mistral", desc: "Mistral AI" },
-      { command: "llama", desc: "LLaMA AI" },
-      { command: "claude", desc: "Claude AI" },
-      { command: "deepseek", desc: "DeepSeek AI" }
-    ]
-  },
-  "anime": {
-    title: "🌸 Anime Menu",
-    commands: [
-      { command: "anime", desc: "Random anime info" },
-      { command: "animepic", desc: "Random anime pictures" },
-      { command: "animequote", desc: "Anime quotes" },
-      { command: "animewall", desc: "Anime wallpapers" },
-      { command: "animechar", desc: "Anime character search" },
-      { command: "waifu", desc: "Random waifu" },
-      { command: "husbando", desc: "Random husbando" },
-      { command: "neko", desc: "Neko girls" },
-      { command: "shinobu", desc: "Shinobu pictures" },
-      { command: "megumin", desc: "Megumin pictures" },
-      { command: "awoo", desc: "Awoo girls" },
-      { command: "trap", desc: "Trap characters" },
-      { command: "blowjob", desc: "NSFW content" }
-    ]
-  },
-  "converter": {
-    title: "🔄 Converter Menu",
-    commands: [
-      { command: "attp", desc: "Text to sticker" },
-      { command: "attp2", desc: "Text to sticker (style 2)" },
-      { command: "attp3", desc: "Text to sticker (style 3)" },
-      { command: "ebinary", desc: "Encode binary" },
-      { command: "dbinary", desc: "Decode binary" },
-      { command: "emojimix", desc: "Mix two emojis" },
-      { command: "mp3", desc: "Convert to MP3" },
-      { command: "mp4", desc: "Convert to MP4" },
-      { command: "sticker", desc: "Image to sticker" },
-      { command: "toimg", desc: "Sticker to image" },
-      { command: "tovid", desc: "GIF to video" },
-      { command: "togif", desc: "Video to GIF" },
-      { command: "tourl", desc: "Media to URL" },
-      { command: "tinyurl", desc: "URL shortener" }
-    ]
-  },
-  "other": {
-    title: "📌 Other Menu",
-    commands: [
-      { command: "calc", desc: "Calculator" },
-      { command: "tempmail", desc: "Temp email" },
-      { command: "checkmail", desc: "Check temp mail" },
-      { command: "trt", desc: "Translate text" },
-      { command: "tts", desc: "Text to speech" },
-      { command: "ssweb", desc: "Website screenshot" },
-      { command: "readmore", desc: "Create read more" },
-      { command: "styletext", desc: "Stylish text" },
-      { command: "weather", desc: "Weather info" },
-      { command: "clock", desc: "World clock" },
-      { command: "qrcode", desc: "Generate QR code" },
-      { command: "readqr", desc: "Read QR code" },
-      { command: "currency", desc: "Currency converter" }
-    ]
-  },
-  "reactions": {
-    title: "🎭 Reactions Menu",
-    commands: [
-      { command: "like", desc: "Like reaction" },
-      { command: "love", desc: "Love reaction" },
-      { command: "haha", desc: "Haha reaction" },
-      { command: "wow", desc: "Wow reaction" },
-      { command: "sad", desc: "Sad reaction" },
-      { command: "angry", desc: "Angry reaction" },
-      { command: "dislike", desc: "Dislike reaction" },
-      { command: "cry", desc: "Cry reaction" },
-      { command: "kiss", desc: "Kiss reaction" },
-      { command: "pat", desc: "Pat reaction" },
-      { command: "slap", desc: "Slap reaction" },
-      { command: "punch", desc: "Punch reaction" },
-      { command: "kill", desc: "Kill reaction" },
-      { command: "hug", desc: "Hug reaction" }
-    ]
-  },
-  "main": {
-    title: "🏠 Main Menu",
-    commands: [
-      { command: "ping", desc: "Check bot response time" },
-      { command: "alive", desc: "Check if bot is running" },
-      { command: "owner", desc: "Contact owner" },
-      { command: "menu", desc: "Show this menu" },
-      { command: "infobot", desc: "Bot information" },
-      { command: "donate", desc: "Support the bot" },
-      { command: "speed", desc: "Speed test" },
-      { command: "runtime", desc: "Bot uptime" },
-      { command: "sc", desc: "Source code" },
-      { command: "script", desc: "Script info" },
-      { command: "support", desc: "Support group" },
-      { command: "update", desc: "Check updates" },
-      { command: "feedback", desc: "Send feedback" }
-    ]
-  }
-};
-
-// Function to handle command execution
-async function executeCommand(m, Matrix, commandName) {
-  const prefix = config.PREFIX;
+function toFancyFont(text) {
+  if (fontCache.has(text)) return fontCache.get(text);
   
-  // Find the command in the categories
-  let commandFound = null;
-  for (const category of Object.values(commandCategories)) {
-    const cmd = category.commands.find(c => c.command === commandName);
-    if (cmd) {
-      commandFound = cmd;
-      break;
-    }
-  }
-  
-  if (!commandFound) {
-    await Matrix.sendMessage(m.from, {
-      text: `❌ Command "${commandName}" not found. Please try again.`
-    }, { quoted: m });
-    return;
-  }
-  
-  // Send a message indicating the command is being executed
-  await Matrix.sendMessage(m.from, {
-    text: `⚡ Executing command: ${prefix}${commandName}\n${commandFound.desc}`
-  }, { quoted: m });
-  
-  // Simulate the command being typed by the user
-  const simulatedMessage = {
-    ...m,
-    body: `${prefix}${commandName}`
+  const fontMap = {
+    'a': 'ᴀ', 'b': 'ʙ', 'c': 'ᴄ', 'd': 'ᴅ', 'e': 'ᴇ', 'f': 'ғ', 'g': 'ɢ', 
+    'h': 'ʜ', 'i': 'ɪ', 'j': 'ᴊ', 'k': 'ᴋ', 'l': 'ʟ', 'm': 'ᴍ', 'n': 'ɴ', 
+    'o': 'ᴏ', 'p': 'ᴘ', 'q': 'ǫ', 'r': 'ʀ', 's': 's', 't': 'ᴛ', 'u': 'ᴜ', 
+    'v': 'ᴠ', 'w': 'ᴡ', 'x': 'x', 'y': 'ʏ', 'z': 'ᴢ'
   };
   
-  // Import and execute the command handler
+  const result = text.toLowerCase().split('').map(char => fontMap[char] || char).join('');
+  fontCache.set(text, result);
+  return result;
+}
+
+const streamPipeline = promisify(pipeline);
+const tmpDir = os.tmpdir();
+
+// Kaiz-API configuration
+const KAIZ_API_KEY = 'cf2ca612-296f-45ba-abbc-473f18f991eb';
+const KAIZ_API_URL = 'https://kaiz-apis.gleeze.com/api/ytdown-mp3';
+
+function getYouTubeThumbnail(videoId, quality = 'hqdefault') {
+  const cacheKey = `${videoId}_${quality}`;
+  if (thumbnailCache.has(cacheKey)) return thumbnailCache.get(cacheKey);
+  
+  const qualities = {
+    'default': 'default.jpg', 'mqdefault': 'mqdefault.jpg', 'hqdefault': 'hqdefault.jpg',
+    'sddefault': 'sddefault.jpg', 'maxresdefault': 'maxresdefault.jpg'
+  };
+  
+  const result = `https://i.ytimg.com/vi/${videoId}/${qualities[quality] || qualities['hqdefault']}`;
+  thumbnailCache.set(cacheKey, result);
+  return result;
+}
+
+function extractYouTubeId(url) {
+  const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[7].length === 11) ? match[7] : false;
+}
+
+async function sendCustomReaction(client, message, reaction) {
   try {
-    // This assumes you have a command handler that exports a default function
-    const commandHandler = await import(`./commands/${commandName}.js`);
-    await commandHandler.default(simulatedMessage, Matrix);
+    const key = message.quoted ? message.quoted.key : message.key;
+    await client.sendMessage(key.remoteJid, {
+      react: { text: reaction, key: key }
+    });
   } catch (error) {
-    console.error(`Error executing command ${commandName}:`, error);
-    await Matrix.sendMessage(m.from, {
-      text: `❌ Error executing command "${commandName}": ${error.message}\n\nMake sure the command file exists in the commands directory.`
-    }, { quoted: m });
+    console.error("Error sending reaction:", error.message);
   }
 }
 
-const menu = async (m, Matrix) => {
+// Store user preferences with better session management
+const userSessions = new Map();
+
+// Utility function to fetch video info
+async function fetchVideoInfo(text) {
+  const isYtUrl = text.match(/(youtube\.com|youtu\.be)/i);
+  
+  if (isYtUrl) {
+    const videoId = text.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i)?.[1];
+    if (!videoId) throw new Error('Invalid YouTube URL format');
+    
+    const videoInfo = await ytSearch({ videoId });
+    if (!videoInfo) throw new Error('Could not fetch video info');
+    
+    return { url: `https://youtu.be/${videoId}`, info: videoInfo };
+  } else {
+    const searchResults = await ytSearch(text);
+    if (!searchResults?.videos?.length) throw new Error('No results found');
+    
+    const validVideos = searchResults.videos.filter(v => !v.live && v.duration.seconds < 7200 && v.views > 10000);
+    if (!validVideos.length) throw new Error('Only found live streams/unpopular videos');
+    
+    return { url: validVideos[0].url, info: validVideos[0] };
+  }
+}
+
+// Utility function to fetch audio from Kaiz-API with timeout
+async function fetchAudioData(videoUrl) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+  
   try {
-    const prefix = config.PREFIX;
+    const apiUrl = `${KAIZ_API_URL}?url=${encodeURIComponent(videoUrl)}&apikey=${KAIZ_API_KEY}`;
+    const response = await fetch(apiUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      },
+      signal: controller.signal
+    });
     
-    // Check if message has the correct prefix
-    const hasPrefix = m.body && m.body.startsWith(prefix);
-    if (!hasPrefix && !m.message?.nativeFlowResponseMessage && !m.message?.buttonsResponseMessage) {
-      return; // Ignore messages without prefix
-    }
+    if (!response.ok) throw new Error('API request failed');
     
-    const cmd = hasPrefix ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
-    const mode = config.MODE === "public" ? "public" : "private";
-    const totalCommands = Object.values(commandCategories).reduce((acc, category) => acc + category.commands.length, 0);
+    const data = await response.json();
+    if (!data?.download_url) throw new Error('Invalid API response');
+    
+    return data;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
-    const validCommands = ["list", "help", "menu"];
-    const subMenuCommands = Object.keys(commandCategories).map(cat => `${cat}-menu`);
+// Utility function to fetch thumbnail with caching
+async function fetchThumbnail(thumbnailUrl) {
+  if (!thumbnailUrl) return null;
+  
+  // Check cache first
+  if (thumbnailCache.has(thumbnailUrl)) {
+    return thumbnailCache.get(thumbnailUrl);
+  }
+  
+  try {
+    const response = await fetch(thumbnailUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+    
+    if (!response.ok) return null;
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    
+    // Cache the thumbnail for future use
+    thumbnailCache.set(thumbnailUrl, buffer);
+    
+    // Set timeout to clear cache after 10 minutes
+    setTimeout(() => {
+      thumbnailCache.delete(thumbnailUrl);
+    }, 600000);
+    
+    return buffer;
+  } catch (e) {
+    console.error('Thumbnail error:', e);
+    return null;
+  }
+}
 
-    // Check if this is a native flow response (menu selection)
-    if (m.message?.nativeFlowResponseMessage) {
-      try {
-        const responseParams = JSON.parse(m.message.nativeFlowResponseMessage.paramsJson);
-        const selectedId = responseParams.id || responseParams.name;
-        
-        if (selectedId) {
-          // Handle menu navigation
-          if (selectedId.endsWith('-menu')) {
-            // Simulate the menu command
-            const simulatedMessage = {
-              ...m,
-              body: selectedId
-            };
-            return menu(simulatedMessage, Matrix);
-          }
-          
-          // Handle direct command execution
-          const commandName = selectedId.startsWith(prefix) 
-            ? selectedId.slice(prefix.length) 
-            : selectedId;
-            
-          return executeCommand(m, Matrix, commandName);
+// Function to format the song info with decorations
+function formatSongInfo(videoInfo, videoUrl) {
+  const minutes = Math.floor(videoInfo.duration.seconds / 60);
+  const seconds = videoInfo.duration.seconds % 60;
+  const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  
+  // Create a decorated song info with ASCII art
+  return `
+╭───〘  *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* 〙───
+├📝 *ᴛɪᴛʟᴇ:* ${videoInfo.title}
+├👤 *ᴀʀᴛɪsᴛ:* ${videoInfo.author.name}
+├⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${formattedDuration}
+├📅 *ᴜᴘʟᴏᴀᴅᴇᴅ:* ${videoInfo.ago}
+├👁️ *ᴠɪᴇᴡs:* ${videoInfo.views.toLocaleString()}
+├🎵 *Format:* High Quality MP3
+╰───────────────┈ ⊷
+${toFancyFont("choose download format:")}
+  `.trim();
+}
+
+// Preload audio for faster delivery
+async function preloadAudio(session) {
+  if (!session || session.preloaded) return;
+  
+  try {
+    const fileName = `${session.videoTitle.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').substring(0, 50)}_${Date.now()}`;
+    const filePath = `${tmpDir}/${fileName}.mp3`;
+    
+    const audioResponse = await fetch(session.downloadUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Referer': 'https://www.youtube.com/',
+        'Accept-Encoding': 'identity'
+      }
+    });
+    
+    if (!audioResponse.ok) throw new Error("Download failed");
+    
+    const fileStream = fs.createWriteStream(filePath);
+    await streamPipeline(audioResponse.body, fileStream);
+    
+    session.filePath = filePath;
+    session.preloaded = true;
+    session.timestamp = Date.now();
+    
+    // Schedule cleanup for 10 minutes
+    setTimeout(() => {
+      if (session.filePath && fs.existsSync(session.filePath)) {
+        try {
+          fs.unlinkSync(session.filePath);
+          session.preloaded = false;
+          session.filePath = null;
+        } catch (e) {}
+      }
+    }, 600000);
+    
+  } catch (error) {
+    console.error("Preload error:", error.message);
+    // Don't throw error as this is just a preload attempt
+  }
+}
+
+const play = async (message, client) => {
+  try {
+    const prefix = config.Prefix || config.PREFIX || '.';
+    const body = message.body || '';
+    const command = body.startsWith(prefix) ? body.slice(prefix.length).split(" ")[0].toLowerCase() : '';
+    const args = body.slice(prefix.length + command.length).trim().split(" ");
+    
+    // Clean up expired sessions (older than 10 minutes)
+    const now = Date.now();
+    for (const [sender, session] of userSessions.entries()) {
+      if (now - session.timestamp > 10 * 60 * 1000) {
+        userSessions.delete(sender);
+        // Clean up file if exists
+        if (session.filePath && fs.existsSync(session.filePath)) {
+          try {
+            fs.unlinkSync(session.filePath);
+          } catch (e) {}
         }
-      } catch (error) {
-        console.error("Error parsing native flow response:", error);
-        await Matrix.sendMessage(m.from, {
-          text: "❌ Error processing menu selection. Please try again."
-        }, { quoted: m });
-        return;
       }
     }
 
-    // Check if this is a button response (for older WhatsApp versions)
-    if (m.message?.buttonsResponseMessage) {
-      const selectedId = m.message.buttonsResponseMessage.selectedButtonId;
+    if (command === "play") {
+      await sendCustomReaction(client, message, "⏳");
       
-      if (selectedId) {
-        // Handle menu navigation
-        if (selectedId.endsWith('-menu')) {
-          const simulatedMessage = {
-            ...m,
-            body: selectedId
-          };
-          return menu(simulatedMessage, Matrix);
+      if (args.length === 0 || !args.join(" ")) {
+        await sendCustomReaction(client, message, "❌");
+        return await client.sendMessage(message.from, {
+          text: toFancyFont("Please provide a song name or keywords to search"),
+          mentions: [message.sender]
+        }, { quoted: message });
+      }
+      
+      const query = args.join(" ");
+      
+      try {
+        // Fetch video info using the new logic
+        const { url: videoUrl, info: videoInfo } = await fetchVideoInfo(query);
+        
+        // Fetch audio data from Kaiz-API
+        const apiData = await fetchAudioData(videoUrl);
+        
+        if (!apiData.download_url) {
+          await sendCustomReaction(client, message, "❌");
+          return await client.sendMessage(message.from, {
+            text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("No download URL available"),
+            mentions: [message.sender]
+          }, { quoted: message });
         }
         
-        // Handle direct command execution
-        const commandName = selectedId.startsWith(prefix) 
-          ? selectedId.slice(prefix.length) 
-          : selectedId;
-          
-        return executeCommand(m, Matrix, commandName);
-      }
-    }
-
-    // Fetch image for all cases
-    const menuImage = await fetchMenuImage();
-
-    // Handle main menu
-    if (validCommands.includes(cmd) || cmd === "") {
-      const mainMenu = `*HI 👋* *${pushwish}*
-*╭───────────────┈⊷*
-*┊• 🌟 ʙᴏᴛ ɴᴀᴍᴇ :* *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ*
-*┊• ⏰ ᴛɪᴍᴇ :* *${xtime}*
-*┊• 📅 ᴅᴀᴛᴇ :* *${xdate}*
-*┊• 🎭 ᴅᴇᴠ :* *ᴄᴀsᴇʏʀʜᴅᴇs ᴛᴇᴄʜ ᴢᴏɴᴇ*
-*┊• 📍 ᴘʀᴇғɪx :*  *[ ${prefix} ]*
-*┊• 📊 ᴛᴏᴛᴀʟ ᴄᴍᴅs :* *${totalCommands}*
-*╰───────────────┈⊷*
-┏        *【 ᴍᴇɴᴜ ʟɪsᴛ 】⇳︎*
-- . ①  *ᴅᴏᴡɴʟᴏᴀᴅ ᴍᴇɴᴜ*
-- . ②  *ɢʀᴏᴜᴘ ᴍᴇɴᴜ*
-- . ③  *ғᴜɴ ᴍᴇɴᴜ*
-- . ④  *ᴏᴡɴᴇʀ ᴍᴇɴᴜ*
-- . ⑤  *ᴀɪ ᴍᴇɴᴜ*
-- . ⑥  *ᴀɴɪᴍᴇ ᴍᴇɴᴜ*
-- . ⑦  *ᴄᴏɴᴠᴇʀᴛᴇʀ ᴍᴇɴᴜ*
-- . ⑧  *ᴏᴛʜᴇʀ ᴍᴇɴᴜ*
-- . ⑨  *ʀᴇᴀᴄᴛɪᴏɴs ᴍᴇɴᴜ*
-- . ⑩  *ᴍᴀɪɴ ᴍᴇɴᴜ*
-┗
-╭─────────────────⊷
-┊*Hallo my family ${pushwish}*
-╰─────────────────⊷
-`;
-
-      // Create native flow message with single select menu
-      const message = {
-        viewOnceMessage: {
-          message: {
-            messageContextInfo: {
-              deviceListMetadata: {},
-              deviceListMetadataVersion: 2
-            },
-            interactiveMessage: proto.Message.InteractiveMessage.create({
-              nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
-                buttons: [
-                  {
-                    name: "single_select",
-                    buttonParamsJson: JSON.stringify({
-                      title: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ᴍᴇɴᴜ",
-                      sections: [
-                        {
-                          title: "ᴄᴀᴛᴇɢᴏʀɪᴇs",
-                          highlight_label: "sᴇʟᴇᴄᴛ ᴀ ᴄᴀᴛᴇɢᴏʀʏ",
-                          rows: [
-                            {
-                              title: "📥 ᴅᴏᴡɴʟᴏᴀᴅ",
-                              id: `${prefix}download-menu`,
-                            },
-                            {
-                              title: "👥 ɢʀᴏᴜᴘ",
-                              id: `${prefix}group-menu`,
-                            },
-                            {
-                              title: "🎉 ғᴜɴ",
-                              id: `${prefix}fun-menu`,
-                            },
-                            {
-                              title: "👑 ᴏᴡɴᴇʀ",
-                              id: `${prefix}owner-menu`,
-                            },
-                            {
-                              title: "🤖 ᴀɪ",
-                              id: `${prefix}ai-menu`,
-                            },
-                            {
-                              title: "🌸 ᴀɴɪᴍᴇ",
-                              id: `${prefix}anime-menu`,
-                            },
-                            {
-                              title: "🔄 ᴄᴏɴᴠᴇʀᴛᴇʀ",
-                              id: `${prefix}converter-menu`,
-                            },
-                            {
-                              title: "🌟 ᴏᴛʜᴇʀ",
-                              id: `${prefix}other-menu`,
-                            },
-                            {
-                              title: "🎭 ʀᴇᴀᴄᴛɪᴏɴs",
-                              id: `${prefix}reactions-menu`,
-                            },
-                            {
-                              title: "📂 ᴍᴀɪɴ",
-                              id: `${prefix}main-menu`,
-                            }
-                          ],
-                        },
-                      ],
-                    })
-                  }
-                ]
-              })
-            })
-          }
-        }
-      };
-
-      // Send menu with or without image
-      if (menuImage) {
-        await Matrix.sendMessage(m.from, { 
-          image: menuImage,
-          caption: mainMenu,
-          ...message
-        }, { 
-          quoted: {
-            key: {
-                fromMe: false,
-                participant: `0@s.whatsapp.net`,
-                remoteJid: "status@broadcast"
-            },
-            message: {
-                contactMessage: {
-                    displayName: "CASEYRHODES VERIFIED ✅",
-                    vcard: "BEGIN:VCARD\nVERSION:3.0\nFN: Caseyrhodes VERIFIED ✅\nORG:CASEYRHODES-TECH BOT;\nTEL;type=CELL;type=VOICE;waid=13135550002:+13135550002\nEND:VCARD"
-                }
+        const videoId = extractYouTubeId(videoUrl) || videoInfo.videoId;
+        const thumbnailUrl = getYouTubeThumbnail(videoId, 'maxresdefault');
+        
+        // Use the decorated song info format
+        const songInfo = formatSongInfo(videoInfo, videoUrl);
+        
+        // Store session data
+        const sessionData = {
+          downloadUrl: apiData.download_url,
+          videoTitle: videoInfo.title,
+          videoUrl: videoUrl,
+          thumbnailUrl: thumbnailUrl,
+          timestamp: Date.now(),
+          preloaded: false,
+          filePath: null
+        };
+        
+        userSessions.set(message.sender, sessionData);
+        
+        // Start preloading audio in background
+        preloadAudio(sessionData);
+        
+        // Download thumbnail for image message
+        let imageBuffer = await fetchThumbnail(thumbnailUrl);
+        
+        // Create all buttons in a single array
+        const buttons = [
+          {
+            buttonId: `${prefix}audio`,
+            buttonText: { displayText: "🎶 ❯❯ ᴀᴜᴅɪᴏ" },
+            type: 1
+          },
+          {
+            buttonId: `${prefix}document`,
+            buttonText: { displayText: "📂 ❯❯ᴅᴏᴄᴜᴍᴇɴᴛ" },
+            type: 1
+          },
+          {
+            urlButton: {
+              displayText: "📚 Follow Channel",
+              url: "https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R"
             }
           }
-        });
-      } else {
-        // Fallback to text-only if image fails
-        await Matrix.sendMessage(m.from, { text: mainMenu, ...message }, { quoted: m });
-      }
-
-      // Send audio as a voice note
-      try {
-        await Matrix.sendMessage(m.from, { 
-          audio: { url: "https://files.catbox.moe/mwohwu.mp3" },
-          mimetype: "audio/mp4", 
-          ptt: true
-        }, { 
-          quoted: {
-            key: {
-              fromMe: false,
-              participant: `0@s.whatsapp.net`,
-              remoteJid: "status@broadcast"
-            },
-            message: {
-              contactMessage: {
-                displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
-                vcard: `BEGIN:VCARD\nVERSION:3.0\nFN: Caseyrhodes VERIFIED ✅\nORG:CASEYRHODES-TECH BOT;\nTEL;type=CELL;type=VOICE;waid=13135550002:+13135550002\nEND:VCARD`
+        ];
+        
+        // Send single message with both info and buttons
+        if (imageBuffer) {
+          await client.sendMessage(message.from, {
+            image: imageBuffer,
+            caption: songInfo,
+            buttons: buttons,
+            mentions: [message.sender],
+            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ",
+            headerType: 1,
+            contextInfo: {
+              forwardingScore: 1,
+              isForwarded: true,
+              forwardedNewsletterMessageInfo: {
+                newsletterJid: '120363302677217436@newsletter',
+                newsletterName: 'POWERED BY CASEYRHODES TECH',
+                serverMessageId: -1
               }
             }
-          }
-        });
-      } catch (audioError) {
-        console.error("❌ Failed to send audio:", audioError.message);
-        // Continue without audio if it fails
+          }, { quoted: message });
+        } else {
+          await client.sendMessage(message.from, {
+            text: songInfo,
+            buttons: buttons,
+            mentions: [message.sender],
+            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ",
+            contextInfo: {
+              forwardingScore: 1,
+              isForwarded: true,
+              forwardedNewsletterMessageInfo: {
+                newsletterJid: '120363302677217436@newsletter',
+                newsletterName: 'POWERED BY CASEYRHODES TECH',
+                serverMessageId: -1
+              }
+            }
+          }, { quoted: message });
+        }
+        
+        await sendCustomReaction(client, message, "✅");
+        
+      } catch (error) {
+        console.error("Error in play command:", error.message);
+        await sendCustomReaction(client, message, "❌");
+        
+        await client.sendMessage(message.from, {
+          text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont(error.message || "encountered an error. Please try again"),
+          mentions: [message.sender]
+        }, { quoted: message });
+      }
+      
+    } else if (command === "audio" || command === "document") {
+      const session = userSessions.get(message.sender);
+      
+      if (!session || (Date.now() - session.timestamp > 10 * 60 * 1000)) {
+        if (session) userSessions.delete(message.sender);
+        await sendCustomReaction(client, message, "❌");
+        return await client.sendMessage(message.from, {
+          text: toFancyFont("Session expired. Please use the play command again."),
+          mentions: [message.sender]
+        }, { quoted: message });
+      }
+      
+      await sendCustomReaction(client, message, "⬇️");
+      
+      try {
+        let audioData;
+        let filePath = session.filePath;
+        
+        // If audio was preloaded, use the preloaded file
+        if (session.preloaded && filePath && fs.existsSync(filePath)) {
+          audioData = fs.readFileSync(filePath);
+        } else {
+          // Generate a unique file name
+          const fileName = `${session.videoTitle.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_').substring(0, 50)}_${Date.now()}`;
+          filePath = `${tmpDir}/${fileName}.mp3`;
+          
+          // Download the audio file
+          const audioResponse = await fetch(session.downloadUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+              'Referer': 'https://www.youtube.com/',
+              'Accept-Encoding': 'identity'
+            }
+          });
+          
+          if (!audioResponse.ok) throw new Error("Download failed");
+          
+          const fileStream = fs.createWriteStream(filePath);
+          await streamPipeline(audioResponse.body, fileStream);
+          
+          audioData = fs.readFileSync(filePath);
+        }
+        
+        if (command === "audio") {
+          // Send as audio with proper context info
+          await client.sendMessage(message.from, {
+            audio: audioData,
+            mimetype: 'audio/mpeg',
+            fileName: `${session.videoTitle.substring(0, 50)}.mp3`,
+            contextInfo: {
+              externalAdReply: {
+                title: session.videoTitle.length > 25 ? `${session.videoTitle.substring(0, 22)}...` : session.videoTitle,
+                body: "Follow our WhatsApp Channel",
+                mediaType: 1,
+                thumbnailUrl: session.thumbnailUrl,
+                sourceUrl: 'https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R',
+                mediaUrl: 'https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R',
+                showAdAttribution: true,
+                renderLargerThumbnail: false
+              }
+            }
+          }, { quoted: message });
+        } else {
+          // Send as document
+          await client.sendMessage(message.from, {
+            document: audioData,
+            mimetype: 'audio/mpeg',
+            fileName: `${session.videoTitle.substring(0, 50)}.mp3`,
+            contextInfo: {
+              externalAdReply: {
+                title: session.videoTitle.length > 25 ? `${session.videoTitle.substring(0, 22)}...` : session.videoTitle,
+                body: "Follow our WhatsApp Channel",
+                mediaType: 1,
+                thumbnailUrl: session.thumbnailUrl,
+                sourceUrl: 'https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R',
+                mediaUrl: 'https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R',
+                showAdAttribution: true,
+                renderLargerThumbnail: false
+              }
+            }
+          }, { quoted: message });
+        }
+        
+        await sendCustomReaction(client, message, "✅");
+        
+        // Clean up file after 30 seconds if it wasn't preloaded
+        if (!session.preloaded) {
+          setTimeout(() => {
+            try {
+              if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+              }
+            } catch (e) {}
+          }, 30000);
+        }
+        
+      } catch (error) {
+        console.error("Failed to process:", command, error.message);
+        await sendCustomReaction(client, message, "❌");
+        
+        await client.sendMessage(message.from, {
+          text: "*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont(`failed to process ${command} file`),
+          mentions: [message.sender]
+        }, { quoted: message });
+        
+        // Clean up on error
+        userSessions.delete(message.sender);
       }
     }
   
-    // Handle sub-menu commands
-    if (subMenuCommands.includes(cmd)) {
-      const category = cmd.replace("-menu", "");
-      const categoryData = commandCategories[category];
-      
-      if (!categoryData) return;
-
-      let menuResponse = "";
-      categoryData.commands.forEach((cmdObj, index) => {
-        const num = (index + 1).toString().padStart(2, "0");
-        menuResponse += `${toFancyFont(`${prefix}${cmdObj.command}`)}\n`;
-      });
-
-      // Format the full response
-      const fullResponse = `
-*${categoryData.title}*
-
-${menuResponse}
-
-*📅 Date*: ${xdate}
-*⏰ Time*: ${xtime}
-*⚙️ Prefix*: ${prefix}
-*🌐 Mode*: ${mode}
-*📊 Commands*: ${categoryData.commands.length}
-
-> ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
-`;
-
-      // Create command selection rows
-      const commandRows = categoryData.commands.map(cmdObj => ({
-        title: cmdObj.command,
-        id: `${prefix}${cmdObj.command}`,
-      }));
-
-      // Create native flow message for submenu
-      const message = {
-        viewOnceMessage: {
-          message: {
-            messageContextInfo: {
-              deviceListMetadata: {},
-              deviceListMetadataVersion: 2
-            },
-            interactiveMessage: proto.Message.InteractiveMessage.create({
-              nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
-                buttons: [
-                  {
-                    name: "single_select",
-                    buttonParamsJson: JSON.stringify({
-                      title: categoryData.title,
-                      sections: [
-                        {
-                          title: "ᴄᴏᴍᴍᴀɴᴅs",
-                          highlight_label: "sᴇʟᴇᴄᴛ ᴀ ᴄᴏᴍᴍᴀɴᴅ",
-                          rows: [
-                            ...commandRows,
-                            {
-                              title: "ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ",
-                              id: `${prefix}menu`,
-                            }
-                          ],
-                        },
-                      ],
-                    })
-                  }
-                ]
-              })
-            })
-          }
-        }
-      };
-
-      // Send sub-menu with image
-      if (menuImage) {
-        await Matrix.sendMessage(m.from, { 
-          image: menuImage,
-          caption: fullResponse,
-          ...message
-        }, { quoted: m });
-      } else {
-        await Matrix.sendMessage(m.from, {
-          text: fullResponse,
-          ...message
-        }, { quoted: m });
-      }
-    }
   } catch (error) {
-    console.error(`❌ Menu error: ${error.message}`);
-    await Matrix.sendMessage(m.from, {
-      text: `•
-• *📁 ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* hit a snag! Error: ${error.message || "Failed to load menu"} 😡
-•`,
-    }, { quoted: m });
+    console.error("❌ Main error:", error.message);
+    await sendCustomReaction(client, message, "❌");
+    
+    await client.sendMessage(message.from, {
+      text: "*ᴄᴀsᴇʏʀʀʜᴏᴅᴇs ᴀɪ* " + toFancyFont("encountered an error. Please try again"),
+      mentions: [message.sender]
+    }, { quoted: message });
   }
 };
 
-export default menu;
+export default play;
