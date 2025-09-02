@@ -21,6 +21,13 @@ const aiMenu = async (m, Matrix) => {
   const validCommands = ['ai', 'gpt', 'openai', 'deepseek', 'bing', 'marisel', 'groq', 'gpt4', 'gemini', 'deepimg'];
   const aiSubCommands = ['ai-menu'];
 
+  // Check if user requested an image specifically
+  const isImageRequested = prompt.toLowerCase().includes('image') || 
+                          prompt.toLowerCase().includes('img') || 
+                          prompt.toLowerCase().includes('picture') ||
+                          prompt.toLowerCase().includes('photo') ||
+                          cmd === 'deepimg';
+
   if (aiSubCommands.includes(cmd)) {
     const menuResponse = `
 *🤖 AI Menu*
@@ -108,14 +115,92 @@ const aiMenu = async (m, Matrix) => {
         { buttonId: `${prefix}ai-menu`, buttonText: { displayText: '📜 ᴀɪ ᴍᴇɴᴜ' }, type: 1 }
       ];
 
-      await Matrix.sendMessage(m.from, { 
-        text: `*${toFancyFont(cmd)} ${cmd === 'deepimg' ? 'ɪᴍᴀɢᴇ' : 'ʀᴇsᴘᴏɴsᴇ'}*\n\n${answer}\n\n${toFancyFont('powered by Caseyrhodes xtech')}`,
-        buttons,
-        headerType: 1
-      }, { quoted: m });
+      // If user requested an image specifically, include the image URL in a single message
+      if (isImageRequested) {
+        const imageUrl = "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg";
+        
+        // Create a combined message with image and text
+        const template = generateWAMessageFromContent(m.from, 
+          {
+            viewOnceMessage: {
+              message: {
+                messageContextInfo: {
+                  deviceListMetadata: {},
+                  deviceListMetadataVersion: 2
+                },
+                templateMessage: {
+                  hydratedTemplate: {
+                    hydratedContentText: `*${toFancyFont(cmd)} ${cmd === 'deepimg' ? 'ɪᴍᴀɢᴇ' : 'ʀᴇsᴘᴏɴsᴇ'}*\n\n${answer}\n\n${toFancyFont('powered by Caseyrhodes xtech')}`,
+                    hydratedFooterText: "AI Response with Image",
+                    hydratedButtons: buttons,
+                    templateId: "1234567890",
+                    hydratedTitleText: "🤖 AI Response",
+                    imageMessage: {
+                      url: imageUrl,
+                      mimetype: "image/jpeg",
+                      caption: `*${toFancyFont(cmd)} ${cmd === 'deepimg' ? 'ɪᴍᴀɢᴇ' : 'ʀᴇsᴘᴏɴsᴇ'}*\n\n${answer}\n\n${toFancyFont('powered by Caseyrhodes xtech')}`,
+                    }
+                  }
+                }
+              }
+            }
+          },
+          { quoted: m }
+        );
+        
+        await Matrix.relayMessage(m.from, template.message, { messageId: template.key.id });
+      } else {
+        // Send only text response
+        await Matrix.sendMessage(m.from, { 
+          text: `*${toFancyFont(cmd)} ${cmd === 'deepimg' ? 'ɪᴍᴀɢᴇ' : 'ʀᴇsᴘᴏɴsᴇ'}*\n\n${answer}\n\n${toFancyFont('powered by Caseyrhodes xtech')}`,
+          buttons,
+          headerType: 1
+        }, { quoted: m });
+      }
 
     } catch (err) {
       console.error('AI Error:', err);
+      
+      // If there's an error but user requested an image, still try to send the image
+      if (isImageRequested) {
+        try {
+          const imageUrl = "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg";
+          
+          // Create a fallback message with just the image
+          const template = generateWAMessageFromContent(m.from, 
+            {
+              viewOnceMessage: {
+                message: {
+                  messageContextInfo: {
+                    deviceListMetadata: {},
+                    deviceListMetadataVersion: 2
+                  },
+                  templateMessage: {
+                    hydratedTemplate: {
+                      hydratedContentText: `*${toFancyFont("ai service error")}*\n\n${toFancyFont("but here's an image for you")}`,
+                      hydratedFooterText: "AI Service Error",
+                      templateId: "1234567891",
+                      hydratedTitleText: "🤖 AI Response",
+                      imageMessage: {
+                        url: imageUrl,
+                        mimetype: "image/jpeg",
+                        caption: `*${toFancyFont("ai service error")}*\n\n${toFancyFont("but here's an image for you")}`,
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            { quoted: m }
+          );
+          
+          await Matrix.relayMessage(m.from, template.message, { messageId: template.key.id });
+          return;
+        } catch (imageError) {
+          console.error('Image sending also failed:', imageError);
+        }
+      }
+      
       const buttons = [
         { buttonId: `${prefix}report`, buttonText: { displayText: '⚠️ ʀᴇᴘᴏʀᴛ' }, type: 1 },
         { buttonId: `${prefix}menu`, buttonText: { displayText: '🔙 ᴍᴇɴᴜ' }, type: 1 }
