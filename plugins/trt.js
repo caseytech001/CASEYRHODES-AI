@@ -35,10 +35,41 @@ const translateCommand = async (m, sock) => {
             const translatedText = result[0];
 
             const responseMessage = `${targetLang}:\n\n${translatedText}`;
-            await sock.sendMessage(m.key.remoteJid, { text: responseMessage }, { quoted: m });
+            
+            // Add buttons for common languages
+            const buttons = [
+              {buttonId: `${prefix}translate en ${translatedText}`, buttonText: {displayText: 'English'}, type: 1},
+              {buttonId: `${prefix}translate es ${translatedText}`, buttonText: {displayText: 'Spanish'}, type: 1},
+              {buttonId: `${prefix}translate fr ${translatedText}`, buttonText: {displayText: 'French'}, type: 1},
+              {buttonId: `${prefix}translate de ${translatedText}`, buttonText: {displayText: 'German'}, type: 1},
+              {buttonId: `${prefix}translate ja ${translatedText}`, buttonText: {displayText: 'Japanese'}, type: 1}
+            ];
+            
+            const buttonMessage = {
+              text: responseMessage,
+              footer: "Translate to other languages:",
+              buttons: buttons,
+              headerType: 1
+            };
+            
+            await sock.sendMessage(m.key.remoteJid, buttonMessage, { quoted: m });
           } catch (error) {
             console.error("Error extracting and translating text from image:", error);
-            await sock.sendMessage(m.key.remoteJid, { text: 'Error extracting and translating text from image.' }, { quoted: m });
+            
+            // Error message with buttons
+            const errorButtons = [
+              {buttonId: `${prefix}help translate`, buttonText: {displayText: 'Help'}, type: 1},
+              {buttonId: `${prefix}translate en Hello`, buttonText: {displayText: 'Example'}, type: 1}
+            ];
+            
+            const errorMessage = {
+              text: 'Error extracting and translating text from image.',
+              footer: "Try again or check the help section",
+              buttons: errorButtons,
+              headerType: 1
+            };
+            
+            await sock.sendMessage(m.key.remoteJid, errorMessage, { quoted: m });
           }
         } 
         // Handle quoted text message
@@ -49,10 +80,41 @@ const translateCommand = async (m, sock) => {
             const translatedText = result[0];
 
             const responseMessage = `${targetLang}:\n\n${translatedText}`;
-            await sock.sendMessage(m.key.remoteJid, { text: responseMessage }, { quoted: m });
+            
+            // Add buttons for common languages
+            const buttons = [
+              {buttonId: `${prefix}translate en ${quotedText}`, buttonText: {displayText: 'English'}, type: 1},
+              {buttonId: `${prefix}translate es ${quotedText}`, buttonText: {displayText: 'Spanish'}, type: 1},
+              {buttonId: `${prefix}translate fr ${quotedText}`, buttonText: {displayText: 'French'}, type: 1},
+              {buttonId: `${prefix}translate de ${quotedText}`, buttonText: {displayText: 'German'}, type: 1},
+              {buttonId: `${prefix}translate ja ${quotedText}`, buttonText: {displayText: 'Japanese'}, type: 1}
+            ];
+            
+            const buttonMessage = {
+              text: responseMessage,
+              footer: "Translate to other languages:",
+              buttons: buttons,
+              headerType: 1
+            };
+            
+            await sock.sendMessage(m.key.remoteJid, buttonMessage, { quoted: m });
           } catch (error) {
             console.error("Error translating quoted text:", error);
-            await sock.sendMessage(m.key.remoteJid, { text: 'Error translating quoted text.' }, { quoted: m });
+            
+            // Error message with buttons
+            const errorButtons = [
+              {buttonId: `${prefix}help translate`, buttonText: {displayText: 'Help'}, type: 1},
+              {buttonId: `${prefix}translate en Hello`, buttonText: {displayText: 'Example'}, type: 1}
+            ];
+            
+            const errorMessage = {
+              text: 'Error translating quoted text.',
+              footer: "Try again or check the help section",
+              buttons: errorButtons,
+              headerType: 1
+            };
+            
+            await sock.sendMessage(m.key.remoteJid, errorMessage, { quoted: m });
           }
         }
       } else if (text && targetLang) {
@@ -61,15 +123,64 @@ const translateCommand = async (m, sock) => {
         const translatedText = result[0];
 
         const responseMessage = `${targetLang}:\n\n${translatedText}`;
-        await sock.sendMessage(m.key.remoteJid, { text: responseMessage }, { quoted: m });
+        
+        // Add buttons for common languages
+        const buttons = [
+          {buttonId: `${prefix}translate en ${text}`, buttonText: {displayText: 'English'}, type: 1},
+          {buttonId: `${prefix}translate es ${text}`, buttonText: {displayText: 'Spanish'}, type: 1},
+          {buttonId: `${prefix}translate fr ${text}`, buttonText: {displayText: 'French'}, type: 1},
+          {buttonId: `${prefix}translate de ${text}`, buttonText: {displayText: 'German'}, type: 1},
+          {buttonId: `${prefix}translate ja ${text}`, buttonText: {displayText: 'Japanese'}, type: 1}
+        ];
+        
+        const buttonMessage = {
+          text: responseMessage,
+          footer: "Translate to other languages:",
+          buttons: buttons,
+          headerType: 1
+        };
+        
+        await sock.sendMessage(m.key.remoteJid, buttonMessage, { quoted: m });
       } else {
-        // Show usage instructions
+        // Show usage instructions with buttons for common languages and examples
         const responseMessage = "Usage: /translate <target_lang> <text>\nExample: /translate en कैसे हो भाई\nOr reply to an image/text message with /translate <target_lang>";
-        await sock.sendMessage(m.key.remoteJid, { text: responseMessage }, { quoted: m });
+        
+        // Add buttons for common languages and examples
+        const buttons = [
+          {buttonId: `${prefix}translate en Hello`, buttonText: {displayText: 'English Example'}, type: 1},
+          {buttonId: `${prefix}translate es Hola`, buttonText: {displayText: 'Spanish Example'}, type: 1},
+          {buttonId: `${prefix}translate fr Bonjour`, buttonText: {displayText: 'French Example'}, type: 1},
+          {buttonId: `${prefix}help translate`, buttonText: {displayText: 'Help'}, type: 1},
+          {buttonId: `${prefix}translate languages`, buttonText: {displayText: 'Language Codes'}, type: 1}
+        ];
+        
+        const buttonMessage = {
+          text: responseMessage,
+          footer: "Try an example or get help:",
+          buttons: buttons,
+          headerType: 1
+        };
+        
+        await sock.sendMessage(m.key.remoteJid, buttonMessage, { quoted: m });
       }
     } catch (error) {
       console.error("Error in translate command:", error);
-      await sock.sendMessage(m.key.remoteJid, { text: 'An error occurred while processing your request.' }, { quoted: m });
+      
+      // Error message with buttons
+      const errorButtons = [
+        {buttonId: `${prefix}help translate`, buttonText: {displayText: 'Help'}, type: 1},
+        {buttonId: `${prefix}translate en Hello`, buttonText: {displayText: 'Example'}, type: 1},
+        {buttonId: `${prefix}support`, buttonText: {displayText: 'Support'}, type: 1}
+      ];
+      
+      const errorMessage = {
+        text: 'An error occurred while processing your request.',
+        footer: "Please try again or contact support",
+        buttons: errorButtons,
+        headerType: 1
+      };
+      
+      await sock.sendMessage(m.key.remoteJid, errorMessage, { quoted: m });
     }
   }
 };
