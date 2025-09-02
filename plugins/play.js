@@ -319,7 +319,7 @@ const play = async (message, client) => {
                 sourceUrl: 'https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R',
                 mediaUrl: 'https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R',
                 showAdAttribution: true,
-                renderLargerThumbnail: true
+                renderLargerThumbnail: false
               }
             }
           }, { quoted: message });
@@ -338,7 +338,7 @@ const play = async (message, client) => {
                 sourceUrl: 'https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R',
                 mediaUrl: 'https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R',
                 showAdAttribution: true,
-                renderLargerThumbnail: true
+                renderLargerThumbnail: false
               }
             }
           }, { quoted: message });
