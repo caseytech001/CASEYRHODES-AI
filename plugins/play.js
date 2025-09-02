@@ -234,7 +234,7 @@ const play = async (message, client) => {
               isForwarded: true,
               forwardedNewsletterMessageInfo: {
                 newsletterJid: '120363302677217436@newsletter',
-                newsletterName: 'POWERED BY CASEYRHODES XTECH 🌟',
+                newsletterName: 'POWERED BY CASEYRHODES TECH',
                 serverMessageId: -1
               }
             }
@@ -250,7 +250,7 @@ const play = async (message, client) => {
               isForwarded: true,
               forwardedNewsletterMessageInfo: {
                 newsletterJid: '120363302677217436@newsletter',
-                newsletterName: 'POWERED BY CASEYRHODES TECH 🌟',
+                newsletterName: 'POWERED BY CASEYRHODES TECH',
                 serverMessageId: -1
               }
             }
@@ -305,33 +305,40 @@ const play = async (message, client) => {
         const audioData = fs.readFileSync(filePath);
         
         if (command === "audio") {
-          await client.sendMessage(message.from, { 
-            audio: audioData, 
+          // Send as audio with proper context info
+          await client.sendMessage(message.from, {
+            audio: audioData,
             mimetype: 'audio/mpeg',
-            ptt: false,
-            fileName: fileName + ".mp3",
+            fileName: `${session.videoTitle.substring(0, 50)}.mp3`,
             contextInfo: {
-              forwardingScore: 1,
-              isForwarded: true,
-              forwardedNewsletterMessageInfo: {
-                newsletterJid: '120363302677217436@newsletter',
-                newsletterName: 'POWERED BY CASEYRHODES TECH 💫',
-                serverMessageId: -1
+              externalAdReply: {
+                title: session.videoTitle.length > 25 ? `${session.videoTitle.substring(0, 22)}...` : session.videoTitle,
+                body: "Follow our WhatsApp Channel",
+                mediaType: 1,
+                thumbnailUrl: session.thumbnailUrl,
+                sourceUrl: 'https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R',
+                mediaUrl: 'https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R',
+                showAdAttribution: true,
+                renderLargerThumbnail: true
               }
             }
           }, { quoted: message });
         } else {
-          await client.sendMessage(message.from, { 
-            document: audioData, 
+          // Send as document
+          await client.sendMessage(message.from, {
+            document: audioData,
             mimetype: 'audio/mpeg',
-            fileName: fileName + ".mp3",
+            fileName: `${session.videoTitle.substring(0, 50)}.mp3`,
             contextInfo: {
-              forwardingScore: 1,
-              isForwarded: true,
-              forwardedNewsletterMessageInfo: {
-                newsletterJid: '120363302677217436@newsletter',
-                newsletterName: 'POWERED BY CASEYRHODES TECH 🎉',
-                serverMessageId: -1
+              externalAdReply: {
+                title: session.videoTitle.length > 25 ? `${session.videoTitle.substring(0, 22)}...` : session.videoTitle,
+                body: "Follow our WhatsApp Channel",
+                mediaType: 1,
+                thumbnailUrl: session.thumbnailUrl,
+                sourceUrl: 'https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R',
+                mediaUrl: 'https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R',
+                showAdAttribution: true,
+                renderLargerThumbnail: true
               }
             }
           }, { quoted: message });
