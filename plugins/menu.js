@@ -3,6 +3,8 @@ import fs from "fs";
 import os from "os";
 import pkg from "@whiskeysockets/baileys";
 const { generateWAMessageFromContent, proto } = pkg;
+const more = String.fromCharCode(8206);
+const readmore = more.repeat(4001);
 import config from "../config.cjs";
 import axios from "axios";
 
@@ -41,19 +43,33 @@ function toFancyFont(text, isUpperCase = false) {
     .join("");
 }
 
-// Image fetch utility
+// Fixed image URLs array
+const menuImages = [
+  "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg",
+  "https://i.ibb.co/20ryR2pN/caseywebs.jpg",
+  "https://i.ibb.co/Ng6PQcMv/caseyweb.jpg" // Add your third image URL here
+];
+
+// Image fetch utility - now selects a random image
 async function fetchMenuImage() {
-  const imageUrl = "https://files.catbox.moe/y3j3kl.jpg";
+  // Select a random image from the array
+  const randomIndex = Math.floor(Math.random() * menuImages.length);
+  const imageUrl = menuImages[randomIndex];
+  
+  console.log(`🖼️ Trying to fetch image: ${imageUrl}`);
+  
   for (let i = 0; i < 3; i++) {
     try {
       const response = await axios.get(imageUrl, { 
         responseType: "arraybuffer",
         timeout: 10000
       });
+      
+      console.log(`✅ Successfully fetched image ${randomIndex + 1}`);
       return Buffer.from(response.data);
     } catch (error) {
       if (error.response?.status === 429 && i < 2) {
-        console.log(`Rate limit hit, retrying in 2s...`);
+        console.log(`⏳ Rate limit hit, retrying in 2s...`);
         await new Promise((resolve) => setTimeout(resolve, 2000));
         continue;
       }
@@ -63,209 +79,71 @@ async function fetchMenuImage() {
   }
 }
 
-// Command categories
-const commandCategories = {
-  "download": {
-    title: "📥 Download Menu",
-    commands: [
-      { command: "apk", desc: "Download APK files" },
-      { command: "facebook", desc: "Download from Facebook" },
-      { command: "mediafire", desc: "Download from Mediafire" },
-      { command: "pinterest", desc: "Download from Pinterest" },
-      { command: "gitclone", desc: "Clone git repositories" },
-      { command: "gdrive", desc: "Download from Google Drive" },
-      { command: "insta", desc: "Download Instagram content" },
-      { command: "ytmp3", desc: "YouTube to MP3" },
-      { command: "ytmp4", desc: "YouTube to MP4" },
-      { command: "play", desc: "Play music" },
-      { command: "song", desc: "Download songs" },
-      { command: "video", desc: "Download videos" },
-      { command: "ytmp3doc", desc: "YouTube to MP3 (document)" },
-      { command: "ytmp4doc", desc: "YouTube to MP4 (document)" },
-      { command: "tiktok", desc: "Download TikTok videos" }
-    ]
-  },
-  "group": {
-    title: "👥 Group Menu",
-    commands: [
-      { command: "linkgroup", desc: "Get group invite link" },
-      { command: "setppgc", desc: "Set group profile picture" },
-      { command: "setname", desc: "Set group name" },
-      { command: "setdesc", desc: "Set group description" },
-      { command: "group", desc: "Group management" },
-      { command: "gcsetting", desc: "Group settings" },
-      { command: "welcome", desc: "Welcome settings" },
-      { command: "add", desc: "Add members" },
-      { command: "kick", desc: "Remove members" },
-      { command: "hidetag", desc: "Hidden tag" },
-      { command: "tagall", desc: "Tag all members" },
-      { command: "antilink", desc: "Anti-link settings" },
-      { command: "antitoxic", desc: "Anti-toxic settings" },
-      { command: "promote", desc: "Promote members" },
-      { command: "demote", desc: "Demote members" },
-      { command: "getbio", desc: "Get user bio" }
-    ]
-  },
-  "fun": {
-    title: "🎉 Fun Menu",
-    commands: [
-      { command: "gay", desc: "Gay rate checker" },
-      { command: "simp", desc: "Simp rate checker" },
-      { command: "handsome", desc: "Handsome rate" },
-      { command: "stupid", desc: "Stupid rate" },
-      { command: "character", desc: "Character analyzer" },
-      { command: "fact", desc: "Random facts" },
-      { command: "truth", desc: "Truth questions" },
-      { command: "dare", desc: "Dare challenges" },
-      { command: "flirt", desc: "Flirty messages" },
-      { command: "couple", desc: "Couple matching" },
-      { command: "ship", desc: "Ship two people" },
-      { command: "joke", desc: "Random jokes" },
-      { command: "meme", desc: "Random memes" },
-      { command: "quote", desc: "Inspirational quotes" },
-      { command: "roll", desc: "Roll a dice" }
-    ]
-  },
-  "owner": {
-    title: "👑 Owner Menu",
-    commands: [
-      { command: "join", desc: "Join group via link" },
-      { command: "leave", desc: "Leave group" },
-      { command: "block", desc: "Block user" },
-      { command: "unblock", desc: "Unblock user" },
-      { command: "setppbot", desc: "Set bot profile picture" },
-      { command: "anticall", desc: "Anti-call settings" },
-      { command: "setstatus", desc: "Set bot status" },
-      { command: "setnamebot", desc: "Set bot name" },
-      { command: "autorecording", desc: "Auto voice recording" },
-      { command: "autolike", desc: "Auto like messages" },
-      { command: "autotyping", desc: "Auto typing indicator" },
-      { command: "alwaysonline", desc: "Always online mode" },
-      { command: "autoread", desc: "Auto read messages" },
-      { command: "autosview", desc: "Auto view stories" }
-    ]
-  },
-  "ai": {
-    title: "🤖 AI Menu",
-    commands: [
-      { command: "ai", desc: "AI chat" },
-      { command: "bug", desc: "Report bugs" },
-      { command: "report", desc: "Report issues" },
-      { command: "gpt", desc: "ChatGPT" },
-      { command: "dall", desc: "DALL-E image generation" },
-      { command: "remini", desc: "Image enhancement" },
-      { command: "gemini", desc: "Google Gemini" },
-      { command: "bard", desc: "Google Bard" },
-      { command: "blackbox", desc: "Blackbox AI" },
-      { command: "mistral", desc: "Mistral AI" },
-      { command: "llama", desc: "LLaMA AI" },
-      { command: "claude", desc: "Claude AI" },
-      { command: "deepseek", desc: "DeepSeek AI" }
-    ]
-  },
-  "anime": {
-    title: "🌸 Anime Menu",
-    commands: [
-      { command: "anime", desc: "Random anime info" },
-      { command: "animepic", desc: "Random anime pictures" },
-      { command: "animequote", desc: "Anime quotes" },
-      { command: "animewall", desc: "Anime wallpapers" },
-      { command: "animechar", desc: "Anime character search" },
-      { command: "waifu", desc: "Random waifu" },
-      { command: "husbando", desc: "Random husbando" },
-      { command: "neko", desc: "Neko girls" },
-      { command: "shinobu", desc: "Shinobu pictures" },
-      { command: "megumin", desc: "Megumin pictures" },
-      { command: "awoo", desc: "Awoo girls" },
-      { command: "trap", desc: "Trap characters" },
-      { command: "blowjob", desc: "NSFW content" }
-    ]
-  },
-  "converter": {
-    title: "🔄 Converter Menu",
-    commands: [
-      { command: "attp", desc: "Text to sticker" },
-      { command: "attp2", desc: "Text to sticker (style 2)" },
-      { command: "attp3", desc: "Text to sticker (style 3)" },
-      { command: "ebinary", desc: "Encode binary" },
-      { command: "dbinary", desc: "Decode binary" },
-      { command: "emojimix", desc: "Mix two emojis" },
-      { command: "mp3", desc: "Convert to MP3" },
-      { command: "mp4", desc: "Convert to MP4" },
-      { command: "sticker", desc: "Image to sticker" },
-      { command: "toimg", desc: "Sticker to image" },
-      { command: "tovid", desc: "GIF to video" },
-      { command: "togif", desc: "Video to GIF" },
-      { command: "tourl", desc: "Media to URL" },
-      { command: "tinyurl", desc: "URL shortener" }
-    ]
-  },
-  "other": {
-    title: "📌 Other Menu",
-    commands: [
-      { command: "calc", desc: "Calculator" },
-      { command: "tempmail", desc: "Temp email" },
-      { command: "checkmail", desc: "Check temp mail" },
-      { command: "trt", desc: "Translate text" },
-      { command: "tts", desc: "Text to speech" },
-      { command: "ssweb", desc: "Website screenshot" },
-      { command: "readmore", desc: "Create read more" },
-      { command: "styletext", desc: "Stylish text" },
-      { command: "weather", desc: "Weather info" },
-      { command: "clock", desc: "World clock" },
-      { command: "qrcode", desc: "Generate QR code" },
-      { command: "readqr", desc: "Read QR code" },
-      { command: "currency", desc: "Currency converter" }
-    ]
-  },
-  "reactions": {
-    title: "🎭 Reactions Menu",
-    commands: [
-      { command: "like", desc: "Like reaction" },
-      { command: "love", desc: "Love reaction" },
-      { command: "haha", desc: "Haha reaction" },
-      { command: "wow", desc: "Wow reaction" },
-      { command: "sad", desc: "Sad reaction" },
-      { command: "angry", desc: "Angry reaction" },
-      { command: "dislike", desc: "Dislike reaction" },
-      { command: "cry", desc: "Cry reaction" },
-      { command: "kiss", desc: "Kiss reaction" },
-      { command: "pat", desc: "Pat reaction" },
-      { command: "slap", desc: "Slap reaction" },
-      { command: "punch", desc: "Punch reaction" },
-      { command: "kill", desc: "Kill reaction" },
-      { command: "hug", desc: "Hug reaction" }
-    ]
-  },
-  "main": {
-    title: "🏠 Main Menu",
-    commands: [
-      { command: "ping", desc: "Check bot response time" },
-      { command: "alive", desc: "Check if bot is running" },
-      { command: "owner", desc: "Contact owner" },
-      { command: "menu", desc: "Show this menu" },
-      { command: "infobot", desc: "Bot information" },
-      { command: "donate", desc: "Support the bot" },
-      { command: "speed", desc: "Speed test" },
-      { command: "runtime", desc: "Bot uptime" },
-      { command: "sc", desc: "Source code" },
-      { command: "script", desc: "Script info" },
-      { command: "support", desc: "Support group" },
-      { command: "update", desc: "Check updates" },
-      { command: "feedback", desc: "Send feedback" }
-    ]
+// Function to send audio
+async function sendMenuAudio(Matrix, m) {
+  try {
+    const audioUrls = [
+      'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/alive.mp3',
+      'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/roddyrich.mp3',
+      'https://github.com/caseyweb/autovoice/raw/refs/heads/main/caseytech/casey.mp3'
+    ];
+   
+    const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
+    
+    await Matrix.sendMessage(m.from, {
+      audio: { url: randomAudioUrl },
+      mimetype: 'audio/mp4',
+      ptt: true
+    }, { 
+      quoted: {
+        key: {
+          fromMe: false,
+          participant: `0@s.whatsapp.net`,
+          remoteJid: "status@broadcast"
+        },
+        message: {
+          contactMessage: {
+            displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
+            vcard: `BEGIN:VCARD\nVERSION:3.0\nFN: Caseyrhodes VERIFIED ✅\nORG:CASEYRHODES-TECH BOT;\nTEL;type=CELL;type=VOICE;waid=13135550002:+13135550002\nEND:VCARD`
+          }
+        }
+      }
+    });
+  } catch (audioError) {
+  console.error("❌ Failed to send audio:", audioError.message);
   }
-};
+}
 
 const menu = async (m, Matrix) => {
   try {
     const prefix = config.PREFIX;
     const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
     const mode = config.MODE === "public" ? "public" : "private";
-    const totalCommands = Object.values(commandCategories).reduce((acc, category) => acc + category.commands.length, 0);
 
     const validCommands = ["list", "help", "menu"];
-    const subMenuCommands = Object.keys(commandCategories).map(cat => `${cat}-menu`);
+    const subMenuCommands = [
+      "download-menu", "converter-menu", "ai-menu", "tools-menu",
+      "group-menu", "search-menu", "main-menu", "owner-menu",
+      "stalk-menu", "fun-menu", "anime-menu", "other-menu",
+      "reactions-menu"
+    ];
+
+    // React to menu command with different emojis
+    if (validCommands.includes(cmd)) {
+      const reactionEmojis = ["🌟", "🤖", "✨", "🚀", "💫", "🔥"];
+      const randomEmoji = reactionEmojis[Math.floor(Math.random() * reactionEmojis.length)];
+      
+      try {
+        await Matrix.sendMessage(m.from, {
+          react: {
+            text: randomEmoji,
+            key: m.key
+          }
+        });
+      } catch (reactError) {
+        console.error("Failed to send reaction:", reactError.message);
+      }
+    }
 
     // Fetch image for all cases
     const menuImage = await fetchMenuImage();
@@ -279,8 +157,8 @@ const menu = async (m, Matrix) => {
 *┊• 📅 ᴅᴀᴛᴇ :* *${xdate}*
 *┊• 🎭 ᴅᴇᴠ :* *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ᴢᴏɴᴇ*
 *┊• 📍 ᴘʀᴇғɪx :*  *[ ${prefix} ]*
-*┊• 📊 ᴛᴏᴛᴀʟ ᴄᴍᴅs :* *${totalCommands}*
 *╰───────────────┈⊷*
+${readmore}
 ┏        *【 ᴍᴇɴᴜ ʟɪsᴛ 】⇳︎*
 - . ①  *ᴅᴏᴡɴʟᴏᴀᴅ ᴍᴇɴᴜ*
 - . ②  *ɢʀᴏᴜᴘ ᴍᴇɴᴜ*
@@ -288,95 +166,40 @@ const menu = async (m, Matrix) => {
 - . ④  *ᴏᴡɴᴇʀ ᴍᴇɴᴜ*
 - . ⑤  *ᴀɪ ᴍᴇɴᴜ*
 - . ⑥  *ᴀɴɪᴍᴇ ᴍᴇɴᴜ*
-- . ⑦  *ᴄᴏɴᴠᴇʀᴛᴇʀ ᴍᴇɴᴜ*
+- . ⑦  *ᴄᴏɴᴠᴇʀᴛ ᴍᴇɴᴜ*
 - . ⑧  *ᴏᴛʜᴇʀ ᴍᴇɴᴜ*
 - . ⑨  *ʀᴇᴀᴄᴛɪᴏɴs ᴍᴇɴᴜ*
 - . ⑩  *ᴍᴀɪɴ ᴍᴇɴᴜ*
 ┗
-╭─────────────────⊷
-┊*Hallo my family ${pushwish}*
-╰─────────────────⊷
+*╭─────────────────⊷*
+*┊Hallo my family ${pushwish}*
+*╰─────────────────⊷*
 `;
 
-      // Create interactive message with native flow
       const messageOptions = {
         viewOnce: true,
+        buttons: [
+          { buttonId: `${prefix}download-menu`, buttonText: { displayText: `📥 ᴅᴏᴡɴʟᴏᴀᴅ ` }, type: 1 },
+          { buttonId: `${prefix}group-menu`, buttonText: { displayText: `👥 ɢʀᴏᴜᴘ` }, type: 1 },
+          { buttonId: `${prefix}fun-menu`, buttonText: { displayText: `🎉 ғᴜɴ` }, type: 1 },
+          { buttonId: `${prefix}owner-menu`, buttonText: { displayText: `👑 ᴏᴡɴᴇʀ` }, type: 1 },
+          { buttonId: `${prefix}ai-menu`, buttonText: { displayText: `🤖 ᴀɪ` }, type: 1 },
+          { buttonId: `${prefix}anime-menu`, buttonText: { displayText: `🌸 ᴀɴɪᴍᴇ` }, type: 1 },
+          { buttonId: `${prefix}converter-menu`, buttonText: { displayText: `🔄 ᴄᴏɴᴠᴇʀᴛᴇʀ` }, type: 1 },
+          { buttonId: `${prefix}other-menu`, buttonText: { displayText: `🌟 ᴏᴛʜᴇʀ` }, type: 1 },
+          { buttonId: `${prefix}reactions-menu`, buttonText: { displayText: `🎭 ʀᴇᴀᴄᴛɪᴏɴs` }, type: 1 },
+          { buttonId: `${prefix}main-menu`, buttonText: { displayText: `📂 ᴍᴀɪɴ` }, type: 1 }
+        ],
         contextInfo: {
           mentionedJid: [m.sender],
           forwardingScore: 999,
           isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363302677217436@newsletter',
+            newsletterName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
+            serverMessageId: 143
+          },
         },
-        interactive: {
-          type: "native_flow",
-          nativeFlowMessage: {
-            buttons: [
-              {
-                name: "single_select",
-                buttonParamsJson: JSON.stringify({
-                  title: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ᴍᴇɴᴜ",
-                  sections: [
-                    {
-                      title: "ᴄᴀᴛᴇɢᴏʀɪᴇs",
-                      highlight_label: "sᴇʟᴇᴄᴛ ᴀ ᴄᴀᴛᴇɢᴏʀʏ",
-                      rows: [
-                        {
-                          title: "📥 ᴅᴏᴡɴʟᴏᴀᴅ",
-                          description: "ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴏᴍᴍᴀɴᴅs",
-                          id: `${prefix}download-menu`,
-                        },
-                        {
-                          title: "👥 ɢʀᴏᴜᴘ",
-                          description: "ɢʀᴏᴜᴘ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ",
-                          id: `${prefix}group-menu`,
-                        },
-                        {
-                          title: "🎉 ғᴜɴ",
-                          description: "ғᴜɴ ᴄᴏᴍᴍᴀɴᴅs",
-                          id: `${prefix}fun-menu`,
-                        },
-                        {
-                          title: "👑 ᴏᴡɴᴇʀ",
-                          description: "ᴏᴡɴᴇʀ ᴄᴏᴍᴍᴀɴᴅs",
-                          id: `${prefix}owner-menu`,
-                        },
-                        {
-                          title: "🤖 ᴀɪ",
-                          description: "ᴀɪ ᴄᴏᴍᴍᴀɴᴅs",
-                          id: `${prefix}ai-menu`,
-                        },
-                        {
-                          title: "🌸 ᴀɴɪᴍᴇ",
-                          description: "ᴀɴɪᴍᴇ ᴄᴏᴍᴍᴀɴᴅs",
-                          id: `${prefix}anime-menu`,
-                        },
-                        {
-                          title: "🔄 ᴄᴏɴᴠᴇʀᴛᴇʀ",
-                          description: "ᴄᴏɴᴠᴇʀᴛᴇʀ ᴛᴏᴏʟs",
-                          id: `${prefix}converter-menu`,
-                        },
-                        {
-                          title: "🌟 ᴏᴛʜᴇʀ",
-                          description: "ᴏᴛʜᴇʀ ᴄᴏᴍᴍᴀɴᴅs",
-                          id: `${prefix}other-menu`,
-                        },
-                        {
-                          title: "🎭 ʀᴇᴀᴄᴛɪᴏɴs",
-                          description: "ʀᴇᴀᴄᴛɪᴏɴ ᴄᴏᴍᴍᴀɴᴅs",
-                          id: `${prefix}reactions-menu`,
-                        },
-                        {
-                          title: "📂 ᴍᴀɪɴ",
-                          description: "ᴍᴀɪɴ ᴄᴏᴍᴍᴀɴᴅs",
-                          id: `${prefix}main-menu`,
-                        }
-                      ],
-                    },
-                  ],
-                })
-              }
-            ]
-          }
-        }
       };
 
       // Send menu with or without image
@@ -401,16 +224,9 @@ const menu = async (m, Matrix) => {
           }
         });
       } else {
-        // Fallback to text-only if image fails
-        await Matrix.sendMessage(m.from, { text: mainMenu, ...messageOptions }, { quoted: m });
-      }
-
-      // Send audio as a voice note
-      try {
-        await Matrix.sendMessage(m.from, { 
-          audio: { url: "https://files.catbox.moe/mwohwu.mp3" },
-          mimetype: "audio/mp4", 
-          ptt: true
+        await Matrix.sendMessage(m.from, {
+          text: mainMenu,
+          ...messageOptions
         }, { 
           quoted: {
             key: {
@@ -426,28 +242,235 @@ const menu = async (m, Matrix) => {
             }
           }
         });
-      } catch (audioError) {
-        console.error("❌ Failed to send audio:", audioError.message);
-        // Continue without audio if it fails
       }
+      
+      // Send audio after menu
+      await sendMenuAudio(Matrix, m);
     }
   
     // Handle sub-menu commands
     if (subMenuCommands.includes(cmd)) {
-      const category = cmd.replace("-menu", "");
-      const categoryData = commandCategories[category];
-      
-      if (!categoryData) return;
+      let menuTitle;
+      let menuResponse;
 
-      let menuResponse = "";
-      categoryData.commands.forEach((cmdObj, index) => {
-        const num = (index + 1).toString().padStart(2, "0");
-        menuResponse += `${toFancyFont(`${prefix}${cmdObj.command}`)} - ${cmdObj.desc}\n`;
-      });
+      switch (cmd) {
+        case "download-menu":
+          menuTitle = "📥 Download Menu";
+          menuResponse = `
+╭─ 乂  
+╎${toFancyFont("ᴀᴘᴋ")}
+╎${toFancyFont("ғᴀᴄᴇʙᴏᴏᴋ")}
+╎${toFancyFont("ᴍᴇᴅɪᴀғɪʀᴇ")}
+╎${toFancyFont("ᴘɪɴᴛᴇʀᴇsᴛ")}
+╎${toFancyFont("ɢɪᴛᴄʟᴏɴᴇ")}
+╎${toFancyFont("ɢᴅʀɪᴠᴇ")}
+╎${toFancyFont("ɪɴsᴛᴀ")}
+╎${toFancyFont("ʏᴛᴍᴘ3")}
+╎${toFancyFont("ʏᴛᴍᴘ4")}
+╎${toFancyFont("ᴘʟᴀʏ")}
+╎${toFancyFont("sᴏɴɢ")}
+╎${toFancyFont("ᴠɪᴅᴇᴏ")}
+╎${toFancyFont("ʏᴛᴍᴘ3ᴅᴏᴄ")}
+╎${toFancyFont("ʏᴛᴍᴘ4ᴅᴏᴄ")}
+╎${toFancyFont("ᴛɪᴋᴛᴏᴋ")}
+╰───────────◦•◦❥•`;
+          break;
+
+        case "group-menu":
+          menuTitle = "👥 Group Menu";
+          menuResponse = `
+╭─ 乂  
+╎${toFancyFont("ʟɪɴᴋɢʀᴏᴜᴘ")}
+╎${toFancyFont("sᴇᴛᴘᴘɢᴄ")}
+╎${toFancyFont("sᴇᴛɴᴀᴍᴇ")}
+╎${toFancyFont("sᴇᴛᴅᴇsᴄ")}
+╎${toFancyFont("ɢʀᴏᴜᴘ")}
+╎${toFancyFont("ɢᴄsᴇᴛᴛɪɴɢ")}
+╎${toFancyFont("ᴡᴇʟᴄᴏᴍᴇ")}
+╎${toFancyFont("ᴀᴅᴅ")}
+╎${toFancyFont("ᴋɪᴄᴋ")}
+╎${toFancyFont("ʜɪᴅᴇᴛᴀɢ")}
+╎${toFancyFont("ᴛᴀɢᴀʟʟ")}
+╎${toFancyFont("ᴀɴᴛɪʟɪɴᴋ")}
+╎${toFancyFont("ᴀɴᴛɪᴛᴏxɪᴄ")}
+╎${toFancyFont("ᴘʀᴏᴍᴏᴛᴇ")}
+╎${toFancyFont("ᴅᴇᴍᴏᴇ")}
+╎${toFancyFont("ɢᴇᴛʙɪᴏ")}
+╰───────────◦•◦❥•`;
+          break;
+
+        case "fun-menu":
+          menuTitle = "🎉 Fun Menu";
+          menuResponse = `
+╭─ 乂  
+╎${toFancyFont("ɢᴀʏ")}
+╎${toFancyFont("sɪᴍᴘ")}
+╎${toFancyFont("ʜᴀɴᴅsᴏᴍᴇ")}
+╎${toFancyFont("sᴛᴜᴘɪᴅ")}
+╎${toFancyFont("ᴄʜᴀʀᴀᴄᴛᴇʀ")}
+╎${toFancyFont("ғᴀᴄᴛ")}
+╎${toFancyFont("ᴛʀᴜᴛʜ")}
+╎${toFancyFont("ᴅᴀʀᴇ")}
+╎${toFancyFont("ғʟɪʀᴛ")}
+╎${toFancyFont("ᴄᴏᴜᴘʟᴇ")}
+╎${toFancyFont("sʜɪᴘ")}
+╎${toFancyFont("ᴊᴏᴋᴇ")}
+╎${toFancyFont("ᴍᴇᴍᴇ")}
+╎${toFancyFont("ǫᴜᴏᴛᴇ")}
+╎${toFancyFont("ʀᴏʟʟ")}
+╰─────────◦•◦❥•`;
+          break;
+
+        case "owner-menu":
+          menuTitle = "👑 Owner Menu";
+          menuResponse = `
+╭─ 乂  
+╎${toFancyFont("ᴊᴏɪɴ")}
+╎${toFancyFont("ʟᴇᴀᴠᴇ")}
+╎${toFancyFont("ʙʟᴏᴄᴋ")}
+╎${toFancyFont("ᴜɴʙʟᴏᴄᴋ")}
+╎${toFancyFont("sᴇᴛᴘᴘʙᴏᴛ")}
+╎${toFancyFont("ᴀɴᴛɪᴄᴀʟʟ")}
+╎${toFancyFont("sᴇᴛsᴛᴀᴛᴜs")}
+╎${toFancyFont("sᴇᴛɴᴀᴍᴇʙᴏᴛ")}
+╎${toFancyFont("ᴀᴜᴛᴏʀᴇᴄᴏʀᴅɪɴɢ")}
+╎${toFancyFont("ᴀᴜᴛᴏʟɪᴋᴇ")}
+╎${toFancyFont("ᴀᴜᴛᴏᴛʏᴘɪɴɢ")}
+╎${toFancyFont("ᴀʟᴡᴀʏsᴏɴʟɪɴᴇ")}
+╎${toFancyFont("ᴀᴜᴛᴏʀᴇᴀᴅ")}
+╎${toFancyFont("ᴀᴜᴛᴏsᴠɪᴇᴡ")}
+╰───────────◦•◦❥•`;
+          break;
+
+        case "ai-menu":
+          menuTitle = "🤖 AI Menu";
+          menuResponse = `
+╭─ 乂  
+╎${toFancyFont("ᴀɪ")}
+╎${toFancyFont("ʙᴜɢ")}
+╎${toFancyFont("ʀᴇᴘᴏʀᴛ")}
+╎${toFancyFont("ɢᴘᴛ")}
+╎${toFancyFont("ᴅᴀʟʟ")}
+╎${toFancyFont("ʀᴇᴍɪɴɪ")}
+╎${toFancyFont("ɢᴇᴍɪɴɪ")}
+╎${toFancyFont("ʙᴀʀᴅ")}
+╎${toFancyFont("ʙʟᴀᴄᴋʙᴏx")}
+╎${toFancyFont("ᴍɪsᴛʀᴀʟ")}
+╎${toFancyFont("ʟʟᴀᴍᴀ")}
+╎${toFancyFont("ᴄʟᴀᴜᴅᴇ")}
+╎${toFancyFont("ᴅᴇᴇᴘsᴇᴇᴋ")}
+╰──────────◦•◦❥•`;
+          break;
+
+        case "anime-menu":
+          menuTitle = "🌸 Anime Menu";
+          menuResponse = `
+╭─ 乂  
+╎${toFancyFont("ᴀɴɪᴍᴇ")}
+╎${toFancyFont("ᴀɴɪᴍᴇᴘɪᴄ")}
+╎${toFancyFont("ᴀɴɪᴍᴇǫᴜᴏᴛᴇ")}
+╎${toFancyFont("ᴀɴɪᴍᴇᴡᴀʟʟ")}
+╎${toFancyFont("ᴀɴɪᴍᴇᴄʜᴀʀ")}
+╎${toFancyFont("ᴡᴀɪғᴜ")}
+╎${toFancyFont("ʜᴜsʙᴀɴᴅᴏ")}
+╎${toFancyFont("ɴᴇᴋᴏ")}
+╎${toFancyFont("sʜɪɴᴏʙᴜ")}
+╎${toFancyFont("ᴍᴇɢᴜᴍɪɴ")}
+╎${toFancyFont("ᴀᴡᴏᴏ")}
+╎${toFancyFont("ᴛʀᴀᴘ")}
+╎${toFancyFont("ʙʟᴏᴡᴊᴏʙ")}
+╰─────────◦•◦❥•`;
+          break;
+
+        case "converter-menu":
+          menuTitle = "🔄 Converter Menu";
+          menuResponse = `
+╭─ 乂  
+╎${toFancyFont("ᴀᴛᴛᴘ")}
+╎${toFancyFont("ᴀᴛᴛᴘ2")}
+╎${toFancyFont("ᴀᴘᴛᴘ3")}
+╎${toFancyFont("ᴇʙɪɴᴀʀʏ")}
+╎${toFancyFont("ᴅʙɪɴᴀʀʏ")}
+╎${toFancyFont("ᴇᴍᴏᴊɪᴍɪx")}
+╎${toFancyFont("ᴍᴘ3")}
+╎${toFancyFont("ᴍᴘ4")}
+╎${toFancyFont("sᴛɪᴄᴋᴇʀ")}
+╎${toFancyFont("ᴛᴏɪᴍɢ")}
+╎${toFancyFont("ᴛᴏᴠɪᴅ")}
+╎${toFancyFont("ᴛᴏɢɪғ")}
+╎${toFancyFont("ᴛᴏᴜʀʟ")}
+╎${toFancyFont("ᴛɪɴʏᴜʀʟ")}
+╰──────────◦•◦❥•`;
+          break;
+
+        case "other-menu":
+          menuTitle = "📌 Other Menu";
+          menuResponse = `
+╭─ 乂  
+╎${toFancyFont("ᴄᴀʟᴄ")}
+╎${toFancyFont("ᴛᴇᴍᴘᴍᴀɪʟ")}
+╎${toFancyFont("ᴄʜᴇᴄᴋᴍᴀɪʟ")}
+╎${toFancyFont("ᴛʀᴛ")}
+╎${toFancyFont("ᴛᴛs")}
+╎${toFancyFont("ssᴡᴇʙ")}
+╎${toFancyFont("ʀᴇᴀᴅᴍᴏʀᴇ")}
+╎${toFancyFont("sᴛʏʟᴇᴛᴇxᴛ")}
+╎${toFancyFont("ᴡᴇᴀᴛʜᴇʀ")}
+╎${toFancyFont("ᴄʟᴏᴄᴋ")}
+╎${toFancyFont("ǫʀᴄᴏᴅᴇ")}
+╎${toFancyFont("ʀᴇᴀᴅǫʀ")}
+╎${toFancyFont("ᴄᴜʀʀᴇɴᴄʏ")}
+╰─────────◦•◦❥•`;
+          break;
+
+        case "reactions-menu":
+          menuTitle = "🎭 Reactions Menu";
+          menuResponse = `
+╭─ 乂  
+╎${toFancyFont("ʟɪᴋᴇ")}
+╎${toFancyFont("ʟᴏᴠᴇ")}
+╎${toFancyFont("ʜᴀʜᴀ")}
+╎${toFancyFont("ᴡᴏᴡ")}
+╎${toFancyFont("sᴀᴅ")}
+╎${toFancyFont("ᴀɴɢʀʏ")}
+╎${toFancyFont("ᴅɪsʟɪᴋᴇ")}
+╎${toFancyFont("ᴄʀʏ")}
+╎${toFancyFont("ᴋɪss")}
+╎${toFancyFont("ᴘᴀᴛ")}
+╎${toFancyFont("sʟᴀᴘ")}
+╎${toFancyFont("ᴘᴜɴᴄʜ")}
+╎${toFancyFont("ᴋɪʟʟ")}
+╎${toFancyFont("ʜᴜɢ")}
+╰──────◦•◦❥•`;
+          break;
+
+        case "main-menu":
+          menuTitle = "🏠 Main Menu";
+          menuResponse = `
+╭─ 乂  
+╎${toFancyFont("ᴘɪɴɢ")}
+╎${toFancyFont("ᴀʟɪᴠᴇ")}
+╎${toFancyFont("ᴏᴡɴᴇʀ")}
+╎${toFancyFont("ᴍᴇɴᴜ")}
+╎${toFancyFont("ɪɴғᴏʙᴏᴛ")}
+╎${toFancyFont("ᴅᴏɴᴀᴛᴇ")}
+╎${toFancyFont("sᴘᴇᴇᴅ")}
+╎${toFancyFont("ʀᴜɴᴛɪᴍᴇ")}
+╎${toFancyFont("sᴄ")}
+╎${toFancyFont("sᴄʀɪᴘᴛ")}
+╎${toFancyFont("sᴜᴘᴘᴏʀᴛ")}
+╎${toFancyFont("ᴜᴘᴅᴀᴛᴇ")}
+╎${toFancyFont("ғᴇᴇᴅʙᴀᴄᴋ")}
+╰──────────◦•◦❥•`;
+          break;
+
+        default:
+          return;
+      }
 
       // Format the full response
       const fullResponse = `
-*${categoryData.title}*
+*${menuTitle}*
 
 ${menuResponse}
 
@@ -455,41 +478,19 @@ ${menuResponse}
 *⏰ Time*: ${xtime}
 *⚙️ Prefix*: ${prefix}
 *🌐 Mode*: ${mode}
-*📊 Commands*: ${categoryData.commands.length}
 
-> ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
+> ︎®ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
 `;
 
-      // Create back button with native flow
       const backButton = {
-        interactive: {
-          type: "native_flow",
-          nativeFlowMessage: {
-            buttons: [
-              {
-                name: "single_select",
-                buttonParamsJson: JSON.stringify({
-                  title: "ɴᴀᴠɪɢᴀᴛɪᴏɴ",
-                  sections: [
-                    {
-                      title: "ᴍᴇɴᴜ ᴏᴘᴛɪᴏɴs",
-                      highlight_label: "",
-                      rows: [
-                        {
-                          title: "ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ",
-                          description: "ʀᴇᴛᴜʀɴ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ",
-                          id: `${prefix}menu`,
-                        }
-                      ],
-                    },
-                  ],
-                })
-              }
-            ]
-          }
-        },
+        buttons: [
+          { buttonId: `${prefix}menu`, buttonText: { displayText: `🔙 ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ` }, type: 1 }
+        ],
         contextInfo: {
           isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            serverMessageId: 143,          
+          },
         },
       };
 
