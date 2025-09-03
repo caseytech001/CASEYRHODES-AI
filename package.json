@@ -14,10 +14,10 @@
     "restart": "pm2 restart Caseyrhodes-AI"
   },
   "keywords": ["Caseyrhodes-AI", "whatsapp-bot", "whatsapp md bot"],
-  "author": "NjabuloJ",
+  "author": "Caseyrhodes",
   "license": "ISC",
   "dependencies": {
-    "@whiskeysockets/baileys": "github:EdderBot02/bail",
+    "@whiskeysockets/baileys": "npm: baileys-x",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@google/generative-ai": "^0.9.0",
     "@hapi/boom": "^10.0.1",
