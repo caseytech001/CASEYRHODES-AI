@@ -22,7 +22,7 @@ const imageCommand = async (m, sock) => {
       await sock.sendMessage(m.from, { text: `🔍 Searching for *${query}*...` });
 
       // Using a more reliable API endpoint
-      const url = `https://apis-keith.vercel.app/api/images?query=${encodeURIComponent(query)}`;
+      const url = `https://api.princetechn.com/api/search/unsplash?apikey=prince&query=${encodeURIComponent(query)}`;
       
       const response = await axios.get(url, { 
         timeout: 15000,
