@@ -1,3 +1,4 @@
+
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -25,26 +26,12 @@ const app = express();
 let useQR = false;
 let initialConnection = true;
 const PORT = process.env.PORT || 3000;
-const MAX_RETRY_ATTEMPTS = 5;
-let retryCount = 0;
 
-// Enhanced logging with levels
-const MAIN_LOGGER = pino({ 
-    level: process.env.LOG_LEVEL || 'error',
-    transport: {
-        target: 'pino-pretty',
-        options: {
-            colorize: true,
-            translateTime: 'SYS:standard'
-        }
-    }
-});
-const logger = MAIN_LOGGER.child({ module: 'main' });
+const MAIN_LOGGER = pino({ level: 'silent' });
+const logger = MAIN_LOGGER.child({});
+logger.level = "silent";
 
-const msgRetryCounterCache = new NodeCache({
-    stdTTL: 300, // 5 minutes
-    checkperiod: 60 // 1 minute
-});
+const msgRetryCounterCache = new NodeCache();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,202 +39,75 @@ const __dirname = path.dirname(__filename);
 const sessionDir = path.join(__dirname, 'session');
 const credsPath = path.join(sessionDir, 'creds.json');
 
-// Ensure session directory exists
 if (!fs.existsSync(sessionDir)) {
     fs.mkdirSync(sessionDir, { recursive: true });
-}
-
-// Enhanced error handling wrapper
-async function withRetry(fn, maxRetries = 3, delay = 1000) {
-    let lastError;
-    for (let i = 0; i < maxRetries; i++) {
-        try {
-            return await fn();
-        } catch (error) {
-            lastError = error;
-            if (i < maxRetries - 1) {
-                await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
-            }
-        }
-    }
-    throw lastError;
 }
 
 async function downloadSessionData() {
     try {
         if (!config.SESSION_ID) {
-            logger.debug('No SESSION_ID configured');
             return false;
         }
 
         const sessdata = config.SESSION_ID.split("Caseyrhodes~")[1];
+
         if (!sessdata || !sessdata.includes("#")) {
-            logger.warn('Invalid SESSION_ID format');
             return false;
         }
 
         const [fileID, decryptKey] = sessdata.split("#");
-        
-        return await withRetry(async () => {
+
+        try {
             const file = File.fromURL(`https://mega.nz/file/${fileID}#${decryptKey}`);
-            
+
             const data = await new Promise((resolve, reject) => {
                 file.download((err, data) => {
-                    if (err) {
-                        logger.error('Mega download failed', err);
-                        reject(err);
-                    } else {
-                        resolve(data);
-                    }
+                    if (err) reject(err);
+                    else resolve(data);
                 });
             });
 
             await fs.promises.writeFile(credsPath, data);
-            logger.info('Session data downloaded successfully');
             return true;
-        });
+        } catch (error) {
+            return false;
+        }
     } catch (error) {
-        logger.error('Failed to download session data', error);
         return false;
     }
 }
 
 async function start() {
     try {
-        if (retryCount > MAX_RETRY_ATTEMPTS) {
-            logger.error('Maximum retry attempts reached. Please check your configuration.');
-            return;
-        }
-
-        retryCount++;
-        logger.info(`Starting connection attempt ${retryCount}`);
-
         const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
-        const { version } = await fetchLatestBaileysVersion();
+        const { version, isLatest } = await fetchLatestBaileysVersion();
         
         const Matrix = makeWASocket({
             version,
-            logger: pino({ level: 'error' }),
+            logger: pino({ level: 'silent' }),
             printQRInTerminal: useQR,
             browser: ["JINX-MD", "safari", "3.3"],
             auth: state,
             msgRetryCounterCache,
-            getMessage: async () => ({}),
-            markOnlineOnConnect: false, // Save bandwidth
-            syncFullHistory: false, // Don't sync old messages
-            transactionOpts: {
-                maxCommitRetries: 3,
-                delayBetweenTriesMs: 1000
+            getMessage: async (key) => {
+                return {};
             }
         });
 
-        // Connection update handler
         Matrix.ev.on('connection.update', async (update) => {
             try {
-                const { connection, lastDisconnect, qr } = update;
-                
-                if (qr && !useQR) {
-                    useQR = true;
-                    Matrix.opts.printQRInTerminal = true;
-                }
-
+                const { connection, lastDisconnect } = update;
                 if (connection === 'close') {
-                    const statusCode = lastDisconnect?.error?.output?.statusCode;
-                    if (statusCode !== DisconnectReason.loggedOut) {
-                        const delay = Math.min(3000 * retryCount, 30000); // Exponential backoff with cap
-                        logger.warn(`Connection closed. Reconnecting in ${delay}ms...`);
-                        setTimeout(() => {
-                            retryCount = 0; // Reset retry count for new connection attempt
-                            start();
-                        }, delay);
-                    } else {
-                        logger.error('Logged out. Please scan QR code again.');
-                        useQR = true;
+                    if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
+                        setTimeout(start, 3000);
                     }
                 } else if (connection === 'open') {
-                    retryCount = 0; // Reset retry count on successful connection
-                    logger.info('Connected successfully');
-                    
                     if (initialConnection) {
-                        await sendWelcomeMessage(Matrix);
-                        await followNewsletters(Matrix);
-                        await joinWhatsAppGroup(Matrix);
-                        initialConnection = false;
-                    }
-                }
-            } catch (error) {
-                logger.error('Connection update error', error);
-            }
-        });
-
-        Matrix.ev.on('creds.update', saveCreds);
-
-        // Consolidated messages.upsert handler
-        Matrix.ev.on("messages.upsert", async (chatUpdate) => {
-            try {
-                const m = chatUpdate.messages[0];
-                if (!m?.message) return;
-
-                // Handle button responses
-                if (m.message.buttonsResponseMessage) {
-                    await handleButtonResponse(m, Matrix);
-                    return;
-                }
-
-                // Auto-react to messages
-                if (config.AUTO_REACT === 'true' && !m.key.fromMe) {
-                    await autoReactToMessage(m, Matrix);
-                }
-
-                // Auto-read messages
-                if (config.READ_MESSAGE === 'true' && !m.key.fromMe) {
-                    await Matrix.readMessages([m.key]).catch(() => {});
-                }
-
-                // Handle status updates
-                if (m.key?.remoteJid === 'status@broadcast') {
-                    await handleStatusUpdate(m, Matrix);
-                }
-
-                // Process message with handler
-                await Handler(chatUpdate, Matrix, logger);
-
-            } catch (error) {
-                logger.error('Message processing error', error);
-            }
-        });
-
-        Matrix.ev.on("call", async (json) => {
-            try {
-                await Callupdate(json, Matrix);
-            } catch (error) {
-                logger.error('Call update error', error);
-            }
-        });
-        
-        Matrix.ev.on("group-participants.update", async (messag) => {
-            try {
-                await GroupUpdate(Matrix, messag);
-            } catch (error) {
-                logger.error('Group update error', error);
-            }
-        });
-        
-        // Set public/private mode
-        Matrix.public = config.MODE !== "private";
-
-    } catch (error) {
-        logger.error('Start function error', error);
-        const delay = Math.min(5000 * retryCount, 30000);
-        setTimeout(start, delay);
-    }
-}
-
-async function sendWelcomeMessage(Matrix) {
-    try {
-        const startMess = {
-            image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" }, 
-            caption: `*Hello there JINX-XMD User! 👋🏻* 
+                        
+                        // Send welcome message after successful connection with buttons
+                        const startMess = {
+                            image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" }, 
+                            caption: `*Hello there JINX-XMD User! 👋🏻* 
 
 > Simple, Straightforward, But Loaded With Features 🎊. Meet JINX-XMD WhatsApp Bot.
 *Thanks for using JINX-XMD 🚩* 
@@ -259,105 +119,223 @@ Join WhatsApp Channel: ⤵️
 Don't forget to give a star to the repo ⬇️  
 > https://github.com/caseyweb/CASEYRHODES-XMD
 > © Powered BY CASEYRHODES TECH 🍀 🖤`,
-            buttons: [
-                {
-                    buttonId: 'help',
-                    buttonText: { displayText: '📋 HELP' },
-                    type: 1
-                },
-                {
-                    buttonId: 'menu',
-                    buttonText: { displayText: '📱 MENU' },
-                    type: 1
-                },
-                {
-                    buttonId: 'source',
-                    buttonText: { displayText: '⚙️ SOURCE' },
-                    type: 1
+                            buttons: [
+                                {
+                                    buttonId: 'help',
+                                    buttonText: { displayText: '📋 HELP' },
+                                    type: 1
+                                },
+                                {
+                                    buttonId: 'menu',
+                                    buttonText: { displayText: '📱 MENU' },
+                                    type: 1
+                                },
+                                {
+                                    buttonId: 'source',
+                                    buttonText: { displayText: '⚙️ SOURCE' },
+                                    type: 1
+                                }
+                            ],
+                            headerType: 1
+                        };
+
+                        try {
+                            await Matrix.sendMessage(Matrix.user.id, startMess);
+                        } catch (error) {
+                            // Silent error handling
+                        }
+                        
+                        // Follow newsletters after successful connection
+                        await followNewsletters(Matrix);
+                        
+                        // Join WhatsApp group after successful connection
+                        await joinWhatsAppGroup(Matrix);
+                        
+                        initialConnection = false;
+                    }
                 }
-            ],
-            headerType: 1
-        };
-
-        await Matrix.sendMessage(Matrix.user.id, startMess);
-    } catch (error) {
-        logger.warn('Failed to send welcome message', error);
-    }
-}
-
-async function handleButtonResponse(m, Matrix) {
-    const selected = m.message.buttonsResponseMessage.selectedButtonId;
-    const responses = {
-        'help': `📋 *JINX-XMD HELP MENU*\n\nUse ${prefix}menu to see all available commands.\nUse ${prefix}list to see command categories.`,
-        'menu': `📱 *JINX-XMD MAIN MENU*\n\nType ${prefix}menu to see the full command list.\nType ${prefix}all to see all features.`,
-        'source': `⚙️ *JINX-XMD SOURCE CODE*\n\nGitHub Repository: https://github.com/caseyweb/CASEYRHODES-XMD\n\nGive it a star ⭐ if you like it!`
-    };
-
-    if (responses[selected]) {
-        await Matrix.sendMessage(m.key.remoteJid, { text: responses[selected] });
-    }
-}
-
-async function autoReactToMessage(m, Matrix) {
-    try {
-        const reactions = [
-            '🌼', '❤️', '💐', '🔥', '🏵️', '❄️', '🧊', '🐳', '💥', '🥀', '❤‍🔥', '🥹', '😩', '🫣', 
-            '🤭', '👻', '👾', '🫶', '😻', '🙌', '🫂', '🫀', '👩‍🦰', '🧑‍🦰', '👩‍⚕️', '🧑‍⚕️', '🧕', 
-            '👩‍🏫', '👨‍💻', '👰‍♀', '🦹🏻‍♀️', '🧟‍♀️', '🧟', '🧞‍♀️', '🧞', '🙅‍♀️', '💁‍♂️', '💁‍♀️', '🙆‍♀️', 
-            '🙋‍♀️', '🤷', '🤷‍♀️', '🤦', '🤦‍♀️', '💇‍♀️', '💇', '💃', '🚶‍♀️', '🚶', '🧶', '🧤', '👑', 
-            '💍', '👝', '💼', '🎒', '🥽', '🐻', '🐼', '🐭', '🐣', '🪿', '🦆', '🦊', '🦋', '🦄', 
-            '🪼', '🐋', '🐳', '🦈', '🐍', '🕊️', '🦦', '🦚', '🌱', '🍃', '🎍', '🌿', '☘️', '🍀', 
-            '🍁', '🪺', '🍄', '🍄‍🟫', '🪸', '🪨', '🌺', '🪷', '🪻', '🥀', '🌹', '🌷', '💐', '🌾', 
-            '🌸', '🌼', '🌻', '🌝', '🌚', '🌕', '🌎', '💫', '🔥', '☃️', '❄️', '🌨️', '🫧', '🍟', 
-            '🍫', '🧃', '🧊', '🪀', '🤿', '🏆', '🥇', '🥈', '🥉', '🎗️', '🤹', '🤹‍♀️', '🎧', '🎤', 
-            '🥁', '🧩', '🎯', '🚀', '🚁', '🗿', '🎙️', '⌛', '⏳', '💸', '💎', '⚙️', '⛓️', '🔪', 
-            '🧸', '🎀', '🪄', '🎈', '🎁', '🎉', '🏮', '🪩', '📩', '💌', '📤', '📦', '📊', '📈', 
-            '📑', '📉', '📂', '🔖', '🧷', '📌', '📝', '🔏', '🔐', '🩷', '❤️', '🧡', '💛', '💚', 
-            '🩵', '💙', '💜', '🖤', '🩶', '🤍', '🤎', '❤‍🔥', '❤‍🩹', '💗', '💖', '💘', '💝', '❌', 
-            '✅', '🔰', '〽️', '🌐', '🌀', '⤴️', '⤵️', '🔴', '🟢', '🟡', '🟠', '🔵', '🟣', '⚫', 
-            '⚪', '🟤', '🔇', '🔊', '📢', '🔕', '♥️', '🕐', '🚩', '🇵🇰'
-        ];
-        
-        const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
-        await Matrix.sendMessage(m.key.remoteJid, {
-            react: {
-                text: randomReaction,
-                key: m.key
+            } catch (error) {
+                // Silent error handling
             }
         });
-    } catch (error) {
-        logger.debug('Auto-react failed', error);
-    }
-}
+        
+        Matrix.ev.on('creds.update', saveCreds);
 
-async function handleStatusUpdate(m, Matrix) {
-    try {
-        if (config.AUTO_STATUS_REACT === "true") {
-            const statusEmojis = ['❤️', '💸', '😇', '🍂', '💥', '💯', '🔥', '💫', '💎', '💗', '🤍', '🖤', '👻', '🙌', '🙆', '🚩', '🥰', '💐', '😎', '🤎', '✅', '🫀', '🧡', '😁', '😄', '🌸', '🕊️', '🌷', '⛅', '🌟', '♻️', '🎉', '💜', '💙', '✨', '🖤', '💚'];
-            const randomEmoji = statusEmojis[Math.floor(Math.random() * statusEmojis.length)];
-            
-            await Matrix.sendMessage(m.key.remoteJid, {
-                react: {
-                    text: randomEmoji,
-                    key: m.key,
-                } 
-            });
-        }
+        // Enhanced messages.upsert handler
+        Matrix.ev.on("messages.upsert", async (chatUpdate) => {
+            try {
+                const m = chatUpdate.messages[0];
+                if (!m || !m.message) return;
 
-        if (config.AUTO_STATUS_SEEN === "true") {
-            await Matrix.readMessages([m.key]);
-            
-            if (config.AUTO_STATUS_REPLY === "true") {
-                const customMessage = config.STATUS_READ_MSG || '✅ Auto Status Seen Bot By JINX-XMD';
-                const fromJid = m.key.participant || m.key.remoteJid;
-                await Matrix.sendMessage(fromJid, { text: customMessage });
+                // Handle button responses
+                if (m.message.buttonsResponseMessage) {
+                    const selected = m.message.buttonsResponseMessage.selectedButtonId;
+                    if (selected === 'help') {
+                        try {
+                            await Matrix.sendMessage(m.key.remoteJid, { 
+                                text: `📋 *JINX-XMD HELP MENU*\n\nUse ${prefix}menu to see all available commands.\nUse ${prefix}list to see command categories.` 
+                            });
+                        } catch (error) {
+                            // Silent error handling
+                        }
+                        return;
+                    } else if (selected === 'menu') {
+                        try {
+                            await Matrix.sendMessage(m.key.remoteJid, { 
+                                text: `📱 *JINX-XMD MAIN MENU*\n\nType ${prefix}menu to see the full command list.\nType ${prefix}all to see all features.` 
+                            });
+                        } catch (error) {
+                            // Silent error handling
+                        }
+                        return;
+                    } else if (selected === 'source') {
+                        try {
+                            await Matrix.sendMessage(m.key.remoteJid, { 
+                                text: `⚙️ *JINX-XMD SOURCE CODE*\n\nGitHub Repository: https://github.com/caseyweb/CASEYRHODES-XMD\n\nGive it a star ⭐ if you like it!` 
+                            });
+                        } catch (error) {
+                            // Silent error handling
+                        }
+                        return;
+                    }
+                }
+
+                // Auto-react to messages if enabled
+                if (config.AUTO_REACT === 'true' && !m.key.fromMe) {
+                    try {
+                        const reactions = [
+                            '🌼', '❤️', '💐', '🔥', '🏵️', '❄️', '🧊', '🐳', '💥', '🥀', '❤‍🔥', '🥹', '😩', '🫣', 
+                            '🤭', '👻', '👾', '🫶', '😻', '🙌', '🫂', '🫀', '👩‍🦰', '🧑‍🦰', '👩‍⚕️', '🧑‍⚕️', '🧕', 
+                            '👩‍🏫', '👨‍💻', '👰‍♀', '🦹🏻‍♀️', '🧟‍♀️', '🧟', '🧞‍♀️', '🧞', '🙅‍♀️', '💁‍♂️', '💁‍♀️', '🙆‍♀️', 
+                            '🙋‍♀️', '🤷', '🤷‍♀️', '🤦', '🤦‍♀️', '💇‍♀️', '💇', '💃', '🚶‍♀️', '🚶', '🧶', '🧤', '👑', 
+                            '💍', '👝', '💼', '🎒', '🥽', '🐻', '🐼', '🐭', '🐣', '🪿', '🦆', '🦊', '🦋', '🦄', 
+                            '🪼', '🐋', '🐳', '🦈', '🐍', '🕊️', '🦦', '🦚', '🌱', '🍃', '🎍', '🌿', '☘️', '🍀', 
+                            '🍁', '🪺', '🍄', '🍄‍🟫', '🪸', '🪨', '🌺', '🪷', '🪻', '🥀', '🌹', '🌷', '💐', '🌾', 
+                            '🌸', '🌼', '🌻', '🌝', '🌚', '🌕', '🌎', '💫', '🔥', '☃️', '❄️', '🌨️', '🫧', '🍟', 
+                            '🍫', '🧃', '🧊', '🪀', '🤿', '🏆', '🥇', '🥈', '🥉', '🎗️', '🤹', '🤹‍♀️', '🎧', '🎤', 
+                            '🥁', '🧩', '🎯', '🚀', '🚁', '🗿', '🎙️', '⌛', '⏳', '💸', '💎', '⚙️', '⛓️', '🔪', 
+                            '🧸', '🎀', '🪄', '🎈', '🎁', '🎉', '🏮', '🪩', '📩', '💌', '📤', '📦', '📊', '📈', 
+                            '📑', '📉', '📂', '🔖', '🧷', '📌', '📝', '🔏', '🔐', '🩷', '❤️', '🧡', '💛', '💚', 
+                            '🩵', '💙', '💜', '🖤', '🩶', '🤍', '🤎', '❤‍🔥', '❤‍🩹', '💗', '💖', '💘', '💝', '❌', 
+                            '✅', '🔰', '〽️', '🌐', '🌀', '⤴️', '⤵️', '🔴', '🟢', '🟡', '🟠', '🔵', '🟣', '⚫', 
+                            '⚪', '🟤', '🔇', '🔊', '📢', '🔕', '♥️', '🕐', '🚩', '🇵🇰'
+                        ];
+                        const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
+                        
+                        await Matrix.sendMessage(m.key.remoteJid, {
+                            react: {
+                                text: randomReaction,
+                                key: m.key
+                            }
+                        });
+                    } catch (error) {
+                        // Silent error handling for reactions
+                    }
+                }
+
+                // Fast auto-read messages
+                if (config.READ_MESSAGE === 'true' && !m.key.fromMe) {
+                    try {
+                        await Matrix.readMessages([m.key]);
+                    } catch (error) {
+                        // Silent error handling for read messages
+                    }
+                }
+
+                // Existing handlers - silent mode
+                await Handler(chatUpdate, Matrix, logger);
+            } catch (error) {
+                // Silent error handling
             }
+        });
+
+        Matrix.ev.on("call", async (json) => {
+            try {
+                await Callupdate(json, Matrix);
+            } catch (error) {
+                // Silent error handling
+            }
+        });
+        
+        Matrix.ev.on("group-participants.update", async (messag) => {
+            try {
+                await GroupUpdate(Matrix, messag);
+            } catch (error) {
+                // Silent error handling
+            }
+        });
+        
+        if (config.MODE === "public") {
+            Matrix.public = true;
+        } else if (config.MODE === "private") {
+            Matrix.public = false;
         }
+
+        Matrix.ev.on('messages.upsert', async (chatUpdate) => {
+            try {
+                const mek = chatUpdate.messages[0];
+                if (!mek || !mek.key) return;
+                
+                if (!mek.key.fromMe && config.AUTO_REACT) {
+                    if (mek.message) {
+                        const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+                        await doReact(randomEmoji, mek, Matrix);
+                    }
+                }
+            } catch (err) {
+                // Silent error handling
+            }
+        });
+
+        // Status update handler
+        Matrix.ev.on('messages.upsert', async (chatUpdate) => {
+            try {
+                const mek = chatUpdate.messages[0];
+                if (!mek || !mek.key || !mek.message) return;
+                
+                const fromJid = mek.key.participant || mek.key.remoteJid;
+                if (mek.key.fromMe) return;
+                if (mek.message.protocolMessage || mek.message.ephemeralMessage || mek.message.reactionMessage) return; 
+                
+                if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_REACT === "true") {
+                    try {
+                        const ravlike = await Matrix.decodeJid(Matrix.user.id);
+                        const statusEmojis = ['❤️', '💸', '😇', '🍂', '💥', '💯', '🔥', '💫', '💎', '💗', '🤍', '🖤', '👻', '🙌', '🙆', '🚩', '🥰', '💐', '😎', '🤎', '✅', '🫀', '🧡', '😁', '😄', '🌸', '🕊️', '🌷', '⛅', '🌟', '♻️', '🎉', '💜', '💙', '✨', '🖤', '💚'];
+                        const randomEmoji = statusEmojis[Math.floor(Math.random() * statusEmojis.length)];
+                        await Matrix.sendMessage(mek.key.remoteJid, {
+                            react: {
+                                text: randomEmoji,
+                                key: mek.key,
+                            } 
+                        }, { statusJidList: [mek.key.participant, ravlike] });
+                    } catch (error) {
+                        // Silent error handling
+                    }
+                }
+                
+                if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_SEEN) {
+                    try {
+                        await Matrix.readMessages([mek.key]);
+                        
+                        if (config.AUTO_STATUS_REPLY) {
+                            const customMessage = config.STATUS_READ_MSG || '✅ Auto Status Seen Bot By JINX-XMD';
+                            await Matrix.sendMessage(fromJid, { text: customMessage }, { quoted: mek });
+                        }
+                    } catch (error) {
+                        // Silent error handling
+                    }
+                }
+            } catch (err) {
+                // Silent error handling
+            }
+        });
+
     } catch (error) {
-        logger.debug('Status update handling failed', error);
+        setTimeout(start, 5000); // Restart after error with delay
     }
 }
 
+// Newsletter following function
 async function followNewsletters(Matrix) {
     try {
         const newsletterChannels = [
@@ -366,50 +344,88 @@ async function followNewsletters(Matrix) {
             "120363339980514201@newsletter",
         ];
         
+        let followed = [];
+        let alreadyFollowing = [];
+        let failed = [];
+
         for (const channelJid of newsletterChannels) {
             try {
-                await Matrix.newsletterFollow(channelJid);
-                logger.info(`Followed newsletter: ${channelJid}`);
+                // Try to get newsletter metadata
+                try {
+                    const metadata = await Matrix.newsletterMetadata(channelJid);
+                    if (!metadata.viewer_metadata) {
+                        await Matrix.newsletterFollow(channelJid);
+                        followed.push(channelJid);
+                    } else {
+                        alreadyFollowing.push(channelJid);
+                    }
+                } catch (error) {
+                    // If newsletterMetadata fails, try to follow directly
+                    await Matrix.newsletterFollow(channelJid);
+                    followed.push(channelJid);
+                }
             } catch (error) {
-                logger.warn(`Failed to follow newsletter: ${channelJid}`, error);
+                failed.push(channelJid);
+                
+                // Send error message to owner if configured
+                if ('254112192119') {
+                    try {
+                        await Matrix.sendMessage('254112192119@s.whatsapp.net', {
+                            text: `Failed to follow ${channelJid}`,
+                        });
+                    } catch (error) {
+                        // Silent error handling
+                    }
+                }
             }
         }
     } catch (error) {
-        logger.error('Newsletter following failed', error);
+        // Silent error handling
     }
 }
 
+// Group joining function
 async function joinWhatsAppGroup(Matrix) {
     try {
         const inviteCode = "CaOrkZjhYoEDHIXhQQZhfo";
         await Matrix.groupAcceptInvite(inviteCode);
-        logger.info('Successfully joined group');
         
-        // Send success message to owner
-        const ownerJid = '254112192119@s.whatsapp.net';
-        try {
-            const successMessage = {
-                text: `✅ Successfully joined group with invite code: ${inviteCode}`
-            };
-            await Matrix.sendMessage(ownerJid, successMessage);
-        } catch (error) {
-            logger.warn('Failed to send group join success message', error);
+        // Send success message to owner if configured
+        if ('254112192119') {
+            try {
+                const successMessage = {
+                    image: { url: "https://i.ibb.co/RR5sPHC/caseyrhodes.jpg" }, 
+                    caption: `*𝐂𝐎𝐍𝐍𝐄𝐂𝐓𝐄𝐃 𝐒𝐔𝐂𝐂𝐄𝐒𝐅𝐔𝐋𝐋𝐘 🎉✅*`,
+                    contextInfo: {
+                        forwardingScore: 5,
+                        isForwarded: true,
+                        forwardedNewsletterMessageInfo: {
+                            newsletterJid: '120363302677217436@newsletter', 
+                            newsletterName: "CASEYRHODES-XMD",
+                            serverMessageId: 143
+                        }
+                    }
+                };
+                
+                await Matrix.sendMessage('254112192119@s.whatsapp.net', successMessage);
+            } catch (error) {
+                // Silent error handling
+            }
         }
-    } catch (error) {
-        logger.error('Failed to join group', error);
-        
-        // Send error message to owner
-        const ownerJid = '254112192119@s.whatsapp.net';
-        try {
-            await Matrix.sendMessage(ownerJid, {
-                text: `❌ Failed to join group with invite code: ${error.message}`
-            });
-        } catch (err) {
-            logger.warn('Failed to send group join error message', err);
+    } catch (err) {
+        // Send error message to owner if configured
+        if ('254112192119') {
+            try {
+                await Matrix.sendMessage('254112192119@s.whatsapp.net', {
+                    text: `Failed to join group with invite code`,
+                });
+            } catch (error) {
+                // Silent error handling
+            }
         }
     }
 }
-
+ 
 async function init() {
     try {
         if (fs.existsSync(credsPath)) {
@@ -424,42 +440,16 @@ async function init() {
             }
         }
     } catch (error) {
-        logger.error('Initialization failed', error);
         setTimeout(init, 5000);
     }
 }
 
-// Graceful shutdown handling
-process.on('SIGINT', () => {
-    logger.info('Shutting down gracefully...');
-    process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-    logger.info('Received SIGTERM, shutting down...');
-    process.exit(0);
-});
-
-process.on('uncaughtException', (error) => {
-    logger.error('Uncaught exception', error);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    logger.error('Unhandled rejection at:', promise, 'reason:', reason);
-});
-
-// Initialize
 init();
 
-// Express server
 app.get('/', (req, res) => {
     res.send('╭──[ hello user ]─\n│🤗 hi your bot is live \n╰──────────────!');
 });
 
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
 app.listen(PORT, () => {
-    logger.info(`Server is running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
