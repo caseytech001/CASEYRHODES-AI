@@ -21,7 +21,7 @@ const imageCommand = async (m, sock) => {
       await sock.sendMessage(m.from, { react: { text: '⏳', key: m.key } });
       await sock.sendMessage(m.from, { text: `🔍 Searching for *${query}*...` });
 
-      const url = `https://api.siputzx.my.id/api/images?query=${encodeURIComponent(query)}`;
+      const url = `https://iamtkm.vercel.app/downloaders/img?text=${encodeURIComponent(query)}`;
       const response = await axios.get(url, { timeout: 15000 });
 
       if (!response.data?.success || !response.data.results?.length) {
