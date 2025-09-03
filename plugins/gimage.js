@@ -1,4 +1,5 @@
 import axios from 'axios';
+import config from '../config.cjs';
 
 const imageCommand = async (m, sock) => {
   const prefix = config.PREFIX;
@@ -20,47 +21,91 @@ const imageCommand = async (m, sock) => {
       await sock.sendMessage(m.from, { react: { text: '⏳', key: m.key } });
       await sock.sendMessage(m.from, { text: `🔍 Searching for *${query}*...` });
 
-      // Fetch images from API
-      const apiUrl = `https://apis-keith.vercel.app/search/images?query=${encodeURIComponent(query)}`;
-      const response = await axios.get(apiUrl);
+      // Using a more reliable API endpoint
+      const url = `https://apis-keith.vercel.app/api/images?query=${encodeURIComponent(query)}`;
       
-      if (response.status !== 200) {
-        return sock.sendMessage(m.from, { text: `API request failed with status ${response.status}` });
-      }
-
-      const data = response.data;
-      
-      if (!data.status || !data.result || data.result.length === 0) {
-        return sock.sendMessage(m.from, { text: "No images found for your search term" });
-      }
-
-      // Limit to 5 images
-      const images = data.result.slice(0, 5);
-      
-      // Create template message with buttons for each image
-      const buttons = images.map((image, index) => ({
-        buttonId: `img_${index}`,
-        buttonText: { displayText: `🖼️ Image ${index + 1}` },
-        type: 1
-      }));
-      
-      // Add a "View All" button
-      buttons.push({
-        buttonId: 'view_all',
-        buttonText: { displayText: '🌐 View All Images' },
-        type: 1
+      const response = await axios.get(url, { 
+        timeout: 15000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
       });
 
-      await sock.sendMessage(m.from, {
-        text: `🔍 I found ${images.length} images for "${query}"\n\nSelect an image to view or view all images online`,
-        footer: `Powered by ${config.BOT_NAME}`,
-        buttons: buttons,
-        headerType: 1
-      });
+      // Handle different possible response structures
+      let images = [];
+      
+      if (response.data && Array.isArray(response.data)) {
+        images = response.data;
+      } else if (response.data && response.data.images && Array.isArray(response.data.images)) {
+        images = response.data.images;
+      } else if (response.data && response.data.results && Array.isArray(response.data.results)) {
+        images = response.data.results;
+      } else {
+        throw new Error('Unexpected API response structure');
+      }
+
+      if (!images.length) {
+        await sock.sendMessage(m.from, { text: '❌ No images found 😔\nTry different keywords' });
+        await sock.sendMessage(m.from, { react: { text: '❌', key: m.key } });
+        return;
+      }
+
+      const maxImages = Math.min(images.length, 5);
+      await sock.sendMessage(m.from, { text: `✅ Found ${images.length} images for *${query}*\nSending top ${maxImages}...` });
+
+      for (const [index, image] of images.slice(0, maxImages).entries()) {
+        try {
+          const imageUrl = image.url || image.imageUrl || image.link || image.src;
+          
+          if (!imageUrl) {
+            console.warn(`Image missing URL:`, image);
+            continue;
+          }
+
+          const caption = `
+╭───[ *ɪᴍᴀɢᴇ sᴇᴀʀᴄʜ* ]───
+├ *ǫᴜᴇʀʏ*: ${query} 🔍
+├ *ʀᴇsᴜʟᴛ*: ${index + 1} of ${maxImages} 🖼️
+╰───[ *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs* ]───`.trim();
+
+          await sock.sendMessage(
+            m.from,
+            {
+              image: { url: imageUrl },
+              caption: caption,
+              contextInfo: {
+                mentionedJid: [m.sender],
+                forwardingScore: 1,
+                isForwarded: true
+              }
+            },
+            { quoted: m }
+          );
+        } catch (err) {
+          console.warn(`Failed to send image ${index + 1}:`, err.message);
+          continue;
+        }
+
+        // Add delay between sending images
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      await sock.sendMessage(m.from, { react: { text: '✅', key: m.key } });
 
     } catch (error) {
-      console.error('Command error:', error);
-      await sock.sendMessage(m.from, { text: '❌ An error occurred while processing your request!' });
+      console.error('Image search error:', error);
+      let errorMsg = '❌ Failed to fetch images 😞';
+      
+      if (error.message.includes('timeout')) {
+        errorMsg = '❌ Request timed out ⏰';
+      } else if (error.response && error.response.status === 404) {
+        errorMsg = '❌ Image search service unavailable';
+      } else if (error.response && error.response.status) {
+        errorMsg = `❌ API error: ${error.response.status}`;
+      }
+      
+      await sock.sendMessage(m.from, { text: errorMsg });
+      await sock.sendMessage(m.from, { react: { text: '❌', key: m.key } });
     }
   }
 };
