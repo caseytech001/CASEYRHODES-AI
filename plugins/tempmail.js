@@ -28,8 +28,19 @@ const tempMailCommand = async (m, Matrix) => {
         try {
             await m.React("🕘");
 
-            // Generate temporary email
-            const genResponse = await fetch('https://api.tempmail.lol/v2/gen');
+            // Kaiz-API configuration
+            const KAIZ_API_KEY = '9ebc7b46-aae9-40cf-a5b2-56ef4d22effd';
+            const KAIZ_API_URL = 'https://kaiz-apis.gleeze.com/api/tempmail-create';
+            
+            // Make request to Kaiz API to generate temp email
+            const genResponse = await fetch(KAIZ_API_URL, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${KAIZ_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
             if (!genResponse.ok) {
                 throw new Error(`API responded with status ${genResponse.status}`);
             }
@@ -110,8 +121,15 @@ const tempMailCommand = async (m, Matrix) => {
         try {
             await m.React("🕘");
 
-            // Check inbox for the provided email
-            const inboxResponse = await fetch(`https://api.tempmail.lol/v2/email/${email}`);
+            // Check inbox for the provided email using Kaiz API
+            const inboxResponse = await fetch(`https://kaiz-apis.gleeze.com/api/tempmail-inbox?email=${email}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${KAIZ_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
             if (!inboxResponse.ok) {
                 throw new Error(`Inbox API responded with status ${inboxResponse.status}`);
             }
