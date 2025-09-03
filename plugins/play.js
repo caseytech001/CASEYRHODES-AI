@@ -4,7 +4,6 @@ import fs from 'fs';
 import { pipeline } from 'stream';
 import { promisify } from 'util';
 import os from 'os';
-import config from '../config.cjs';
 
 // Cache for frequently used data
 const fontCache = new Map();
@@ -214,7 +213,8 @@ async function preloadAudio(session) {
 
 const play = async (message, client) => {
   try {
-    const prefix = config.Prefix || config.PREFIX || '.';
+    // Use a default prefix if config is not available
+    const prefix = (typeof config !== 'undefined' && (config.Prefix || config.PREFIX)) || '.';
     const body = message.body || '';
     const command = body.startsWith(prefix) ? body.slice(prefix.length).split(" ")[0].toLowerCase() : '';
     const args = body.slice(prefix.length + command.length).trim().split(" ");
@@ -306,6 +306,9 @@ const play = async (message, client) => {
           }
         ];
         
+        // Use a default footer if config is not available
+        const footer = (typeof config !== 'undefined' && config.FOOTER) || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ";
+        
         // Send single message with both info and buttons
         if (imageBuffer) {
           await client.sendMessage(message.from, {
@@ -313,7 +316,7 @@ const play = async (message, client) => {
             caption: songInfo,
             buttons: buttons,
             mentions: [message.sender],
-            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ",
+            footer: footer,
             headerType: 1,
             contextInfo: {
               forwardingScore: 1,
@@ -330,7 +333,7 @@ const play = async (message, client) => {
             text: songInfo,
             buttons: buttons,
             mentions: [message.sender],
-            footer: config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ",
+            footer: footer,
             contextInfo: {
               forwardingScore: 1,
               isForwarded: true,
@@ -398,21 +401,22 @@ const play = async (message, client) => {
           audioData = fs.readFileSync(filePath);
         }
         
+        // Fetch thumbnail for the context info
+        const thumbnailBuffer = await fetchThumbnail(session.thumbnailUrl);
+        
         if (command === "audio") {
-          // Send as audio with proper context info
+          // Send as audio message
           await client.sendMessage(message.from, {
             audio: audioData,
             mimetype: 'audio/mpeg',
-            fileName: `${session.videoTitle.substring(0, 50)}.mp3`,
+            ptt: false,
             contextInfo: {
               externalAdReply: {
-                title: session.videoTitle.length > 25 ? `${session.videoTitle.substring(0, 22)}...` : session.videoTitle,
-                body: "Follow our WhatsApp Channel",
+                title: session.videoTitle.substring(0, 30) || 'Audio Download',
+                body: 'Powered by Kaiz API',
                 mediaType: 1,
-                thumbnailUrl: session.thumbnailUrl,
-                sourceUrl: 'https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R',
-                mediaUrl: 'https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R',
-                showAdAttribution: true,
+                sourceUrl: session.videoUrl,
+                thumbnail: thumbnailBuffer,
                 renderLargerThumbnail: false
               }
             }
@@ -422,16 +426,14 @@ const play = async (message, client) => {
           await client.sendMessage(message.from, {
             document: audioData,
             mimetype: 'audio/mpeg',
-            fileName: `${session.videoTitle.substring(0, 50)}.mp3`,
+            fileName: `${session.videoTitle.replace(/[^\w\s]/gi, '')}.mp3`.substring(0, 50) || 'audio.mp3',
             contextInfo: {
               externalAdReply: {
-                title: session.videoTitle.length > 25 ? `${session.videoTitle.substring(0, 22)}...` : session.videoTitle,
-                body: "Follow our WhatsApp Channel",
+                title: session.videoTitle.substring(0, 30) || 'Audio Download',
+                body: 'Document version - Powered by Kaiz API',
                 mediaType: 1,
-                thumbnailUrl: session.thumbnailUrl,
-                sourceUrl: 'https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R',
-                mediaUrl: 'https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R',
-                showAdAttribution: true,
+                sourceUrl: session.videoUrl,
+                thumbnail: thumbnailBuffer,
                 renderLargerThumbnail: false
               }
             }
