@@ -257,89 +257,35 @@ const commandCategories = {
   }
 };
 
-// Handler for submenu commands
-const handleSubMenu = async (m, Matrix, category) => {
-  try {
-    const prefix = config.PREFIX;
-    const mode = config.MODE === "public" ? "public" : "private";
-    const menuImage = await fetchMenuImage();
-    
-    const categoryData = commandCategories[category];
-    if (!categoryData) return;
-
-    let menuResponse = "";
-    categoryData.commands.forEach((cmdObj, index) => {
-      const num = (index + 1).toString().padStart(2, "0");
-      menuResponse += `${toFancyFont(`${prefix}${cmdObj.command}`)} - ${cmdObj.desc}\n`;
-    });
-
-    // Format the full response
-    const fullResponse = `
-*${categoryData.title}*
-
-${menuResponse}
-
-*📅 Date*: ${xdate}
-*⏰ Time*: ${xtime}
-*⚙️ Prefix*: ${prefix}
-*🌐 Mode*: ${mode}
-*📊 Commands*: ${categoryData.commands.length}
-
-> ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
-`;
-
-    // Create back button
-    const backButton = [{
-      buttonId: `${prefix}menu`,
-      buttonText: { displayText: "🔙 ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ" },
-      type: 1
-    }];
-
-    // Create button message for sub-menu (without newsletter info)
-    let subButtonMessage = {
-      caption: fullResponse,
-      footer: "✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
-      buttons: backButton,
-      viewOnce: true,
-      headerType: 1
-    };
-
-    // Send sub-menu with image
-    if (menuImage) {
-      subButtonMessage.image = menuImage;
-      await Matrix.sendMessage(m.from, subButtonMessage, { quoted: m });
-    } else {
-      await Matrix.sendMessage(m.from, {
-        text: fullResponse,
-        buttons: backButton,
-        headerType: 1
-      }, { quoted: m });
-    }
-  } catch (error) {
-    console.error(`❌ Submenu error: ${error.message}`);
-    await Matrix.sendMessage(m.from, {
-      text: `•
-• *📁 ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* hit a snag! Error: ${error.message || "Failed to load submenu"} 😡
-•`,
-    }, { quoted: m });
-  }
-};
-
 const menu = async (m, Matrix) => {
   try {
     const prefix = config.PREFIX;
-    const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
+    
+    // IMPROVED: Better command parsing to handle both regular commands and button responses
+    let cmd = "";
+    const messageBody = m.body || "";
+    
+    // Check if message starts with prefix
+    if (messageBody.startsWith(prefix)) {
+      cmd = messageBody.slice(prefix.length).split(" ")[0].toLowerCase();
+    }
+    
+    // ADDED: Debug logging to help troubleshoot
+    console.log("📝 Message body:", messageBody);
+    console.log("🎯 Parsed command:", cmd);
+    console.log("🔧 Prefix:", prefix);
+    
     const mode = config.MODE === "public" ? "public" : "private";
     const totalCommands = Object.values(commandCategories).reduce((acc, category) => acc + category.commands.length, 0);
 
     const validCommands = ["list", "help", "menu"];
     const subMenuCommands = Object.keys(commandCategories).map(cat => `${cat}-menu`);
+    
+    // ADDED: Also check for category names directly (without -menu suffix)
+    const directCategoryCommands = Object.keys(commandCategories);
 
-    // Check if it's a submenu command first
-    if (subMenuCommands.includes(cmd)) {
-      const category = cmd.replace("-menu", "");
-      return await handleSubMenu(m, Matrix, category);
-    }
+    // Fetch image for all cases
+    const menuImage = await fetchMenuImage();
 
     // Handle main menu
     if (validCommands.includes(cmd)) {
@@ -369,10 +315,7 @@ const menu = async (m, Matrix) => {
 ╰─────────────────⊷
 `;
 
-      // Fetch image for menu
-      const menuImage = await fetchMenuImage();
-
-      // Create buttons using the reference code logic
+      // Create buttons array
       const buttons = [
         {
           buttonId: `${prefix}ping`,
@@ -381,9 +324,10 @@ const menu = async (m, Matrix) => {
         }
       ];
 
+      // Create native flow actions for menu selection
       const flowActions = [
         {
-          buttonId: 'action',
+          buttonId: 'menu-options',
           buttonText: { displayText: '📂 MENU OPTIONS' },
           type: 4,
           nativeFlowInfo: {
@@ -396,74 +340,67 @@ const menu = async (m, Matrix) => {
                   highlight_label: "sᴇʟᴇᴄᴛ ᴀ ᴄᴀᴛᴇɢᴏʀʏ",
                   rows: [
                     {
-                      header: "download menu",
-                      title: "📥 DOWNLOAD MENU",
-                      description: "Download commands",
-                      id: `${prefix}download-menu`
+                      title: "📥 ᴅᴏᴡɴʟᴏᴀᴅ",
+                      description: "ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}download-menu`,
                     },
                     {
-                      header: "group menu",
-                      title: "👥 GROUP MENU",
-                      description: "Group management commands",
-                      id: `${prefix}group-menu`
+                      title: "👥 ɢʀᴏᴜᴘ",
+                      description: "ɢʀᴏᴜᴘ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ",
+                      id: `${prefix}group-menu`,
                     },
                     {
-                      header: "fun menu",
-                      title: "🎉 FUN MENU",
-                      description: "Fun commands",
-                      id: `${prefix}fun-menu`
+                      title: "🎉 ғᴜɴ",
+                      description: "ғᴜɴ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}fun-menu`,
                     },
                     {
-                      header: "owner menu",
-                      title: "👑 OWNER MENU",
-                      description: "Owner commands",
-                      id: `${prefix}owner-menu`
+                      title: "👑 ᴏᴡɴᴇʀ",
+                      description: "ᴏᴡɴᴇʀ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}owner-menu`,
                     },
                     {
-                      header: "ai menu",
-                      title: "🤖 AI MENU",
-                      description: "AI commands",
-                      id: `${prefix}ai-menu`
+                      title: "🤖 ᴀɪ",
+                      description: "ᴀɪ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}ai-menu`,
                     },
                     {
-                      header: "anime menu",
-                      title: "🌸 ANIME MENU",
-                      description: "Anime commands",
-                      id: `${prefix}anime-menu`
+                      title: "🌸 ᴀɴɪᴍᴇ",
+                      description: "ᴀɴɪᴍᴇ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}anime-menu`,
                     },
                     {
-                      header: "converter menu",
-                      title: "🔄 CONVERTER MENU",
-                      description: "Converter tools",
-                      id: `${prefix}converter-menu`
+                      title: "🔄 ᴄᴏɴᴠᴇʀᴛᴇʀ",
+                      description: "ᴄᴏɴᴠᴇʀᴛᴇʀ ᴛᴏᴏʟs",
+                      id: `${prefix}converter-menu`,
                     },
                     {
-                      header: "other menu",
-                      title: "🌟 OTHER MENU",
-                      description: "Other commands",
-                      id: `${prefix}other-menu`
+                      title: "🌟 ᴏᴛʜᴇʀ",
+                      description: "ᴏᴛʜᴇʀ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}other-menu`,
                     },
                     {
-                      header: "reactions menu",
-                      title: "🎭 REACTIONS MENU",
-                      description: "Reaction commands",
-                      id: `${prefix}reactions-menu`
+                      title: "🎭 ʀᴇᴀᴄᴛɪᴏɴs",
+                      description: "ʀᴇᴀᴄᴛɪᴏɴ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}reactions-menu`,
                     },
                     {
-                      header: "main menu",
-                      title: "📂 MAIN MENU",
-                      description: "Main commands",
-                      id: `${prefix}main-menu`
+                      title: "📂 ᴍᴀɪɴ",
+                      description: "ᴍᴀɪɴ ᴄᴏᴍᴍᴀɴᴅs",
+                      id: `${prefix}main-menu`,
                     }
                   ],
                 },
               ],
-            })
+            }),
           },
-        } 
+        }
       ];
 
-      // Create button message using the reference code structure
+      // Combine buttons and flowActions
+      buttons.push(...flowActions);
+
+      // Create button message
       let buttonMessage = {
         caption: mainMenu,
         contextInfo: {
@@ -480,34 +417,27 @@ const menu = async (m, Matrix) => {
         headerType: 1
       };
 
-      // Add the flow actions to the buttons
-      buttonMessage.buttons.push(...flowActions);
-
-      // Send message with image if available
+      // Add image if available
       if (menuImage) {
         buttonMessage.image = menuImage;
-        await Matrix.sendMessage(m.from, buttonMessage, { 
-          quoted: {
-            key: {
-              fromMe: false,
-              participant: `0@s.whatsapp.net`,
-              remoteJid: "status@broadcast"
-            },
-            message: {
-              contactMessage: {
-                displayName: "CASEYRHODES VERIFIED ✅",
-                vcard: "BEGIN:VCARD\nVERSION:3.0\nFN: Caseyrhodes VERIFIED ✅\nORG:CASEYRHODES-TECH BOT;\nTEL;type=CELL;type=VOICE;waid=13135550002:+13135550002\nEND:VCARD"
-              }
+      }
+
+      // Send message
+      await Matrix.sendMessage(m.from, buttonMessage, { 
+        quoted: {
+          key: {
+            fromMe: false,
+            participant: `0@s.whatsapp.net`,
+            remoteJid: "status@broadcast"
+          },
+          message: {
+            contactMessage: {
+              displayName: "CASEYRHODES VERIFIED ✅",
+              vcard: "BEGIN:VCARD\nVERSION:3.0\nFN: Caseyrhodes VERIFIED ✅\nORG:CASEYRHODES-TECH BOT;\nTEL;type=CELL;type=VOICE;waid=13135550002:+13135550002\nEND:VCARD"
             }
           }
-        });
-      } else {
-        // Fallback to text-only if image fails
-        await Matrix.sendMessage(m.from, { 
-          text: mainMenu, 
-          ...buttonMessage 
-        }, { quoted: m });
-      }
+        }
+      });
 
       // Send audio as a voice note
       try {
@@ -534,9 +464,95 @@ const menu = async (m, Matrix) => {
         console.error("❌ Failed to send audio:", audioError.message);
         // Continue without audio if it fails
       }
+
+      return; // ADDED: Return to prevent further execution
     }
+  
+    // IMPROVED: Handle sub-menu commands with better logic
+    if (subMenuCommands.includes(cmd) || directCategoryCommands.includes(cmd)) {
+      console.log("🎯 Sub-menu command detected:", cmd);
+      
+      // Get category name - handle both "download-menu" and "download" formats
+      let category = cmd;
+      if (cmd.endsWith("-menu")) {
+        category = cmd.replace("-menu", "");
+      }
+      
+      const categoryData = commandCategories[category];
+      console.log("📂 Category data found:", !!categoryData);
+      
+      if (!categoryData) {
+        console.log("❌ Category not found:", category);
+        await Matrix.sendMessage(m.from, {
+          text: `Category "${category}" not found. Please try again.`,
+        }, { quoted: m });
+        return;
+      }
+
+      let menuResponse = "";
+      categoryData.commands.forEach((cmdObj, index) => {
+        const num = (index + 1).toString().padStart(2, "0");
+        menuResponse += `${toFancyFont(`${prefix}${cmdObj.command}`)} - ${cmdObj.desc}\n`;
+      });
+
+      // Format the full response
+      const fullResponse = `
+*${categoryData.title}*
+
+${menuResponse}
+
+*📅 Date*: ${xdate}
+*⏰ Time*: ${xtime}
+*⚙️ Prefix*: ${prefix}
+*🌐 Mode*: ${mode}
+*📊 Commands*: ${categoryData.commands.length}
+
+> ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
+`;
+
+      // Create back button
+      const backButton = {
+        buttonId: `${prefix}menu`,
+        buttonText: { displayText: "🔙 ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ" },
+        type: 1
+      };
+
+      // Create button message for sub-menu
+      let subButtonMessage = {
+        caption: fullResponse,
+        contextInfo: {
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
+            newsletterJid: "120363302677217436@newsletter",
+            serverMessageId: 143
+          },
+        },
+        footer: "✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
+        buttons: [backButton],
+        viewOnce: true,
+        headerType: 1
+      };
+
+      // Add image if available
+      if (menuImage) {
+        subButtonMessage.image = menuImage;
+      }
+
+      console.log("📤 Sending sub-menu for category:", category);
+      // Send sub-menu
+      await Matrix.sendMessage(m.from, subButtonMessage, { quoted: m });
+      return;
+    }
+
+    // ADDED: Fallback for unrecognized commands in menu context
+    if (messageBody.startsWith(prefix)) {
+      console.log("❓ Unrecognized command in menu context:", cmd);
+    }
+
   } catch (error) {
     console.error(`❌ Menu error: ${error.message}`);
+    console.error("📊 Error stack:", error.stack);
     await Matrix.sendMessage(m.from, {
       text: `•
 • *📁 ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* hit a snag! Error: ${error.message || "Failed to load menu"} 😡
