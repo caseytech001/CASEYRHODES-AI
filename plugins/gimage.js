@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { generateWAMessageFromContent } from '@whiskeysockets/baileys';
 
 const imageCommand = async (m, sock) => {
   const prefix = config.PREFIX;
@@ -35,72 +34,29 @@ const imageCommand = async (m, sock) => {
         return sock.sendMessage(m.from, { text: "No images found for your search term" });
       }
 
-      // Limit to 8 images
-      const images = data.result.slice(0, 8);
-      let picked = [];
-
-      // Download each image
-      for (const image of images) {
-        try {
-          const imageResponse = await axios.get(image.url, { responseType: 'arraybuffer' });
-          const buffer = Buffer.from(imageResponse.data);
-          picked.push({ buffer, directLink: image.url });
-        } catch (e) {
-          console.error(`Failed to download image: ${image.url}`, e);
-        }
-      }
-
-      if (picked.length === 0) {
-        return sock.sendMessage(m.from, { text: "Failed to download any images. Please try again." });
-      }
-
-      // Generate carousel cards
-      const carouselCards = await Promise.all(picked.map(async (item, index) => {
-        // Upload image to WhatsApp server
-        const media = await sock.uploadMedia(item.buffer, { filename: `image_${index}.jpg` });
-        
-        return {
-          title: `📸 Image ${index + 1}`,
-          description: `🔍 Search: ${query}`,
-          imageMessage: media,
-          buttons: [
-            {
-              type: "cta_url",
-              title: "🌐 View Original",
-              payload: item.directLink
-            }
-          ]
-        };
-      }));
-
-      // Create carousel message using baileys format
-      const message = {
-        viewOnceMessage: {
-          message: {
-            messageContextInfo: {
-              deviceListMetadata: {},
-              deviceListMetadataVersion: 2
-            },
-            interactiveMessage: {
-              body: {
-                text: `🔍 Search Results for: ${query}`
-              },
-              footer: {
-                text: `📂 Found ${picked.length} images`
-              },
-              carouselMessage: {
-                cards: carouselCards
-              }
-            }
-          }
-        }
-      };
-
-      // Generate the WA message
-      const generatedMessage = generateWAMessageFromContent(m.from, message, { quoted: m });
+      // Limit to 5 images
+      const images = data.result.slice(0, 5);
       
-      // Send the message
-      await sock.relayMessage(m.from, generatedMessage.message, { messageId: generatedMessage.key.id });
+      // Create template message with buttons for each image
+      const buttons = images.map((image, index) => ({
+        buttonId: `img_${index}`,
+        buttonText: { displayText: `🖼️ Image ${index + 1}` },
+        type: 1
+      }));
+      
+      // Add a "View All" button
+      buttons.push({
+        buttonId: 'view_all',
+        buttonText: { displayText: '🌐 View All Images' },
+        type: 1
+      });
+
+      await sock.sendMessage(m.from, {
+        text: `🔍 I found ${images.length} images for "${query}"\n\nSelect an image to view or view all images online`,
+        footer: `Powered by ${config.BOT_NAME}`,
+        buttons: buttons,
+        headerType: 1
+      });
 
     } catch (error) {
       console.error('Command error:', error);
