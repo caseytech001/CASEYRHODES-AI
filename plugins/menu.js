@@ -257,6 +257,74 @@ const commandCategories = {
   }
 };
 
+// Handler for submenu commands
+const handleSubMenu = async (m, Matrix, category) => {
+  try {
+    const prefix = config.PREFIX;
+    const mode = config.MODE === "public" ? "public" : "private";
+    const menuImage = await fetchMenuImage();
+    
+    const categoryData = commandCategories[category];
+    if (!categoryData) return;
+
+    let menuResponse = "";
+    categoryData.commands.forEach((cmdObj, index) => {
+      const num = (index + 1).toString().padStart(2, "0");
+      menuResponse += `${toFancyFont(`${prefix}${cmdObj.command}`)} - ${cmdObj.desc}\n`;
+    });
+
+    // Format the full response
+    const fullResponse = `
+*${categoryData.title}*
+
+${menuResponse}
+
+*📅 Date*: ${xdate}
+*⏰ Time*: ${xtime}
+*⚙️ Prefix*: ${prefix}
+*🌐 Mode*: ${mode}
+*📊 Commands*: ${categoryData.commands.length}
+
+> ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
+`;
+
+    // Create back button
+    const backButton = [{
+      buttonId: `${prefix}menu`,
+      buttonText: { displayText: "🔙 ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ" },
+      type: 1
+    }];
+
+    // Create button message for sub-menu (without newsletter info)
+    let subButtonMessage = {
+      caption: fullResponse,
+      footer: "✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
+      buttons: backButton,
+      viewOnce: true,
+      headerType: 1
+    };
+
+    // Send sub-menu with image
+    if (menuImage) {
+      subButtonMessage.image = menuImage;
+      await Matrix.sendMessage(m.from, subButtonMessage, { quoted: m });
+    } else {
+      await Matrix.sendMessage(m.from, {
+        text: fullResponse,
+        buttons: backButton,
+        headerType: 1
+      }, { quoted: m });
+    }
+  } catch (error) {
+    console.error(`❌ Submenu error: ${error.message}`);
+    await Matrix.sendMessage(m.from, {
+      text: `•
+• *📁 ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* hit a snag! Error: ${error.message || "Failed to load submenu"} 😡
+•`,
+    }, { quoted: m });
+  }
+};
+
 const menu = async (m, Matrix) => {
   try {
     const prefix = config.PREFIX;
@@ -267,8 +335,11 @@ const menu = async (m, Matrix) => {
     const validCommands = ["list", "help", "menu"];
     const subMenuCommands = Object.keys(commandCategories).map(cat => `${cat}-menu`);
 
-    // Fetch image for all cases
-    const menuImage = await fetchMenuImage();
+    // Check if it's a submenu command first
+    if (subMenuCommands.includes(cmd)) {
+      const category = cmd.replace("-menu", "");
+      return await handleSubMenu(m, Matrix, category);
+    }
 
     // Handle main menu
     if (validCommands.includes(cmd)) {
@@ -288,7 +359,7 @@ const menu = async (m, Matrix) => {
 - . ④  *ᴏᴡɴᴇʀ ᴍᴇɴᴜ*
 - . ⑤  *ᴀɪ ᴍᴇɴᴜ*
 - . ⑥  *ᴀɴɪᴍᴇ ᴍᴇɴᴜ*
-- . ⑦  *ᴄᴏɴᴠᴇʀᴛᴇᴅ ᴍᴇɴᴜ*
+- . ⑦  *ᴄᴏɴᴠᴇʀᴛᴇʀ ᴍᴇɴᴜ*
 - . ⑧  *ᴏᴛʜᴇʀ ᴍᴇɴᴜ*
 - . ⑨  *ʀᴇᴀᴄᴛɪᴏɴs ᴍᴇɴᴜ*
 - . ⑩  *ᴍᴀɪɴ ᴍᴇɴᴜ*
@@ -297,6 +368,9 @@ const menu = async (m, Matrix) => {
 ┊*Hallo my family ${pushwish}*
 ╰─────────────────⊷
 `;
+
+      // Fetch image for menu
+      const menuImage = await fetchMenuImage();
 
       // Create buttons using the reference code logic
       const buttons = [
@@ -459,71 +533,6 @@ const menu = async (m, Matrix) => {
       } catch (audioError) {
         console.error("❌ Failed to send audio:", audioError.message);
         // Continue without audio if it fails
-      }
-    }
-  
-    // Handle sub-menu commands
-    if (subMenuCommands.includes(cmd)) {
-      const category = cmd.replace("-menu", "");
-      const categoryData = commandCategories[category];
-      
-      if (!categoryData) return;
-
-      let menuResponse = "";
-      categoryData.commands.forEach((cmdObj, index) => {
-        const num = (index + 1).toString().padStart(2, "0");
-        menuResponse += `${toFancyFont(`${prefix}${cmdObj.command}`)} - ${cmdObj.desc}\n`;
-      });
-
-      // Format the full response
-      const fullResponse = `
-*${categoryData.title}*
-
-${menuResponse}
-
-*📅 Date*: ${xdate}
-*⏰ Time*: ${xtime}
-*⚙️ Prefix*: ${prefix}
-*🌐 Mode*: ${mode}
-*📊 Commands*: ${categoryData.commands.length}
-
-> ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
-`;
-
-      // Create back button
-      const backButton = [{
-        buttonId: `${prefix}menu`,
-        buttonText: { displayText: "🔙 ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ" },
-        type: 1
-      }];
-
-      // Create button message for sub-menu
-      let subButtonMessage = {
-        caption: fullResponse,
-        contextInfo: {
-          isForwarded: true,
-          forwardedNewsletterMessageInfo: {
-            newsletterName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
-            newsletterJid: "120363302677217436@newsletter",
-            serverMessageId: 143
-          },
-        },
-        footer: "✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
-        buttons: backButton,
-        viewOnce: true,
-        headerType: 1
-      };
-
-      // Send sub-menu with image
-      if (menuImage) {
-        subButtonMessage.image = menuImage;
-        await Matrix.sendMessage(m.from, subButtonMessage, { quoted: m });
-      } else {
-        await Matrix.sendMessage(m.from, {
-          text: fullResponse,
-          buttons: backButton,
-          headerType: 1
-        }, { quoted: m });
       }
     }
   } catch (error) {
