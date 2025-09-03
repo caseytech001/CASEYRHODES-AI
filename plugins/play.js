@@ -413,7 +413,7 @@ const play = async (message, client) => {
             contextInfo: {
               externalAdReply: {
                 title: session.videoTitle.substring(0, 30) || 'Audio Download',
-                body: 'Powered by Kaiz API',
+                body: 'Powered by CASEYRHODES API',
                 mediaType: 1,
                 sourceUrl: session.videoUrl,
                 thumbnail: thumbnailBuffer,
@@ -430,7 +430,7 @@ const play = async (message, client) => {
             contextInfo: {
               externalAdReply: {
                 title: session.videoTitle.substring(0, 30) || 'Audio Download',
-                body: 'Document version - Powered by Kaiz API',
+                body: 'Document version - Powered by CASEYRHODES API',
                 mediaType: 1,
                 sourceUrl: session.videoUrl,
                 thumbnail: thumbnailBuffer,
