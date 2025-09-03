@@ -34,11 +34,11 @@ const autoreactCommand = async (m, Matrix) => {
 
       if (text === 'on') {
         config.AUTO_REACT = true;
-        responseMessage = "✅ * enabled.*";
+        responseMessage = "✅ *Auto-reaction enabled.*";
         buttonText = {displayText: '❌ DISABLE'};
       } else if (text === 'off') {
         config.AUTO_REACT = false;
-        responseMessage = "❌ *disabled.*.";
+        responseMessage = "❌ *Auto-reaction disabled.*";
         buttonText = {displayText: '✅ ENABLE'};
       }
 
