@@ -34,11 +34,11 @@ const autoreactCommand = async (m, Matrix) => {
 
       if (text === 'on') {
         config.AUTO_REACT = true;
-        responseMessage = "✅ *Auto-React has been enabled.*\n\nThe bot will now automatically react to messages.";
+        responseMessage = "✅ * enabled.*";
         buttonText = {displayText: '❌ DISABLE'};
       } else if (text === 'off') {
         config.AUTO_REACT = false;
-        responseMessage = "❌ *Auto-React has been disabled.*\n\nThe bot will no longer automatically react to messages.";
+        responseMessage = "❌ *disabled.*.";
         buttonText = {displayText: '✅ ENABLE'};
       }
 
