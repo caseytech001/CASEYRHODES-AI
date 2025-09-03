@@ -27,13 +27,25 @@ const Lyrics = async (m, Matrix) => {
         return m.reply('Both song name and artist name are required. Please provide them in the format: song name|artist name.');
       }
 
-      const apiUrl = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
-      const response = await axios.get(apiUrl);
+      // Kaiz-API configuration - Fixed URL construction
+      const KAIZ_API_KEY = '9ebc7b46-aae9-40cf-a5b2-56ef4d22effd';
+      const KAIZ_API_URL = `https://kaiz-apis.gleeze.com/api/lyrics?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`;
+      
+      // Add authorization header
+      const response = await axios.get(KAIZ_API_URL, {
+        headers: {
+          'Authorization': `Bearer ${KAIZ_API_KEY}`
+        }
+      });
+      
       const result = response.data;
 
       if (result && result.lyrics) {
         const lyrics = result.lyrics;
 
+        // Limit lyrics length to avoid WhatsApp message limits
+        const truncatedLyrics = lyrics.length > 4000 ? lyrics.substring(0, 4000) + "..." : lyrics;
+        
         let buttons = [
           {
             name: "cta_copy",
@@ -68,13 +80,13 @@ const Lyrics = async (m, Matrix) => {
               },
               interactiveMessage: proto.Message.InteractiveMessage.create({
                 body: proto.Message.InteractiveMessage.Body.create({
-                  text: lyrics
+                  text: truncatedLyrics
                 }),
                 footer: proto.Message.InteractiveMessage.Footer.create({
                   text: "> *© ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ*"
                 }),
                 header: proto.Message.InteractiveMessage.Header.create({
-                  title: "",
+                  title: `${title} - ${artist}`,
                   subtitle: "",
                   hasMediaAttachment: false
                 }),
@@ -96,7 +108,7 @@ const Lyrics = async (m, Matrix) => {
       }
     } catch (error) {
       console.error('Error getting lyrics:', error.message);
-      m.reply('Error getting lyrics.');
+      m.reply('Error getting lyrics. Please try again with a different song or check the format (song|artist).');
       await m.React('❌');
     }
   }
