@@ -1,5 +1,5 @@
 import axios from 'axios';
-import config from '../config.cjs';
+import { generateWAMessageFromContent } from '@whiskeysockets/baileys';
 
 const imageCommand = async (m, sock) => {
   const prefix = config.PREFIX;
@@ -21,66 +21,90 @@ const imageCommand = async (m, sock) => {
       await sock.sendMessage(m.from, { react: { text: '⏳', key: m.key } });
       await sock.sendMessage(m.from, { text: `🔍 Searching for *${query}*...` });
 
-      const url = `https://iamtkm.vercel.app/downloaders/img?text=${encodeURIComponent(query)}`;
-      const response = await axios.get(url, { timeout: 15000 });
-
-      if (!response.data?.success || !response.data.results?.length) {
-        await sock.sendMessage(m.from, { text: '❌ No images found 😔\nTry different keywords' });
-        await sock.sendMessage(m.from, { react: { text: '❌', key: m.key } });
-        return;
+      // Fetch images from API
+      const apiUrl = `https://apis-keith.vercel.app/search/images?query=${encodeURIComponent(query)}`;
+      const response = await axios.get(apiUrl);
+      
+      if (response.status !== 200) {
+        return sock.sendMessage(m.from, { text: `API request failed with status ${response.status}` });
       }
 
-      const results = response.data.results;
-      const maxImages = Math.min(results.length, 5);
-      await sock.sendMessage(m.from, { text: `✅ Found *${results.length}* images for *${query}*\nSending top ${maxImages}...` });
+      const data = response.data;
+      
+      if (!data.status || !data.result || data.result.length === 0) {
+        return sock.sendMessage(m.from, { text: "No images found for your search term" });
+      }
 
-      const selectedImages = results
-        .sort(() => 0.5 - Math.random())
-        .slice(0, maxImages);
+      // Limit to 8 images
+      const images = data.result.slice(0, 8);
+      let picked = [];
 
-      for (const [index, imageUrl] of selectedImages.entries()) {
+      // Download each image
+      for (const image of images) {
         try {
-          const caption = `
-╭───[ *ɪᴍᴀɢᴇ sᴇᴀʀᴄʜ* ]───
-├ *ǫᴜᴇʀʏ*: ${query} 🔍
-├ *ʀᴇsᴜʟᴛ*: ${index + 1} of ${maxImages} 🖼️
-╰───[ *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs* ]───`;
-
-          await sock.sendMessage(
-            m.from,
-            {
-              image: { url: imageUrl },
-              caption,
-              contextInfo: {
-                mentionedJid: [m.sender],
-                forwardingScore: 1,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                  newsletterJid: '120363302677217436@newsletter',
-                  newsletterName: 'POWERED BY CASEYRHODES TECH',
-                  serverMessageId: -1
-                }
-              }
-            },
-            { quoted: m }
-          );
-        } catch (err) {
-          console.warn(`⚠️ Failed to send image ${index + 1}: ${imageUrl}`, err);
-          continue;
+          const imageResponse = await axios.get(image.url, { responseType: 'arraybuffer' });
+          const buffer = Buffer.from(imageResponse.data);
+          picked.push({ buffer, directLink: image.url });
+        } catch (e) {
+          console.error(`Failed to download image: ${image.url}`, e);
         }
-
-        await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
-      await sock.sendMessage(m.from, { react: { text: '✅', key: m.key } });
+      if (picked.length === 0) {
+        return sock.sendMessage(m.from, { text: "Failed to download any images. Please try again." });
+      }
+
+      // Generate carousel cards
+      const carouselCards = await Promise.all(picked.map(async (item, index) => {
+        // Upload image to WhatsApp server
+        const media = await sock.uploadMedia(item.buffer, { filename: `image_${index}.jpg` });
+        
+        return {
+          title: `📸 Image ${index + 1}`,
+          description: `🔍 Search: ${query}`,
+          imageMessage: media,
+          buttons: [
+            {
+              type: "cta_url",
+              title: "🌐 View Original",
+              payload: item.directLink
+            }
+          ]
+        };
+      }));
+
+      // Create carousel message using baileys format
+      const message = {
+        viewOnceMessage: {
+          message: {
+            messageContextInfo: {
+              deviceListMetadata: {},
+              deviceListMetadataVersion: 2
+            },
+            interactiveMessage: {
+              body: {
+                text: `🔍 Search Results for: ${query}`
+              },
+              footer: {
+                text: `📂 Found ${picked.length} images`
+              },
+              carouselMessage: {
+                cards: carouselCards
+              }
+            }
+          }
+        }
+      };
+
+      // Generate the WA message
+      const generatedMessage = generateWAMessageFromContent(m.from, message, { quoted: m });
+      
+      // Send the message
+      await sock.relayMessage(m.from, generatedMessage.message, { messageId: generatedMessage.key.id });
 
     } catch (error) {
-      console.error('❌ Image search error:', error);
-      const errorMsg = error.message.includes('timeout')
-        ? '❌ Request timed out ⏰'
-        : '❌ Failed to fetch images 😞';
-      await sock.sendMessage(m.from, { text: errorMsg });
-      await sock.sendMessage(m.from, { react: { text: '❌', key: m.key } });
+      console.error('Command error:', error);
+      await sock.sendMessage(m.from, { text: '❌ An error occurred while processing your request!' });
     }
   }
 };
