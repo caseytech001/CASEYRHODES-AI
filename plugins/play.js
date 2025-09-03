@@ -8,6 +8,7 @@ import os from 'os';
 // Cache for frequently used data
 const fontCache = new Map();
 const thumbnailCache = new Map();
+const audioCache = new Map();
 
 function toFancyFont(text) {
   if (fontCache.has(text)) return fontCache.get(text);
@@ -64,6 +65,25 @@ async function sendCustomReaction(client, message, reaction) {
 
 // Store user preferences with better session management
 const userSessions = new Map();
+
+// Session cleanup function
+function cleanupExpiredSessions() {
+  const now = Date.now();
+  for (const [sender, session] of userSessions.entries()) {
+    if (now - session.timestamp > 10 * 60 * 1000) {
+      userSessions.delete(sender);
+      // Clean up file if exists
+      if (session.filePath && fs.existsSync(session.filePath)) {
+        try {
+          fs.unlinkSync(session.filePath);
+        } catch (e) {}
+      }
+    }
+  }
+}
+
+// Run cleanup every 5 minutes
+setInterval(cleanupExpiredSessions, 5 * 60 * 1000);
 
 // Utility function to fetch video info
 async function fetchVideoInfo(text) {
@@ -219,19 +239,8 @@ const play = async (message, client) => {
     const command = body.startsWith(prefix) ? body.slice(prefix.length).split(" ")[0].toLowerCase() : '';
     const args = body.slice(prefix.length + command.length).trim().split(" ");
     
-    // Clean up expired sessions (older than 10 minutes)
-    const now = Date.now();
-    for (const [sender, session] of userSessions.entries()) {
-      if (now - session.timestamp > 10 * 60 * 1000) {
-        userSessions.delete(sender);
-        // Clean up file if exists
-        if (session.filePath && fs.existsSync(session.filePath)) {
-          try {
-            fs.unlinkSync(session.filePath);
-          } catch (e) {}
-        }
-      }
-    }
+    // Clean up expired sessions
+    cleanupExpiredSessions();
 
     if (command === "play") {
       await sendCustomReaction(client, message, "⏳");
@@ -280,8 +289,8 @@ const play = async (message, client) => {
         
         userSessions.set(message.sender, sessionData);
         
-        // Start preloading audio in background
-        preloadAudio(sessionData);
+        // Start preloading audio in background (non-blocking)
+        setTimeout(() => preloadAudio(sessionData), 100);
         
         // Download thumbnail for image message
         let imageBuffer = await fetchThumbnail(thumbnailUrl);
@@ -299,15 +308,25 @@ const play = async (message, client) => {
             type: 1
           },
           {
-            urlButton: {
-              displayText: "📚 Follow Channel",
-              url: "https://whatsapp.com/channel/0029VbAUmPuDJ6GuVsg8YC3R"
-            }
+            buttonId: `${prefix}voicenote`,
+            buttonText: { displayText: "🎤 ❯❯ ᴠᴏɪᴄᴇ ɴᴏᴛᴇ" },
+            type: 1
           }
         ];
         
         // Use a default footer if config is not available
         const footer = (typeof config !== 'undefined' && config.FOOTER) || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ";
+        
+        // Newsletter context info
+        const newsletterContext = {
+          forwardingScore: 1,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363302677217436@newsletter',
+            newsletterName: 'POWERED BY CASEYRHODES TECH',
+            serverMessageId: -1
+          }
+        };
         
         // Send single message with both info and buttons
         if (imageBuffer) {
@@ -318,15 +337,7 @@ const play = async (message, client) => {
             mentions: [message.sender],
             footer: footer,
             headerType: 1,
-            contextInfo: {
-              forwardingScore: 1,
-              isForwarded: true,
-              forwardedNewsletterMessageInfo: {
-                newsletterJid: '120363302677217436@newsletter',
-                newsletterName: 'POWERED BY CASEYRHODES TECH',
-                serverMessageId: -1
-              }
-            }
+            contextInfo: newsletterContext
           }, { quoted: message });
         } else {
           await client.sendMessage(message.from, {
@@ -334,15 +345,7 @@ const play = async (message, client) => {
             buttons: buttons,
             mentions: [message.sender],
             footer: footer,
-            contextInfo: {
-              forwardingScore: 1,
-              isForwarded: true,
-              forwardedNewsletterMessageInfo: {
-                newsletterJid: '120363302677217436@newsletter',
-                newsletterName: 'POWERED BY CASEYRHODES TECH',
-                serverMessageId: -1
-              }
-            }
+            contextInfo: newsletterContext
           }, { quoted: message });
         }
         
@@ -358,7 +361,7 @@ const play = async (message, client) => {
         }, { quoted: message });
       }
       
-    } else if (command === "audio" || command === "document") {
+    } else if (command === "audio" || command === "document" || command === "voicenote") {
       const session = userSessions.get(message.sender);
       
       if (!session || (Date.now() - session.timestamp > 10 * 60 * 1000)) {
@@ -404,39 +407,41 @@ const play = async (message, client) => {
         // Fetch thumbnail for the context info
         const thumbnailBuffer = await fetchThumbnail(session.thumbnailUrl);
         
+        // Newsletter context info
+        const newsletterContext = {
+          externalAdReply: {
+            title: session.videoTitle.substring(0, 30) || 'Audio Download',
+            body: 'Powered by CASEYRHODES API',
+            mediaType: 1,
+            sourceUrl: session.videoUrl,
+            thumbnail: thumbnailBuffer,
+            renderLargerThumbnail: false
+          }
+        };
+        
         if (command === "audio") {
           // Send as audio message
           await client.sendMessage(message.from, {
             audio: audioData,
             mimetype: 'audio/mpeg',
             ptt: false,
-            contextInfo: {
-              externalAdReply: {
-                title: session.videoTitle.substring(0, 30) || 'Audio Download',
-                body: 'Powered by CASEYRHODES API',
-                mediaType: 1,
-                sourceUrl: session.videoUrl,
-                thumbnail: thumbnailBuffer,
-                renderLargerThumbnail: false
-              }
-            }
+            contextInfo: newsletterContext
           }, { quoted: message });
-        } else {
+        } else if (command === "document") {
           // Send as document
           await client.sendMessage(message.from, {
             document: audioData,
             mimetype: 'audio/mpeg',
             fileName: `${session.videoTitle.replace(/[^\w\s]/gi, '')}.mp3`.substring(0, 50) || 'audio.mp3',
-            contextInfo: {
-              externalAdReply: {
-                title: session.videoTitle.substring(0, 30) || 'Audio Download',
-                body: 'Document version - Powered by CASEYRHODES API',
-                mediaType: 1,
-                sourceUrl: session.videoUrl,
-                thumbnail: thumbnailBuffer,
-                renderLargerThumbnail: false
-              }
-            }
+            contextInfo: newsletterContext
+          }, { quoted: message });
+        } else if (command === "voicenote") {
+          // Send as voice note (ptt: true)
+          await client.sendMessage(message.from, {
+            audio: audioData,
+            mimetype: 'audio/mpeg',
+            ptt: true, // This makes it a voice note
+            contextInfo: newsletterContext
           }, { quoted: message });
         }
         
