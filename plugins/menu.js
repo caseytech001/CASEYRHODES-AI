@@ -260,70 +260,18 @@ const commandCategories = {
 const menu = async (m, Matrix) => {
   try {
     const prefix = config.PREFIX;
-    
-    // IMPROVED: Better command parsing to handle multiple input types
-    let cmd = "";
-    let messageBody = "";
-    
-    // Handle different message types
-    if (m.body) {
-      messageBody = m.body;
-    } else if (m.message?.conversation) {
-      messageBody = m.message.conversation;
-    } else if (m.message?.extendedTextMessage?.text) {
-      messageBody = m.message.extendedTextMessage.text;
-    } else if (m.message?.buttonsResponseMessage?.selectedButtonId) {
-      messageBody = m.message.buttonsResponseMessage.selectedButtonId;
-    } else if (m.message?.templateButtonReplyMessage?.selectedId) {
-      messageBody = m.message.templateButtonReplyMessage.selectedId;
-    } else if (m.message?.listResponseMessage?.singleSelectReply?.selectedRowId) {
-      messageBody = m.message.listResponseMessage.singleSelectReply.selectedRowId;
-    } else if (m.message?.nativeFlowResponseMessage?.paramsJson) {
-      // Handle native flow response
-      try {
-        const flowResponse = JSON.parse(m.message.nativeFlowResponseMessage.paramsJson);
-        if (flowResponse.id) {
-          messageBody = flowResponse.id;
-        }
-      } catch (e) {
-        console.log("Failed to parse native flow response");
-      }
-    }
-    
-    // Parse command from message body
-    if (messageBody && messageBody.startsWith(prefix)) {
-      cmd = messageBody.slice(prefix.length).split(" ")[0].toLowerCase().trim();
-    }
-    
-    // ENHANCED: Debug logging
-    console.log("📝 Raw message:", JSON.stringify({
-      body: m.body,
-      conversation: m.message?.conversation,
-      extendedText: m.message?.extendedTextMessage?.text,
-      buttonResponse: m.message?.buttonsResponseMessage?.selectedButtonId,
-      templateResponse: m.message?.templateButtonReplyMessage?.selectedId,
-      listResponse: m.message?.listResponseMessage?.singleSelectReply?.selectedRowId,
-      nativeFlowResponse: m.message?.nativeFlowResponseMessage?.paramsJson
-    }, null, 2));
-    
-    console.log("📝 Processed message body:", messageBody);
-    console.log("🎯 Parsed command:", cmd);
-    console.log("🔧 Prefix:", prefix);
-    
+    const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
     const mode = config.MODE === "public" ? "public" : "private";
     const totalCommands = Object.values(commandCategories).reduce((acc, category) => acc + category.commands.length, 0);
 
     const validCommands = ["list", "help", "menu"];
     const subMenuCommands = Object.keys(commandCategories).map(cat => `${cat}-menu`);
-    const directCategoryCommands = Object.keys(commandCategories);
 
     // Fetch image for all cases
     const menuImage = await fetchMenuImage();
 
     // Handle main menu
     if (validCommands.includes(cmd)) {
-      console.log("🏠 Showing main menu");
-      
       const mainMenu = `*HI 👋* *${pushwish}*
 *╭───────────────┈⊷*
 *┊• 🌟 ʙᴏᴛ ɴᴀᴍᴇ :* *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ*
@@ -499,68 +447,42 @@ const menu = async (m, Matrix) => {
         console.error("❌ Failed to send audio:", audioError.message);
         // Continue without audio if it fails
       }
-
-      return;
     }
   
-    // IMPROVED: Handle sub-menu commands with enhanced logic
-    if (subMenuCommands.includes(cmd) || directCategoryCommands.includes(cmd)) {
-      console.log("🎯 Sub-menu command detected:", cmd);
-      
-      // Get category name - handle both "download-menu" and "download" formats
-      let category = cmd;
-      if (cmd.endsWith("-menu")) {
-        category = cmd.replace("-menu", "");
-      }
-      
+    // Handle sub-menu commands
+    if (subMenuCommands.includes(cmd)) {
+      const category = cmd.replace("-menu", "");
       const categoryData = commandCategories[category];
-      console.log("📂 Category data found:", !!categoryData);
       
-      if (!categoryData) {
-        console.log("❌ Category not found:", category);
-        await Matrix.sendMessage(m.from, {
-          text: `❌ Category "${category}" not found. Use ${prefix}menu to see available options.`,
-        }, { quoted: m });
-        return;
-      }
+      if (!categoryData) return;
 
-      console.log(`📋 Generating ${category} menu with ${categoryData.commands.length} commands`);
-
-      // IMPROVED: Better command listing format
       let menuResponse = "";
       categoryData.commands.forEach((cmdObj, index) => {
         const num = (index + 1).toString().padStart(2, "0");
-        menuResponse += `${num}. ${toFancyFont(`${prefix}${cmdObj.command}`)} - ${cmdObj.desc}\n`;
+        menuResponse += `${toFancyFont(`${prefix}${cmdObj.command}`)} - ${cmdObj.desc}\n`;
       });
 
-      // Format the full response with better styling
-      const fullResponse = `┏━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ ${categoryData.title} ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━┛
+      // Format the full response
+      const fullResponse = `
+*${categoryData.title}*
 
 ${menuResponse}
-╭─ ✨ 𝗜𝗡𝗙𝗢 ─╮
-├ 📅 Date: ${xdate}
-├ ⏰ Time: ${xtime}
-├ ⚙️ Prefix: ${prefix}
-├ 🌐 Mode: ${mode}
-╰ 📊 Commands: ${categoryData.commands.length}
 
-> ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟`;
+*📅 Date*: ${xdate}
+*⏰ Time*: ${xtime}
+*⚙️ Prefix*: ${prefix}
+*🌐 Mode*: ${mode}
+*📊 Commands*: ${categoryData.commands.length}
 
-      // ENHANCED: Create multiple navigation buttons
-      const navigationButtons = [
-        {
-          buttonId: `${prefix}menu`,
-          buttonText: { displayText: "🔙 ᴍᴀɪɴ ᴍᴇɴᴜ" },
-          type: 1
-        },
-        {
-          buttonId: `${prefix}ping`,
-          buttonText: { displayText: "🚀 sᴘᴇᴇᴅ" },
-          type: 1
-        }
-      ];
+> ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟
+`;
+
+      // Create back button
+      const backButton = {
+        buttonId: `${prefix}menu`,
+        buttonText: { displayText: "🔙 ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ" },
+        type: 1
+      };
 
       // Create button message for sub-menu
       let subButtonMessage = {
@@ -574,7 +496,7 @@ ${menuResponse}
           },
         },
         footer: "✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
-        buttons: navigationButtons,
+        buttons: [backButton],
         viewOnce: true,
         headerType: 1
       };
@@ -584,83 +506,15 @@ ${menuResponse}
         subButtonMessage.image = menuImage;
       }
 
-      console.log("📤 Sending sub-menu for category:", category);
       // Send sub-menu
       await Matrix.sendMessage(m.from, subButtonMessage, { quoted: m });
-      return;
     }
-
-    // ENHANCED: Handle edge cases and provide helpful feedback
-    if (messageBody.startsWith(prefix) && cmd) {
-      console.log("❓ Unrecognized command in menu context:", cmd);
-      
-      // Check if it's a partial match
-      const allCategories = Object.keys(commandCategories);
-      const possibleMatches = allCategories.filter(cat => 
-        cat.toLowerCase().includes(cmd.toLowerCase()) || 
-        cmd.toLowerCase().includes(cat.toLowerCase())
-      );
-      
-      if (possibleMatches.length > 0) {
-        const suggestions = possibleMatches.map(cat => `${prefix}${cat}-menu`).join(", ");
-        await Matrix.sendMessage(m.from, {
-          text: `🤔 Did you mean one of these?\n\n${suggestions}\n\nOr use ${prefix}menu to see all options.`,
-        }, { quoted: m });
-        return;
-      }
-      
-      // If no matches, show generic help
-      await Matrix.sendMessage(m.from, {
-        text: `❓ Command "${cmd}" not recognized in menu context.\n\nUse ${prefix}menu to see all available options.`,
-      }, { quoted: m });
-      return;
-    }
-
-    // ADDED: Handle cases where message doesn't start with prefix but might be a menu interaction
-    if (!messageBody.startsWith(prefix) && messageBody) {
-      console.log("🔍 Non-prefix message received:", messageBody);
-      
-      // Check if it might be a button response without prefix
-      const cleanMessage = messageBody.toLowerCase().replace(/[^a-z-]/g, '');
-      if (cleanMessage.endsWith('menu')) {
-        const category = cleanMessage.replace('-menu', '').replace('menu', '');
-        if (commandCategories[category]) {
-          console.log("🎯 Found category match for:", category);
-          // Recursively call with proper format
-          const mockMessage = { ...m, body: `${prefix}${category}-menu` };
-          return await menu(mockMessage, Matrix);
-        }
-      }
-    }
-
   } catch (error) {
     console.error(`❌ Menu error: ${error.message}`);
-    console.error("📊 Error stack:", error.stack);
-    
-    // ENHANCED: More detailed error reporting
-    const errorDetails = {
-      message: error.message || "Unknown error",
-      stack: error.stack ? error.stack.substring(0, 200) : "No stack trace",
-      messageType: typeof m.message,
-      hasBody: !!m.body,
-      bodyLength: m.body ? m.body.length : 0
-    };
-    
-    console.error("🔍 Error details:", JSON.stringify(errorDetails, null, 2));
-    
     await Matrix.sendMessage(m.from, {
-      text: `❌ *Menu System Error*
-
-Something went wrong while processing your request.
-
-*Error:* ${error.message || "Unknown error"}
-
-*Quick fixes:*
-• Try using ${config.PREFIX}menu again
-• Make sure you're using the correct prefix: ${config.PREFIX}
-• If the problem persists, contact support
-
-> ✆︎Pσɯҽɾҽԃ Ⴆყ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟`,
+      text: `•
+• *📁 ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ* hit a snag! Error: ${error.message || "Failed to load menu"} 😡
+•`,
     }, { quoted: m });
   }
 };
