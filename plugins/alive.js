@@ -91,6 +91,21 @@ const alive = async (m, Matrix) => {
     }
   ];
 
+  // Fixed verification contact with proper structure
+  const fakeVCard = {
+    key: {
+      fromMe: false,
+      participant: '0@s.whatsapp.net',
+      remoteJid: "status@broadcast"
+    },
+    message: {
+      contactMessage: {
+        displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
+        vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:Caseyrhodes VERIFIED ✅\nORG:CASEYRHODES-TECH BOT;\nTEL;type=CELL;type=VOICE;waid=13135550002:+13135550002\nEND:VCARD`
+      }
+    }
+  };
+
   const buttonMessage = {
     image: fs.readFileSync('./media/Casey.jpg'),
     caption: str,
@@ -105,7 +120,7 @@ const alive = async (m, Matrix) => {
   };
 
   await Matrix.sendMessage(m.from, buttonMessage, {
-    quoted: m
+    quoted: fakeVCard // Use the fixed verification contact
   });
 };
 
