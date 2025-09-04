@@ -28,15 +28,7 @@ const env = async (m, Matrix) => {
 ╭━━〔 *ᴇɴᴀʙʟᴇᴅ / ᴅɪꜱᴀʙʟᴇᴅ* 〕━━┈⊷
 ┇๏ *ᴀᴜᴛᴏ ꜱᴛᴀᴛᴜꜱ:* ${isEnabled(config.AUTO_STATUS_SEEN) ? "Enabled✅" : "Disabled❌"}
 ┇๏ *ᴀᴜᴛᴏ ꜱᴛᴀᴛᴜꜱ:* ${isEnabled(config.AUTO_STATUS_REPLY) ? "Enabled✅" : "Disabled❌"}
-┇๏ *ᴀᴜᴛᴏ ʀᴇᴘʟʏ:* ${isEnabled(config.AUTO_REPLY) ? "Enabled✅" : "Disabled❌"}
-┇๏ *ᴀᴜᴛᴏ ꜱᴛɪᴄᴋᴇʀ:* ${isEnabled(config.AUTO_STICKER) ? "Enabled✅" : "Disabled❌"}
-┇๏ *ᴀᴜᴛᴏ ᴠᴏɪᴄᴇ:* ${isEnabled(config.AUTO_VOICE) ? "Enabled✅" : "Disabled❌"}
-┇๏ *ᴏᴡɴᴇʀ ʀᴇᴀᴄᴛ:* ${isEnabled(config.OWNER_REACT) ? "Enabled✅" : "Disabled❌"}
-┇๏ *ᴄᴜꜱᴛᴏᴍ ʀᴇᴀᴄᴛꜱ:* ${isEnabled(config.CUSTOM_REACT) ? "Enabled✅" : "Disabled❌"}
 ┇๏ *ᴀᴜᴛᴏ ʀᴇᴀᴄᴛ:* ${isEnabled(config.AUTO_REACT) ? "Enabled✅" : "Disabled❌"}
-┇๏ *ᴅᴇʟᴇᴛᴇ ʟɪɴᴋꜱ:* ${isEnabled(config.DELETE_LINKS) ? "Enabled✅" : "Disabled❌"}
-┇๏ *ᴀɴᴛɪ-ʟɪɴᴋ:* ${isEnabled(config.ANTI_LINK) ? "Enabled✅" : "Disabled❌"}
-┇๏ *ʙᴀᴅ ᴡᴏʀᴅꜱ:* ${isEnabled(config.ANTI_BAD) ? "Enabled✅" : "Disabled❌"}
 ┇๏ *ᴀᴜᴛᴏ ᴛʏᴘɪɴɢ:* ${isEnabled(config.AUTO_TYPING) ? "Enabled✅" : "Disabled❌"}
 ┇๏ *ᴀᴜᴛᴏ ʀᴇᴄᴏʀᴅɪɴɢ:* ${isEnabled(config.AUTO_RECORDING) ? "Enabled✅" : "Disabled❌"}
 ┇๏ *ᴀʟᴡᴀʏꜱ ᴏɴʟɪɴᴇ:* ${isEnabled(config.ALWAYS_ONLINE) ? "Enabled✅" : "Disabled❌"}
