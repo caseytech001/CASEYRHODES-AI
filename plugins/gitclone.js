@@ -73,7 +73,6 @@ const gitclone = async (m, Matrix) => {
     // Status text with zip information
     const statusText = `
 ╭─〔 📦 *ᴄᴀsᴇʏʀʜᴏᴅᴇs ɢɪᴛ ᴄʟᴏɴᴇ* 〕─⬣
-│
 │ 👤 *ᴜꜱᴇʀ:* ${user}
 │ 📁 *ʀᴇᴘᴏ:* ${repo}
 │ 📝 *ꜰɪʟᴇɴᴀᴍᴇ:* ${fileName}
@@ -81,7 +80,6 @@ const gitclone = async (m, Matrix) => {
 │ 🌟 *ꜱᴛᴀʀꜱ:* ${repoInfo.stargazers_count || 'N/A'}
 │ 🍴 *ꜰᴏʀᴋꜱ:* ${repoInfo.forks_count || 'N/A'}
 │ 📋 *ᴅᴇꜱᴄʀɪᴘᴛɪᴏɴ:* ${repoInfo.description || 'No description'}
-│
 ╰───⬣ ᴅᴏᴡɴʟᴏᴀᴅɪɴɢ...`;
 
     // Reduced to two buttons only
