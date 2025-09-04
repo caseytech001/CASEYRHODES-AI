@@ -28,9 +28,6 @@ function toFancyFont(text) {
 const streamPipeline = promisify(pipeline);
 const tmpDir = os.tmpdir();
 
-// Video API configuration
-const VIDEO_API_URL = 'https://api.princetechn.com/api/download/ytmp4';
-
 function getYouTubeThumbnail(videoId, quality = 'hqdefault') {
   const cacheKey = `${videoId}_${quality}`;
   if (thumbnailCache.has(cacheKey)) return thumbnailCache.get(cacheKey);
@@ -113,7 +110,8 @@ async function fetchVideoData(videoUrl) {
   const timeout = setTimeout(() => controller.abort(), 15000); // 15 second timeout
   
   try {
-    const apiUrl = `${VIDEO_API_URL}?url=${encodeURIComponent(videoUrl)}`;
+    const apiUrl = `https://api.giftedtech.co.ke/api/download/ytmp4?apikey=gifted&url=${encodeURIComponent(videoUrl)}`;
+    
     const response = await fetch(apiUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
