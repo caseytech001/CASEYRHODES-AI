@@ -1,41 +1,57 @@
-import { toAudio } from '../lib/converter.cjs';
-import config from '../config.cjs';
+import config from "../config.cjs";
+import converter from "../data/stickerconverter.js";
 
-const tomp3 = async (m, gss) => {
+const tomp3 = async (m, Matrix) => {
   try {
-    const prefix = config.PREFIX;
-    const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-    const text = m.body.slice(prefix.length + cmd.length).trim();
+    const prefix = config.Prefix || config.PREFIX || ".";
+    const body = m.body || "";
+    const cmd = body.startsWith(prefix)
+      ? body.slice(prefix.length).trim().split(" ")[0].toLowerCase()
+      : "";
 
-    const validCommands = ['tomp3', 'mp3'];
+    if (!["tomp3"].includes(cmd)) return;
 
-    if (!validCommands.includes(cmd)) return;
-
-    if (!m.quoted || !m.quoted.mtype || !m.quoted.mtype.match(/(video|audio)/i)) {
-      return m.reply(`Send/Reply with a Video to convert into MP3 with caption ${prefix + cmd}`);
+    // React to trigger message
+    try {
+      await Matrix.sendMessage(m.from, {
+        react: { text: "🎵", key: m.key }
+      });
+    } catch (err) {
+      console.error("Reaction failed:", err);
     }
 
-    m.reply('Converting to MP3, please wait...');
-    const media = await m.quoted.download();
-    
-    // Convert to audio
-    const audio = await toAudio(media, 'mp4');
-    
-    // Send as audio message instead of document
-    await gss.sendMessage(
-      m.from, 
-      { 
-        audio: audio, 
-        mimetype: 'audio/mpeg', 
-        ptt: false,
-        fileName: `converted_audio.mp3`
-      }, 
-      { quoted: m }
-    );
-    
+    if (!m.quoted) {
+      return await Matrix.sendMessage(m.from, { text: "*ᴘʟᴇᴀꜱᴇ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴠɪᴅᴇᴏ/ᴀᴜᴅɪᴏ ᴍᴇꜱꜱᴀɢᴇ*" }, { quoted: m });
+    }
+
+    if (!['videoMessage', 'audioMessage'].includes(m.quoted.mtype)) {
+      return await Matrix.sendMessage(m.from, { text: "ᴏɴʟʏ ᴠɪᴅᴇᴏ/ᴀᴜᴅɪᴏ ᴍᴇꜱꜱᴀɢᴇꜱ ᴄᴀɴ ʙᴇ ᴄᴏɴᴠᴇʀᴛᴇᴅ" }, { quoted: m });
+    }
+
+    if (m.quoted.seconds > 300) {
+      return await Matrix.sendMessage(m.from, { text: "ᴍᴇᴅɪᴀ ᴛᴏᴏ ʟᴏɴɢ (ᴍᴀx 5 ᴍɪɴᴜᴛᴇꜱ)" }, { quoted: m });
+    }
+
+    // Send processing message
+    await Matrix.sendMessage(m.from, { text: "ᴄᴏɴᴠᴇʀᴛɪɴɢ ᴛᴏ ᴀᴜᴅɪᴏ..." }, { quoted: m });
+
+    const buffer = await m.quoted.download();
+    const ext = m.quoted.mtype === 'videoMessage' ? 'mp4' : 'm4a';
+    const audio = await converter.toAudio(buffer, ext);
+
+    // Send result
+    await Matrix.sendMessage(m.from, {
+      audio: audio,
+      mimetype: 'audio/mpeg'
+    }, { quoted: m });
+
   } catch (error) {
-    console.error('Error in tomp3 command:', error);
-    m.reply('An error occurred while converting the video to audio. Please try again.');
+    console.error('Conversion error:', error);
+    await Matrix.sendMessage(m.from, {
+      text: `◈━━━━━━━━━━━━━━━━◈
+│❒ *Error:* ${error.message || "Failed to convert to audio"} 😡
+◈━━━━━━━━━━━━━━━━◈`
+    }, { quoted: m });
   }
 };
 
