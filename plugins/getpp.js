@@ -5,14 +5,19 @@ const getpp = async (m, Matrix) => {
     const prefix = config.Prefix || config.PREFIX || ".";
     const cmd = m.body?.startsWith(prefix) ? m.body.slice(prefix.length).trim().split(" ")[0].toLowerCase() : "";
     if (!["getpp", "pp"].includes(cmd)) return;
+    
     await Matrix.sendMessage(m.from, { react: { text: "🖼️", key: m.key } });
+    
     const isGroup = m.from.endsWith('@g.us');
     const sender = m.sender;
+    
     const reply = async (text) => {
       await Matrix.sendMessage(m.from, { text }, { quoted: m });
     };
+    
     const quotedParticipant = m.message?.extendedTextMessage?.contextInfo?.participant;
     const quotedMessage = m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+    
     let targetJid;
     if (isGroup) {
       if (quotedParticipant && quotedMessage) {
@@ -23,12 +28,15 @@ const getpp = async (m, Matrix) => {
     } else {
       targetJid = m.from.endsWith("@s.whatsapp.net") ? m.from : sender;
     }
+    
     let imageUrl;
     try {
       imageUrl = await Matrix.profilePictureUrl(targetJid, 'image');
     } catch {
       imageUrl = "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg";
     }
+    
+    // Fixed fakeVCard with proper structure
     const fakeVCard = {
       key: {
         fromMe: false,
@@ -38,12 +46,12 @@ const getpp = async (m, Matrix) => {
       message: {
         contactMessage: {
           displayName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ✅",
-          vcard: "BEGIN:VCARD\nVERSION:3.0\nFN: Caseyrhodes VERIFIED ✅\nORG:CASEYRHODES-TECH BOT;\nTEL;type=CELL;type=VOICE;waid=13135550002:+13135550002\nEND:VCARD",
-          jpegThumbnail: Buffer.from([])
+          vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:Caseyrhodes VERIFIED ✅\nORG:CASEYRHODES-TECH BOT;\nTEL;type=CELL;type=VOICE;waid=13135550002:+13135550002\nEND:VCARD`
         }
       }
     };
-    await Matrix.sendMessage(m.from, {
+
+    const messageOptions = {
       image: { url: imageUrl },
       caption: ` ᴘʀᴏꜰɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ᴏꜰ @${targetJid.split('@')[0]}`,
       contextInfo: {
@@ -51,11 +59,15 @@ const getpp = async (m, Matrix) => {
         forwardingScore: 5,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
+          newsletterJid: "120363402973786789@newsletter",
           newsletterName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
-          newsletterJid: "120363402973786789@newsletter"
+          serverMessageId: -1
         }
       }
-    }, { quoted: fakeVCard });
+    };
+    
+    await Matrix.sendMessage(m.from, messageOptions, { quoted: fakeVCard });
+    
   } catch (err) {
     console.error("Error in getpp:", err);
     const reply = async (text) => {
