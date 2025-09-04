@@ -51,33 +51,11 @@ const getpp = async (m, Matrix) => {
       }
     };
 
-    // Add interactive buttons
-    const buttons = [
-      {
-        buttonId: `${prefix}getpp ${targetJid.split('@')[0]}`,
-        buttonText: { displayText: "🔄 Refresh" },
-        type: 1
-      },
-      {
-        buttonId: `${prefix}alive`,
-        buttonText: { displayText: "🤖 Alive" },
-        type: 1
-      },
-      {
-        buttonId: `${prefix}menu`,
-        buttonText: { displayText: "📋 Menu" },
-        type: 1
-      }
-    ];
-
-    const buttonMessage = {
-      text: `ᴘʀᴏꜰɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ᴏꜰ @${targetJid.split('@')[0]}`,
-      mentions: [targetJid],
-      footer: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
-      buttons: buttons,
-      headerType: 4, // For image message
+    const messageOptions = {
       image: { url: imageUrl },
+      caption: ` ᴘʀᴏꜰɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ᴏꜰ @${targetJid.split('@')[0]}`,
       contextInfo: {
+        mentionedJid: [targetJid],
         forwardingScore: 5,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
@@ -88,11 +66,10 @@ const getpp = async (m, Matrix) => {
       }
     };
     
-    await Matrix.sendMessage(m.from, buttonMessage, { quoted: fakeVCard });
+    await Matrix.sendMessage(m.from, messageOptions, { quoted: fakeVCard });
     
   } catch (err) {
     console.error("Error in getpp:", err);
-    // Define reply function again in case it wasn't defined earlier in the catch block
     const reply = async (text) => {
       await Matrix.sendMessage(m.from, { text }, { quoted: m });
     };
