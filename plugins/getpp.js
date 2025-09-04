@@ -51,10 +51,32 @@ const getpp = async (m, Matrix) => {
       }
     };
 
-    const messageOptions = {
+    // Add interactive buttons
+    const buttons = [
+      {
+        buttonId: `${prefix}getpp ${targetJid.split('@')[0]}`,
+        buttonText: { displayText: "🔄 Refresh" },
+        type: 1
+      },
+      {
+        buttonId: `${prefix}alive`,
+        buttonText: { displayText: "🤖 Alive" },
+        type: 1
+      },
+      {
+        buttonId: `${prefix}menu`,
+        buttonText: { displayText: "📋 Menu" },
+        type: 1
+      }
+    ];
+
+    const buttonMessage = {
+      text: `ᴘʀᴏꜰɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ᴏꜰ @${targetJid.split('@')[0]}`,
+      mentions: [targetJid],
+      footer: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
+      buttons: buttons,
+      headerType: 4, // For image message
       image: { url: imageUrl },
-      caption: ` ᴘʀᴏꜰɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ᴏꜰ @${targetJid.split('@')[0]}`,
-      mentions: [targetJid], // Fixed: Use 'mentions' instead of 'contextInfo.mentionedJid'
       contextInfo: {
         forwardingScore: 5,
         isForwarded: true,
@@ -66,7 +88,7 @@ const getpp = async (m, Matrix) => {
       }
     };
     
-    await Matrix.sendMessage(m.from, messageOptions, { quoted: fakeVCard });
+    await Matrix.sendMessage(m.from, buttonMessage, { quoted: fakeVCard });
     
   } catch (err) {
     console.error("Error in getpp:", err);
