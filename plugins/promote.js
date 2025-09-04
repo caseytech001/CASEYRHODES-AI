@@ -1,226 +1,159 @@
+import fs from 'fs';
 import config from '../config.cjs';
-import { generateWAMessageFromContent, proto, prepareWAMessageMedia } from "@whiskeysockets/baileys";
+import path from 'path';
+import { generateWAMessageFromContent, proto } from '@whiskeysockets/baileys';
 
-function toFancyFont(text, isUpperCase = false) {
-  const fonts = {
-    a: "ᴀ",
-    b: "ʙ",
-    c: "ᴄ",
-    d: "ᴅ",
-    e: "ᴇ",
-    f: "ғ",
-    g: "ɢ",
-    h: "ʜ",
-    i: "ɪ",
-    j: "ᴊ",
-    k: "ᴋ",
-    l: "ʟ",
-    m: "ᴍ",
-    n: "ɴ",
-    o: "ᴏ",
-    p: "ᴘ",
-    q: "ǫ",
-    r: "ʀ",
-    s: "s",
-    t: "ᴛ",
-    u: "ᴜ",
-    v: "ᴠ",
-    w: "ᴡ",
-    x: "x",
-    y: "ʏ",
-    z: "ᴢ",
-  };
-  const formattedText = isUpperCase ? text.toUpperCase() : text.toLowerCase();
-  return formattedText
-    .split("")
-    .map((char) => fonts[char] || char)
-    .join("");
-}
+const promote = async (m, Matrix) => {
+    try {
+        const prefix = config.PREFIX || ".";
+        const body = m.message?.conversation || 
+                    m.message?.extendedTextMessage?.text || 
+                    m.message?.imageMessage?.caption || "";
+        
+        if (!body.startsWith(prefix)) return;
+        
+        const args = body.slice(prefix.length).trim().split(" ");
+        const command = args[0].toLowerCase();
 
-const promote = async (m, gss) => {
-  try {
-    const botNumber = gss.user.id;
-    const prefix = config.PREFIX;
-    const body = m.message?.conversation || m.message?.extendedTextMessage?.text || '';
-    const cmd = body.startsWith(prefix) ? body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-    const text = body.slice(prefix.length + cmd.length).trim();
+        if (!["promote", "p", "admin", "makeadmin"].includes(command)) return;
 
-    const validCommands = ['promote', 'admin', 'toadmin'];
+        // Check if the command is used in a group
+        const isGroup = m.key.remoteJid.endsWith('@g.us');
+        if (!isGroup) return await Matrix.sendMessage(
+            m.key.remoteJid,
+            { text: "This command can only be used in groups." },
+            { quoted: m }
+        );
 
-    if (!validCommands.includes(cmd)) return;
+        // Get group metadata to check admin status
+        const groupMetadata = await Matrix.groupMetadata(m.key.remoteJid);
+        const participants = groupMetadata.participants;
+        
+        // Get sender JID (handle both direct messages and group messages)
+        const sender = m.key.participant || m.key.remoteJid;
+        
+        // Check if the user is an admin - look for participant by jid
+        const senderParticipant = participants.find(p => p.jid === sender);
+        
+        const isAdmins = senderParticipant && senderParticipant.admin === 'admin';
+        if (!isAdmins) return await Matrix.sendMessage(
+            m.key.remoteJid,
+            { text: "★ᴏɴʟʏ ɢʀᴏᴜᴘ ᴀᴅᴍɪɴꜱ ᴄᴀɴ ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ." },
+            { quoted: m }
+        );
 
-    if (!m.isGroup) {
-      const buttons = [
-        {
-          buttonId: `.menu`,
-          buttonText: { displayText: `${toFancyFont("Menu")}` },
-          type: 1,
-        },
-      ];
-      const messageOptions = {
-        buttons,
-        contextInfo: {
-          mentionedJid: [m.sender],
-        },
-      };
-      return gss.sendMessage(m.from, {
-        text: `*${toFancyFont("This command can only be used in groups!")}*`,
-        ...messageOptions,
-      }, { quoted: m });
-    }
-    
-    const groupMetadata = await gss.groupMetadata(m.from);
-    const participants = groupMetadata.participants;
-    const botAdmin = participants.find(p => p.id === botNumber)?.admin;
-    const senderAdmin = participants.find(p => p.id === m.sender)?.admin;
+        // Check if the bot is an admin
+        const botJid = Matrix.user.id.includes(':') 
+            ? Matrix.user.id.split(':')[0] + '@s.whatsapp.net' 
+            : Matrix.user.id;
+            
+        const botParticipant = participants.find(p => p.jid === botJid);
+        
+        const isBotAdmins = botParticipant && botParticipant.admin === 'admin';
+        if (!isBotAdmins) return await Matrix.sendMessage(
+            m.key.remoteJid,
+            { text: "★I ɴᴇᴇᴅ ᴛᴏ ʙᴇ ᴀɴ ᴀᴅᴍɪɴ ᴛᴏ ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ." },
+            { quoted: m }
+        );
 
-    if (!botAdmin) {
-      const buttons = [
-        {
-          buttonId: `.menu`,
-          buttonText: { displayText: `${toFancyFont("Menu")}` },
-          type: 1,
-        },
-      ];
-      const messageOptions = {
-        buttons,
-        contextInfo: {
-          mentionedJid: [m.sender],
-        },
-      };
-      return gss.sendMessage(m.from, {
-        text: `*${toFancyFont("Bot must be an admin to use this command!")}*`,
-        ...messageOptions,
-      }, { quoted: m });
-    }
-    if (!senderAdmin) {
-      const buttons = [
-        {
-          buttonId: `.menu`,
-          buttonText: { displayText: `${toFancyFont("Menu")}` },
-          type: 1,
-        },
-      ];
-      const messageOptions = {
-        buttons,
-        contextInfo: {
-          mentionedJid: [m.sender],
-        },
-      };
-      return gss.sendMessage(m.from, {
-        text: `*${toFancyFont("You must be an admin to use this command!")}*`,
-        ...messageOptions,
-      }, { quoted: m });
-    }
-
-    let mentionedJid = [];
-    if (m.message?.extendedTextMessage?.contextInfo?.mentionedJid) {
-      mentionedJid = m.message.extendedTextMessage.contextInfo.mentionedJid;
-    }
-    
-    if (m.message?.extendedTextMessage?.contextInfo?.participant) {
-      mentionedJid.push(m.message.extendedTextMessage.contextInfo.participant);
-    }
-
-    const users = mentionedJid.length > 0
-      ? mentionedJid
-      : text.replace(/[^0-9]/g, '').length > 0
-      ? [text.replace(/[^0-9]/g, '') + '@s.whatsapp.net']
-      : [];
-
-    if (users.length === 0) {
-      const buttons = [
-        {
-          buttonId: `.menu`,
-          buttonText: { displayText: `${toFancyFont("Menu")}` },
-          type: 1,
-        },
-      ];
-      const messageOptions = {
-        buttons,
-        contextInfo: {
-          mentionedJid: [m.sender],
-        },
-      };
-      return gss.sendMessage(m.from, {
-        text: `*${toFancyFont("Please mention or quote a user to promote!")}*`,
-        ...messageOptions,
-      }, { quoted: m });
-    }
-
-    const validUsers = users.filter(Boolean);
-
-    const usernames = await Promise.all(
-      validUsers.map(async (user) => {
-        try {
-          const contact = await gss.getContact(user);
-          return contact.notify || contact.name || user.split('@')[0];
-        } catch (error) {
-          return user.split('@')[0];
+        let number;
+        if (m.message?.extendedTextMessage?.contextInfo?.participant) {
+            number = m.message.extendedTextMessage.contextInfo.participant.split("@")[0];
+        } else if (args[1] && args[1].includes("@")) {
+            number = args[1].replace(/[@\s]/g, '');
+        } else {
+            return await Matrix.sendMessage(
+                m.key.remoteJid,
+                { text: "★ᴘʟᴇᴀꜱᴇ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇꜱꜱᴀɢᴇ ᴏʀ ᴘʀᴏᴠɪᴅᴇ ᴀ ɴᴜᴍʙᴇʀ ᴛᴏ ᴘʀᴏᴍᴏᴛᴇ." },
+                { quoted: m }
+            );
         }
-      })
-    );
 
-    await gss.groupParticipantsUpdate(m.from, validUsers, 'promote')
-      .then(() => {
-        const promotedNames = usernames.map(username => `@${username}`).join(', ');
-        const buttons = [
-          {
-            buttonId: `.menu`,
-            buttonText: { displayText: `${toFancyFont("Menu")}` },
-            type: 1,
-          },
-        ];
-        const messageOptions = {
-          buttons,
-          contextInfo: {
-            mentionedJid: validUsers,
-          },
-        };
-        gss.sendMessage(m.from, {
-          text: `*${toFancyFont("Users " + promotedNames + " promoted successfully in the group " + groupMetadata.subject + "!")}*`,
-          ...messageOptions,
-        }, { quoted: m });
-      })
-      .catch(() => {
-        const buttons = [
-          {
-            buttonId: `.promote`,
-            buttonText: { displayText: `${toFancyFont("Try Again")}` },
-            type: 1,
-          },
-        ];
-        const messageOptions = {
-          buttons,
-          contextInfo: {
-            mentionedJid: [m.sender],
-          },
-        };
-        gss.sendMessage(m.from, {
-          text: `*${toFancyFont("Failed to promote user(s) in the group!")}*`,
-          ...messageOptions,
-        }, { quoted: m });
-      });
-  } catch (error) {
-    console.error('Error:', error);
-    const buttons = [
-      {
-        buttonId: `.promote`,
-        buttonText: { displayText: `${toFancyFont("Try Again")}` },
-        type: 1,
-      },
-    ];
-    const messageOptions = {
-      buttons,
-      contextInfo: {
-        mentionedJid: [m.sender],
-      },
-    };
-    gss.sendMessage(m.from, {
-      text: `*${toFancyFont("An error occurred while processing the command!")}*`,
-      ...messageOptions,
-    }, { quoted: m });
-  }
+        // Prevent promoting the bot itself
+        if (number === config.BOT_NUMBER) return await Matrix.sendMessage(
+            m.key.remoteJid,
+            { text: "❌ The bot cannot promote itself." },
+            { quoted: m }
+        );
+
+        const jid = number + "@s.whatsapp.net";
+
+        try {
+            await Matrix.groupParticipantsUpdate(m.key.remoteJid, [jid], "promote");
+            
+            // Get random image from assets folder
+            const imageDir = path.join(process.cwd(), "assets");
+            let randomImage = null;
+            
+            if (fs.existsSync(imageDir)) {
+                const images = fs.readdirSync(imageDir)
+                    .filter(file => file.match(/\.(jpg|png|jpeg|webp)$/i));
+                
+                if (images.length > 0) {
+                    const chosen = images[Math.floor(Math.random() * images.length)];
+                    randomImage = path.join(imageDir, chosen);
+                }
+            }
+            
+            // Use default image if no image found
+            const imageContent = randomImage 
+                ? { url: randomImage } // Use file path directly
+                : { url: "https://files.catbox.moe/weux9l.jpg" };
+
+            // Verified contact (quoted base)
+            const verifiedContact = {
+                key: {
+                    fromMe: false,
+                    participant: `0@s.whatsapp.net`,
+                    remoteJid: "status@broadcast"
+                },
+                message: {
+                    contactMessage: {
+                        displayName: "Caseyrhodes-AI",
+                        vcard: "BEGIN:VCARD\nVERSION:3.0\nFN: Caseyrhodes VERIFIED ✅\nORG:CASEYRHODES-TECH BOT;\nTEL;type=CELL;type=VOICE;waid=13135550002:+13135550002\nEND:VCARD"
+                    }
+                }
+            };
+
+            // Channel forwarding context
+            const channelContext = {
+                mentionedJid: [jid],
+                forwardingScore: 999,
+                isForwarded: true,
+                forwardedNewsletterMessageInfo: {
+                    newsletterJid: '120363402973786789@newsletter',
+                    newsletterName: 'CASEYRHODES TECH',
+                    serverMessageId: 143
+                }
+            };
+
+            await Matrix.sendMessage(
+                m.key.remoteJid,
+                {
+                    image: imageContent,
+                    caption: `✅ Successfully promoted @${number} to admin.`,
+                    mentions: [jid],
+                    contextInfo: channelContext
+                },
+                { quoted: verifiedContact }
+            );
+            
+        } catch (error) {
+            console.error("Promote command error:", error);
+            await Matrix.sendMessage(
+                m.key.remoteJid,
+                { text: `❌ Failed to promote the member. Error: ${error.message}` },
+                { quoted: m }
+            );
+        }
+    } catch (error) {
+        console.error("Promote command error:", error);
+        await Matrix.sendMessage(
+            m.key.remoteJid,
+            { text: `❌ An error occurred: ${error.message}` },
+            { quoted: m }
+        );
+    }
 };
 
 export default promote;
