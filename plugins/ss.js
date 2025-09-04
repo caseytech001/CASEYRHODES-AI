@@ -3,11 +3,8 @@ import config from "../config.cjs";
 
 const screenshot = async (m, sock, { from, args, reply, sender, isGroup, isAdmins, isBotAdmins }) => {
   try {
-    const prefixPREFIX || ".";
-    const body = m.body || "";
-    const cmd = body.startsWith(prefix)
-      ? body.slice(prefix.length).trim().split(" ")[0].toLowerCase()
-      : "";
+    const prefix = config.PREFIX;
+    const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
 
     if (!["screenshot", "ss", "ssweb"].includes(cmd)) return;
 
