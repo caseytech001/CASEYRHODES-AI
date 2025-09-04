@@ -1,43 +1,140 @@
 import config from '../config.cjs';
+import { isUrl } from '../lib/myfunc.cjs';
+import { generateWAMessageFromContent, proto } from '@whiskeysockets/baileys';
 
-const joinGroup = async (m, gss) => {
-  try {
-    const botNumber = gss.user.id;
-    const isCreator = [botNumber, config.OWNER_NUMBER + '@s.whatsapp.net'].includes(m.sender);
-    const prefix = config.PREFIX;
-    const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-    const text = m.body.slice(prefix.length + cmd.length).trim();
-    const args = text.split(' ');
-
-    const validCommands = ['join'];
-
-    if (!validCommands.includes(cmd)) return;
-    
-    if (!isCreator) return m.reply("*📛 THIS IS AN OWNER COMMAND*");
-
-    if (!text) throw '*Enter The Group Link!*';
-    if (!isUrl(args[0]) && !args[0].includes('whatsapp.com')) throw '*INVALID LINK!*';
-
-    m.reply('Please wait...');
-    const inviteCode = args[0].split('https://chat.whatsapp.com/')[1];
-
-    // Updated Baileys method for accepting group invites
-    await gss.groupAcceptInvite(inviteCode)
-      .then((res) => m.reply(`*✅ SUCCESSFULLY JOINED THE GROUP*`))
-      .catch((err) => m.reply(`*❌ FAILED TO JOIN THE GROUP: ${err.message || 'Unknown error'}*`));
-  } catch (error) {
-    console.error('Error:', error);
-    m.reply('An error occurred while processing the command.');
-  }
+// Contact message for verified context
+const quotedContact = {
+    key: {
+        fromMe: false,
+        participant: `0@s.whatsapp.net`,
+        remoteJid: "status@broadcast"
+    },
+    message: {
+        contactMessage: {
+            displayName: "亗YCEE金CASEYRHODES",
+            vcard: "BEGIN:VCARD\nVERSION:3.0\nFN: Caseyrhodes VERIFIED ✅\nORG:CASEYRHODES-TECH BOT;\nTEL;type=CELL;type=VOICE;waid=13135550002:+13135550002\nEND:VCARD"
+        }
+    }
 };
 
-const isUrl = (string) => {
-  try {
-    new URL(string);
-    return true;
-  } catch (_) {
-    return false;
-  }
+const join = async (m, Matrix) => {
+    const contextInfo = {
+        forwardingScore: 999,
+        isForwarded: true,
+        forwardedNewsletterMessageInfo: {
+            newsletterJid: "120363402973786789@newsletter",
+            newsletterName: "亗YCEE金CASEYRHODES",
+            serverMessageId: 269
+        }
+    };
+
+    try {
+        const prefix = config.PREFIX || ".";
+        const body = m.message?.conversation || 
+                    m.message?.extendedTextMessage?.text || 
+                    m.message?.imageMessage?.caption || "";
+        
+        if (!body.startsWith(prefix)) return;
+        
+        const args = body.slice(prefix.length).trim().split(" ");
+        const command = args[0].toLowerCase();
+
+        if (!["join", "joinme", "f_join"].includes(command)) return;
+
+        // Check if user is creator/owner
+        const sender = m.key.participant || m.key.remoteJid;
+        const isCreator = config.OWNER_NUMBER.includes(sender.split('@')[0]) || 
+                         (config.OWNER_NUMBERS && config.OWNER_NUMBERS.includes(sender.split('@')[0]));
+        
+        if (!isCreator) return await Matrix.sendMessage(
+            m.key.remoteJid,
+            { 
+                text: `
+╭───「 *ACCESS DENIED* 」───╮
+│ ★ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴘᴇʀᴍɪꜱꜱɪᴏɴ ᴛᴏ ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ.
+╰──────────────────╯
+                `.trim(),
+                contextInfo
+            },
+            { quoted: quotedContact }
+        );
+
+        let groupLink;
+        const text = body.slice(prefix.length + command.length).trim();
+
+        // Extract invite code from URL
+        let inviteCode;
+        if (text && isUrl(text)) {
+            // Handle different URL formats
+            const urlMatch = text.match(/chat\.whatsapp\.com\/([a-zA-Z0-9_-]+)/);
+            if (urlMatch && urlMatch[1]) {
+                inviteCode = urlMatch[1];
+            } else {
+                // If it's just the code without full URL
+                inviteCode = text;
+            }
+        }
+
+        if (!inviteCode) return await Matrix.sendMessage(
+            m.key.remoteJid,
+            { 
+                text: `
+╭───「 *ERROR* 」───╮
+│  ★ɪɴᴠᴀʟɪᴅ ɢʀᴏᴜᴘ ʟɪɴᴋ.
+│  ★ᴘʟᴇᴀꜱᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ ᴠᴀʟɪᴅ ᴡʜᴀᴛꜱᴀᴘᴘ ɢʀᴏᴜᴘ ʟɪɴᴋ.
+╰──────────────╯
+                `.trim(),
+                contextInfo
+            },
+            { quoted: quotedContact }
+        );
+
+        // Clean the invite code (remove query parameters)
+        inviteCode = inviteCode.split('?')[0];
+
+        await Matrix.groupAcceptInvite(inviteCode);
+
+        await Matrix.sendMessage(
+            m.key.remoteJid,
+            {
+                text: `
+╭───「 *SUCCESS* 」───╮
+│ ★ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴊᴏɪɴᴇᴅ ᴛʜᴇ ɢʀᴏᴜᴘ!
+╰───────────────╯
+                `.trim(),
+                contextInfo
+            },
+            { quoted: quotedContact }
+        );
+
+    } catch (e) {
+        console.error("Join Error:", e);
+        
+        let errorMessage = "Failed to join the group.";
+        if (e.message.includes("bad-request")) {
+            errorMessage = "Invalid or expired group invite link.";
+        } else if (e.message.includes("not-authorized")) {
+            errorMessage = "I'm not authorized to join this group (possibly banned).";
+        } else if (e.message.includes("invite-link-revoked")) {
+            errorMessage = "This invite link has been revoked.";
+        } else if (e.message.includes("invite-link-expired")) {
+            errorMessage = "This invite link has expired.";
+        }
+        
+        await Matrix.sendMessage(
+            m.key.remoteJid,
+            { 
+                text: `
+╭───「 *ERROR* 」───╮
+│ ${errorMessage}
+│ Reason: ${e.message}
+╰──────────────╯
+                `.trim(),
+                contextInfo
+            },
+            { quoted: quotedContact }
+        );
+    }
 };
 
-export default joinGroup;
+export default join;
