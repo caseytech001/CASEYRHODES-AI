@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename); // Added missing __dirname
 
 // List of random emojis to use for blocked numbers
 const blockEmojis = ["🚫", "⛔", "🔒", "🔞", "📛", "🚷", "🚯", "🚳", "🚭", "❌", "🛑", "💢", "♨️", "💀", "☠️", "⚠️", "🔞"];
@@ -14,10 +15,10 @@ function getRandomBlockEmoji() {
 
 const blocklist = async (m, Matrix) => {
   try {
-    const prefix = config.PREFIX || config.Prefix || ".";
-    const cmd = m.body?.startsWith(prefix)
-      ? m.body.slice(prefix.length).trim().split(" ")[0].toLowerCase()
-      : "";
+      const prefix = config.PREFIX;
+    const body = m.body || '';
+    const cmd = body.startsWith(prefix) ? body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+    const text = body.slice(prefix.length + cmd.length).trim();
 
     if (!["blocklist"].includes(cmd)) return;
 
@@ -30,8 +31,10 @@ const blocklist = async (m, Matrix) => {
 
     // Ownership check (aligned with handler's isCreator)
     const botNumber = await Matrix.decodeJid(Matrix.user.id);
-    const ownerNumber = config.OWNER_NUMBER + '@s.whatsapp.net';
-    const isOwner = m.sender === ownerNumber || m.sender === botNumber;
+    const ownerNumber = config.OWNER_NUMBER;
+    // Ensure ownerNumber is properly formatted
+    const formattedOwnerNumber = ownerNumber.includes('@') ? ownerNumber : ownerNumber + '@s.whatsapp.net';
+    const isOwner = m.sender === formattedOwnerNumber || m.sender === botNumber;
 
     if (!isOwner) {
         return await Matrix.sendMessage(m.from, { text: "*📛 You are not the owner!*" }, { quoted: m });
@@ -40,7 +43,7 @@ const blocklist = async (m, Matrix) => {
     // Fetch the block list
     const blockedUsers = await Matrix.fetchBlocklist();
 
-    if (blockedUsers.length === 0) {
+    if (!blockedUsers || blockedUsers.length === 0) {
         return await Matrix.sendMessage(m.from, { text: "📋 Your block list is empty." }, { quoted: m });
     }
 
