@@ -26,11 +26,13 @@ let useQR = false;
 let initialConnection = true;
 const PORT = process.env.PORT || 3000;
 
-const MAIN_LOGGER = pino({ level: 'silent' });
+// Optimized logging - completely silent
+const MAIN_LOGGER = pino({ level: 'silent', enabled: false });
 const logger = MAIN_LOGGER.child({});
 logger.level = "silent";
 
-const msgRetryCounterCache = new NodeCache();
+// Optimized cache with shorter TTL
+const msgRetryCounterCache = new NodeCache({ stdTTL: 60, checkperiod: 30 });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -42,71 +44,10 @@ if (!fs.existsSync(sessionDir)) {
     fs.mkdirSync(sessionDir, { recursive: true });
 }
 
-async function downloadSessionData() {
-    try {
-        if (!config.SESSION_ID) {
-            return false;
-        }
-
-        const sessdata = config.SESSION_ID.split("Caseyrhodes~")[1];
-
-        if (!sessdata || !sessdata.includes("#")) {
-            return false;
-        }
-
-        const [fileID, decryptKey] = sessdata.split("#");
-
-        try {
-            const file = File.fromURL(`https://mega.nz/file/${fileID}#${decryptKey}`);
-
-            const data = await new Promise((resolve, reject) => {
-                file.download((err, data) => {
-                    if (err) reject(err);
-                    else resolve(data);
-                });
-            });
-
-            await fs.promises.writeFile(credsPath, data);
-            return true;
-        } catch (error) {
-            return false;
-        }
-    } catch (error) {
-        return false;
-    }
-}
-
-async function start() {
-    try {
-        const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
-        const { version, isLatest } = await fetchLatestBaileysVersion();
-        
-        const Matrix = makeWASocket({
-            version,
-            logger: pino({ level: 'silent' }),
-            printQRInTerminal: useQR,
-            browser: ["JINX-MD", "safari", "3.3"],
-            auth: state,
-            msgRetryCounterCache,
-            getMessage: async (key) => {
-                return {};
-            }
-        });
-
-        Matrix.ev.on('connection.update', async (update) => {
-            try {
-                const { connection, lastDisconnect } = update;
-                if (connection === 'close') {
-                    if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
-                        setTimeout(start, 3000);
-                    }
-                } else if (connection === 'open') {
-                    if (initialConnection) {
-                        
-                        // Send welcome message after successful connection with buttons
-                        const startMess = {
-                            image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" }, 
-                            caption: `*Hello there JINX-XMD User! 👋🏻* 
+// Predefined welcome message for faster access
+const startMess = {
+    image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" }, 
+    caption: `*Hello there JINX-XMD User! 👋🏻* 
 
 > Simple, Straightforward, But Loaded With Features 🎊. Meet JINX-XMD WhatsApp Bot.
 *Thanks for using JINX-XMD 🚩* 
@@ -118,109 +59,166 @@ Join WhatsApp Channel: ⤵️
 Don't forget to give a star to the repo ⬇️  
 > https://github.com/caseyweb/CASEYRHODES-XMD
 > © Powered BY CASEYRHODES TECH 🍀 🖤`,
-                            buttons: [
-                                {
-                                    buttonId: 'help',
-                                    buttonText: { displayText: '📋 HELP' },
-                                    type: 1
-                                },
-                                {
-                                    buttonId: 'menu',
-                                    buttonText: { displayText: '📱 MENU' },
-                                    type: 1
-                                },
-                                {
-                                    buttonId: 'source',
-                                    buttonText: { displayText: '⚙️ SOURCE' },
-                                    type: 1
-                                }
-                            ],
-                            headerType: 1
-                        };
+    buttons: [
+        {
+            buttonId: 'help',
+            buttonText: { displayText: '📋 HELP' },
+            type: 1
+        },
+        {
+            buttonId: 'menu',
+            buttonText: { displayText: '📱 MENU' },
+            type: 1
+        },
+        {
+            buttonId: 'source',
+            buttonText: { displayText: '⚙️ SOURCE' },
+            type: 1
+        }
+    ],
+    headerType: 1
+};
 
-                        try {
-                            await Matrix.sendMessage(Matrix.user.id, startMess);
-                        } catch (error) {
-                            // Silent error handling
-                        }
-                        
-                        // Follow newsletters after successful connection
-                        await followNewsletters(Matrix);
-                        
-                        // Join WhatsApp group after successful connection
-                        await joinWhatsAppGroup(Matrix);
-                        
-                        initialConnection = false;
-                    }
+// Predefined reactions for faster access
+const reactions = [
+    '🌼', '❤️', '💐', '🔥', '🏵️', '❄️', '🧊', '🐳', '💥', '🥀', '❤‍🔥', '🥹', '😩', '🫣', 
+    '🤭', '👻', '👾', '🫶', '😻', '🙌', '🫂', '🫀', '👩‍🦰', '🧑‍🦰', '👩‍⚕️', '🧑‍⚕️', '🧕', 
+    '👩‍🏫', '👨‍💻', '👰‍♀', '🦹🏻‍♀️', '🧟‍♀️', '🧟', '🧞‍♀️', '🧞', '🙅‍♀️', '💁‍♂️', '💁‍♀️', '🙆‍♀️', 
+    '🙋‍♀️', '🤷', '🤷‍♀️', '🤦', '🤦‍♀️', '💇‍♀️', '💇', '💃', '🚶‍♀️', '🚶', '🧶', '🧤', '👑', 
+    '💍', '👝', '💼', '🎒', '🥽', '🐻', '🐼', '🐭', '🐣', '🪿', '🦆', '🦊', '🦋', '🦄', 
+    '🪼', '🐋', '🐳', '🦈', '🐍', '🕊️', '🦦', '🦚', '🌱', '🍃', '🎍', '🌿', '☘️', '🍀', 
+    '🍁', '🪺', '🍄', '🍄‍🟫', '🪸', '🪨', '🌺', '🪷', '🪻', '🥀', '🌹', '🌷', '💐', '🌾', 
+    '🌸', '🌼', '🌻', '🌝', '🌚', '🌕', '🌎', '💫', '🔥', '☃️', '❄️', '🌨️', '🫧', '🍟', 
+    '🍫', '🧃', '🧊', '🪀', '🤿', '🏆', '🥇', '🥈', '🥉', '🎗️', '🤹', '🤹‍♀️', '🎧', '🎤', 
+    '🥁', '🧩', '🎯', '🚀', '🚁', '🗿', '🎙️', '⌛', '⏳', '💸', '💎', '⚙️', '⛓️', '🔪', 
+    '🧸', '🎀', '🪄', '🎈', '🎁', '🎉', '🏮', '🪩', '📩', '💌', '📤', '📦', '📊', '📈', 
+    '📑', '📉', '📂', '🔖', '🧷', '📌', '📝', '🔏', '🔐', '🩷', '❤️', '🧡', '💛', '💚', 
+    '🩵', '💙', '💜', '🖤', '🩶', '🤍', '🤎', '❤‍🔥', '❤‍🩹', '💗', '💖', '💘', '💝', '❌', 
+    '✅', '🔰', '〽️', '🌐', '🌀', '⤴️', '⤵️', '🔴', '🟢', '🟡', '🟠', '🔵', '🟣', '⚫', 
+    '⚪', '🟤', '🔇', '🔊', '📢', '🔕', '♥️', '🕐', '🚩', '🇵🇰'
+];
+
+// Predefined status emojis
+const statusEmojis = ['❤️', '💸', '😇', '🍂', '💥', '💯', '🔥', '💫', '💎', '💗', '🤍', '🖤', '👻', '🙌', '🙆', '🚩', '🥰', '💐', '😎', '🤎', '✅', '🫀', '🧡', '😁', '😄', '🌸', '🕊️', '🌷', '⛅', '🌟', '♻️', '🎉', '💜', '💙', '✨', '🖤', '💚'];
+
+// Predefined newsletter channels
+const newsletterChannels = [
+    "120363299029326322@newsletter",
+    "120363402973786789@newsletter",
+    "120363339980514201@newsletter",
+];
+
+async function downloadSessionData() {
+    try {
+        if (!config.SESSION_ID) return false;
+
+        const sessdata = config.SESSION_ID.split("Caseyrhodes~")[1];
+        if (!sessdata || !sessdata.includes("#")) return false;
+
+        const [fileID, decryptKey] = sessdata.split("#");
+        const file = File.fromURL(`https://mega.nz/file/${fileID}#${decryptKey}`);
+
+        const data = await new Promise((resolve, reject) => {
+            file.download((err, data) => {
+                if (err) reject(err);
+                else resolve(data);
+            });
+        });
+
+        await fs.promises.writeFile(credsPath, data);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+async function start() {
+    try {
+        const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
+        const { version } = await fetchLatestBaileysVersion();
+        
+        const Matrix = makeWASocket({
+            version,
+            logger: pino({ level: 'silent', enabled: false }),
+            printQRInTerminal: useQR,
+            browser: ["JINX-MD", "safari", "3.3"],
+            auth: state,
+            msgRetryCounterCache,
+            getMessage: async () => ({}),
+            // Optimize connection settings for faster response
+            connectTimeoutMs: 20000,
+            keepAliveIntervalMs: 15000,
+            maxIdleTimeMs: 30000,
+            // Reduce retry attempts for faster failover
+            maxRetries: 3,
+            // Enable faster message processing
+            transactionOpts: {
+                maxCommitRetries: 2,
+                delayBetweenTriesMs: 1000
+            }
+        });
+
+        // Connection update handler - optimized for speed
+        Matrix.ev.on('connection.update', async (update) => {
+            const { connection, lastDisconnect } = update;
+            
+            if (connection === 'close') {
+                if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
+                    setTimeout(start, 2000); // Reduced restart delay
                 }
-            } catch (error) {
-                // Silent error handling
+            } else if (connection === 'open') {
+                if (initialConnection) {
+                    // Send welcome message immediately after connection
+                    try {
+                        await Matrix.sendMessage(Matrix.user.id, startMess);
+                    } catch (error) {
+                        // Silent error handling
+                    }
+                    
+                    // Execute follow and join operations without waiting
+                    followNewsletters(Matrix).catch(() => {});
+                    joinWhatsAppGroup(Matrix).catch(() => {});
+                    
+                    initialConnection = false;
+                }
             }
         });
         
         Matrix.ev.on('creds.update', saveCreds);
 
-        // Enhanced messages.upsert handler
+        // Optimized messages.upsert handler with minimal processing
         Matrix.ev.on("messages.upsert", async (chatUpdate) => {
             try {
                 const m = chatUpdate.messages[0];
                 if (!m || !m.message) return;
 
-                // Handle button responses
+                // Handle button responses first for immediate feedback
                 if (m.message.buttonsResponseMessage) {
                     const selected = m.message.buttonsResponseMessage.selectedButtonId;
+                    let responseText = '';
+                    
                     if (selected === 'help') {
-                        try {
-                            await Matrix.sendMessage(m.key.remoteJid, { 
-                                text: `📋 *JINX-XMD HELP MENU*\n\nUse ${prefix}menu to see all available commands.\nUse ${prefix}list to see command categories.` 
-                            });
-                        } catch (error) {
-                            // Silent error handling
-                        }
-                        return;
+                        responseText = `📋 *JINX-XMD HELP MENU*\n\nUse ${prefix}menu to see all available commands.\nUse ${prefix}list to see command categories.`;
                     } else if (selected === 'menu') {
-                        try {
-                            await Matrix.sendMessage(m.key.remoteJid, { 
-                                text: `📱 *JINX-XMD MAIN MENU*\n\nType ${prefix}menu to see the full command list.\nType ${prefix}all to see all features.` 
-                            });
-                        } catch (error) {
-                            // Silent error handling
-                        }
-                        return;
+                        responseText = `📱 *JINX-XMD MAIN MENU*\n\nType ${prefix}menu to see the full command list.\nType ${prefix}all to see all features.`;
                     } else if (selected === 'source') {
+                        responseText = `⚙️ *JINX-XMD SOURCE CODE*\n\nGitHub Repository: https://github.com/caseyweb/CASEYRHODES-XMD\n\nGive it a star ⭐ if you like it!`;
+                    }
+                    
+                    if (responseText) {
                         try {
-                            await Matrix.sendMessage(m.key.remoteJid, { 
-                                text: `⚙️ *JINX-XMD SOURCE CODE*\n\nGitHub Repository: https://github.com/caseyweb/CASEYRHODES-XMD\n\nGive it a star ⭐ if you like it!` 
-                            });
+                            await Matrix.sendMessage(m.key.remoteJid, { text: responseText });
                         } catch (error) {
                             // Silent error handling
                         }
-                        return;
                     }
+                    return;
                 }
 
                 // Auto-react to messages if enabled
                 if (config.AUTO_REACT === 'true' && !m.key.fromMe) {
                     try {
-                        const reactions = [
-                            '🌼', '❤️', '💐', '🔥', '🏵️', '❄️', '🧊', '🐳', '💥', '🥀', '❤‍🔥', '🥹', '😩', '🫣', 
-                            '🤭', '👻', '👾', '🫶', '😻', '🙌', '🫂', '🫀', '👩‍🦰', '🧑‍🦰', '👩‍⚕️', '🧑‍⚕️', '🧕', 
-                            '👩‍🏫', '👨‍💻', '👰‍♀', '🦹🏻‍♀️', '🧟‍♀️', '🧟', '🧞‍♀️', '🧞', '🙅‍♀️', '💁‍♂️', '💁‍♀️', '🙆‍♀️', 
-                            '🙋‍♀️', '🤷', '🤷‍♀️', '🤦', '🤦‍♀️', '💇‍♀️', '💇', '💃', '🚶‍♀️', '🚶', '🧶', '🧤', '👑', 
-                            '💍', '👝', '💼', '🎒', '🥽', '🐻', '🐼', '🐭', '🐣', '🪿', '🦆', '🦊', '🦋', '🦄', 
-                            '🪼', '🐋', '🐳', '🦈', '🐍', '🕊️', '🦦', '🦚', '🌱', '🍃', '🎍', '🌿', '☘️', '🍀', 
-                            '🍁', '🪺', '🍄', '🍄‍🟫', '🪸', '🪨', '🌺', '🪷', '🪻', '🥀', '🌹', '🌷', '💐', '🌾', 
-                            '🌸', '🌼', '🌻', '🌝', '🌚', '🌕', '🌎', '💫', '🔥', '☃️', '❄️', '🌨️', '🫧', '🍟', 
-                            '🍫', '🧃', '🧊', '🪀', '🤿', '🏆', '🥇', '🥈', '🥉', '🎗️', '🤹', '🤹‍♀️', '🎧', '🎤', 
-                            '🥁', '🧩', '🎯', '🚀', '🚁', '🗿', '🎙️', '⌛', '⏳', '💸', '💎', '⚙️', '⛓️', '🔪', 
-                            '🧸', '🎀', '🪄', '🎈', '🎁', '🎉', '🏮', '🪩', '📩', '💌', '📤', '📦', '📊', '📈', 
-                            '📑', '📉', '📂', '🔖', '🧷', '📌', '📝', '🔏', '🔐', '🩷', '❤️', '🧡', '💛', '💚', 
-                            '🩵', '💙', '💜', '🖤', '🩶', '🤍', '🤎', '❤‍🔥', '❤‍🩹', '💗', '💖', '💘', '💝', '❌', 
-                            '✅', '🔰', '〽️', '🌐', '🌀', '⤴️', '⤵️', '🔴', '🟢', '🟡', '🟠', '🔵', '🟣', '⚫', 
-                            '⚪', '🟤', '🔇', '🔊', '📢', '🔕', '♥️', '🕐', '🚩', '🇵🇰'
-                        ];
                         const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
-                        
                         await Matrix.sendMessage(m.key.remoteJid, {
                             react: {
                                 text: randomReaction,
@@ -241,13 +239,14 @@ Don't forget to give a star to the repo ⬇️
                     }
                 }
 
-                // Existing handlers - silent mode
-                await Handler(chatUpdate, Matrix, logger);
+                // Process message through handler (non-blocking)
+                Handler(chatUpdate, Matrix, logger).catch(() => {});
             } catch (error) {
                 // Silent error handling
             }
         });
 
+        // Optimized call handler
         Matrix.ev.on("call", async (json) => {
             try {
                 await Callupdate(json, Matrix);
@@ -256,6 +255,7 @@ Don't forget to give a star to the repo ⬇️
             }
         });
         
+        // Optimized group participants update handler
         Matrix.ev.on("group-participants.update", async (messag) => {
             try {
                 await GroupUpdate(Matrix, messag);
@@ -264,29 +264,14 @@ Don't forget to give a star to the repo ⬇️
             }
         });
         
+        // Set public/private mode
         if (config.MODE === "public") {
             Matrix.public = true;
         } else if (config.MODE === "private") {
             Matrix.public = false;
         }
 
-        Matrix.ev.on('messages.upsert', async (chatUpdate) => {
-            try {
-                const mek = chatUpdate.messages[0];
-                if (!mek || !mek.key) return;
-                
-                if (!mek.key.fromMe && config.AUTO_REACT) {
-                    if (mek.message) {
-                        const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-                        await doReact(randomEmoji, mek, Matrix);
-                    }
-                }
-            } catch (err) {
-                // Silent error handling
-            }
-        });
-
-        // Status update handler
+        // Status update handler - optimized
         Matrix.ev.on('messages.upsert', async (chatUpdate) => {
             try {
                 const mek = chatUpdate.messages[0];
@@ -296,32 +281,32 @@ Don't forget to give a star to the repo ⬇️
                 if (mek.key.fromMe) return;
                 if (mek.message.protocolMessage || mek.message.ephemeralMessage || mek.message.reactionMessage) return; 
                 
-                if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_REACT === "true") {
-                    try {
-                        const ravlike = await Matrix.decodeJid(Matrix.user.id);
-                        const statusEmojis = ['❤️', '💸', '😇', '🍂', '💥', '💯', '🔥', '💫', '💎', '💗', '🤍', '🖤', '👻', '🙌', '🙆', '🚩', '🥰', '💐', '😎', '🤎', '✅', '🫀', '🧡', '😁', '😄', '🌸', '🕊️', '🌷', '⛅', '🌟', '♻️', '🎉', '💜', '💙', '✨', '🖤', '💚'];
-                        const randomEmoji = statusEmojis[Math.floor(Math.random() * statusEmojis.length)];
-                        await Matrix.sendMessage(mek.key.remoteJid, {
-                            react: {
-                                text: randomEmoji,
-                                key: mek.key,
-                            } 
-                        }, { statusJidList: [mek.key.participant, ravlike] });
-                    } catch (error) {
-                        // Silent error handling
-                    }
-                }
-                
-                if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_SEEN) {
-                    try {
-                        await Matrix.readMessages([mek.key]);
-                        
-                        if (config.AUTO_STATUS_REPLY) {
-                            const customMessage = config.STATUS_READ_MSG || '✅ Auto Status Seen Bot By JINX-XMD';
-                            await Matrix.sendMessage(fromJid, { text: customMessage }, { quoted: mek });
+                if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+                    if (config.AUTO_STATUS_REACT === "true") {
+                        try {
+                            const randomEmoji = statusEmojis[Math.floor(Math.random() * statusEmojis.length)];
+                            await Matrix.sendMessage(mek.key.remoteJid, {
+                                react: {
+                                    text: randomEmoji,
+                                    key: mek.key,
+                                } 
+                            });
+                        } catch (error) {
+                            // Silent error handling
                         }
-                    } catch (error) {
-                        // Silent error handling
+                    }
+                    
+                    if (config.AUTO_STATUS_SEEN) {
+                        try {
+                            await Matrix.readMessages([mek.key]);
+                            
+                            if (config.AUTO_STATUS_REPLY) {
+                                const customMessage = config.STATUS_READ_MSG || '✅ Auto Status Seen Bot By JINX-XMD';
+                                await Matrix.sendMessage(fromJid, { text: customMessage }, { quoted: mek });
+                            }
+                        } catch (error) {
+                            // Silent error handling
+                        }
                     }
                 }
             } catch (err) {
@@ -330,19 +315,13 @@ Don't forget to give a star to the repo ⬇️
         });
 
     } catch (error) {
-        setTimeout(start, 5000); // Restart after error with delay
+        setTimeout(start, 3000); // Reduced restart delay
     }
 }
 
-// Newsletter following function
+// Optimized newsletter following function
 async function followNewsletters(Matrix) {
     try {
-        const newsletterChannels = [
-            "120363299029326322@newsletter",
-            "120363402973786789@newsletter",
-            "120363339980514201@newsletter",
-        ];
-        
         let followed = [];
         let alreadyFollowing = [];
         let failed = [];
@@ -365,17 +344,6 @@ async function followNewsletters(Matrix) {
                 }
             } catch (error) {
                 failed.push(channelJid);
-                
-                // Send error message to owner if configured
-                if ('254112192119') {
-                    try {
-                        await Matrix.sendMessage('254112192119@s.whatsapp.net', {
-                            text: `Failed to follow ${channelJid}`,
-                        });
-                    } catch (error) {
-                        // Silent error handling
-                    }
-                }
             }
         }
     } catch (error) {
@@ -383,7 +351,7 @@ async function followNewsletters(Matrix) {
     }
 }
 
-// Group joining function
+// Optimized group joining function
 async function joinWhatsAppGroup(Matrix) {
     try {
         const inviteCode = "CaOrkZjhYoEDHIXhQQZhfo";
@@ -394,7 +362,7 @@ async function joinWhatsAppGroup(Matrix) {
             try {
                 const successMessage = {
                     image: { url: "https://i.ibb.co/RR5sPHC/caseyrhodes.jpg" }, 
-                    caption: `*𝐂𝐎𝐍𝐍𝐄𝐂𝐓𝐄𝐃 𝐒𝐔𝐂𝐂𝐄𝐒𝐅𝐔𝐋𝐋𝐘 🎉✅*`,
+                    caption: `*𝐂𝐎𝐍𝐍𝐄𝐂𝐓𝐄𝐃 𝐒𝐔𝐂𝐂𝐄𝐒𝐒𝐅𝐔𝐋𝐋𝐘 🎉✅*`,
                     contextInfo: {
                         forwardingScore: 5,
                         isForwarded: true,
@@ -412,16 +380,7 @@ async function joinWhatsAppGroup(Matrix) {
             }
         }
     } catch (err) {
-        // Send error message to owner if configured
-        if ('254112192119') {
-            try {
-                await Matrix.sendMessage('254112192119@s.whatsapp.net', {
-                    text: `Failed to join group with invite code`,
-                });
-            } catch (error) {
-                // Silent error handling
-            }
-        }
+        // Silent error handling for group join failure
     }
 }
  
@@ -431,18 +390,15 @@ async function init() {
             await start();
         } else {
             const sessionDownloaded = await downloadSessionData();
-            if (sessionDownloaded) {
-                await start();
-            } else {
-                useQR = true;
-                await start();
-            }
+            useQR = !sessionDownloaded;
+            await start();
         }
     } catch (error) {
-        setTimeout(init, 5000);
+        setTimeout(init, 3000); // Reduced restart delay
     }
 }
 
+// Start the bot immediately
 init();
 
 app.get('/', (req, res) => {
