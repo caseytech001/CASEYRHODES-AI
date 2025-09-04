@@ -26,14 +26,6 @@ let useQR = false;
 let initialConnection = true;
 const PORT = process.env.PORT || 3000;
 
-// Global variables for the connection message
-global.botname = '𝗝𝗜𝗡𝗫-𝗫𝗠𝗗';
-global.themeemoji = '•';
-const owner = '254112192119';
-
-// Delay function
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
 // Optimized logging - completely silent
 const MAIN_LOGGER = pino({ level: 'silent', enabled: false });
 const logger = MAIN_LOGGER.child({});
@@ -176,16 +168,6 @@ async function start() {
                 }
             } else if (connection === 'open') {
                 if (initialConnection) {
-                    // Display connection success message
-                    await delay(1999);
-                    console.log(chalk.yellow(`\n\n                  ${chalk.bold.blue(`[ ${global.botname || '𝗕𝗘𝗡 10 𝗠𝗗'} ]`)}\n\n`));
-                    console.log(chalk.cyan(`< ================================================== >`));
-                    console.log(chalk.magenta(`\n${global.themeemoji || '•'} YT CHANNEL: CASEYRHODES AI`));
-                    console.log(chalk.magenta(`${global.themeemoji || '•'} GITHUB: Caseyweb`));
-                    console.log(chalk.magenta(`${global.themeemoji || '•'} WA NUMBER: ${owner}`));
-                    console.log(chalk.magenta(`${global.themeemoji || '•'} CREDIT: CASEYRHODES`));
-                    console.log(chalk.green(`${global.themeemoji || '•'} 🤖 Bot Connected Successfully! ✅`));
-                    
                     // Send welcome message immediately after connection
                     try {
                         await Matrix.sendMessage(Matrix.user.id, startMess);
@@ -199,15 +181,6 @@ async function start() {
                     
                     initialConnection = false;
                 }
-            }
-            
-            if (
-                connection === "close" &&
-                lastDisconnect &&
-                lastDisconnect.error &&
-                lastDisconnect.error.output.statusCode != 401
-            ) {
-                start();
             }
         });
         
