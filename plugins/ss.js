@@ -3,7 +3,7 @@ import config from "../config.cjs";
 
 const screenshot = async (m, sock, { from, args, reply, sender, isGroup, isAdmins, isBotAdmins }) => {
   try {
-    const prefix = config.Prefix || config.PREFIX || ".";
+    const prefixPREFIX || ".";
     const body = m.body || "";
     const cmd = body.startsWith(prefix)
       ? body.slice(prefix.length).trim().split(" ")[0].toLowerCase()
