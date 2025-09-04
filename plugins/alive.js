@@ -1,8 +1,37 @@
 import fs from 'fs';
-import os from 'os';
+import config from '../config.cjs';
+
+// Helper function to convert text to tiny caps
+const toTinyCap = (text) => {
+  const smallCapsMap = {
+    'a': 'ᴀ', 'b': 'ʙ', 'c': 'ᴄ', 'd': 'ᴅ', 'e': 'ᴇ', 'f': 'ꜰ', 'g': 'ɢ', 'h': 'ʜ', 'i': 'ɪ',
+    'j': 'ᴊ', 'k': 'ᴋ', 'l': 'ʟ', 'm': 'ᴍ', 'n': 'ɴ', 'o': 'ᴏ', 'p': 'ᴘ', 'q': 'ǫ', 'r': 'ʀ',
+    's': 's', 't': 'ᴛ', 'u': 'ᴜ', 'v': 'ᴠ', 'w': 'ᴡ', 'x': 'x', 'y': 'ʏ', 'z': 'ᴢ'
+  };
+  
+  return text.split('').map(char => {
+    const lowerChar = char.toLowerCase();
+    return smallCapsMap[lowerChar] || char;
+  }).join('');
+};
 
 const alive = async (m, Matrix) => {
-  const prefix = process.env.PREFIX || '!';
+  const uptimeSeconds = process.uptime();
+  const days = Math.floor(uptimeSeconds / (3600 * 24));
+  const hours = Math.floor((uptimeSeconds % (3600 * 24)) / 3600);
+  const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+  const seconds = Math.floor(uptimeSeconds % 60);
+  const uptime = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+
+  // Get current time and date
+  const now = new Date();
+  const currentTime = now.toLocaleTimeString();
+  const currentDate = now.toLocaleDateString();
+  
+  // Get user's pushname
+  const pushname = m.pushName || 'User';
+
+  const prefix = config.PREFIX;
   
   // Check if it's a button response
   const isButtonResponse = m.message?.buttonsResponseMessage;
@@ -10,60 +39,69 @@ const alive = async (m, Matrix) => {
   if (isButtonResponse) {
     const selectedButtonId = m.message.buttonsResponseMessage.selectedButtonId;
     
-    if (selectedButtonId === `${prefix}join` || selectedButtonId === `${prefix}owner`) {
-      // Handle both buttons silently - no text response
+    if (selectedButtonId === `${prefix}voice`) {
+      const audioUrls = [
+        'https://files.catbox.moe/m0xfku.mp3'
+      ];
+
+      const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
+      
+      // Send audio
+      await Matrix.sendMessage(m.from, {
+        audio: { url: randomAudioUrl },
+        mimetype: 'audio/mp4',
+        ptt: true
+      }, { quoted: m });
+      
+      return; // Exit after sending audio
+    } else if (selectedButtonId === `${prefix}repo`) {
+      // Handle repo button - send only prefix
+      await Matrix.sendMessage(m.from, { 
+        text: prefix 
+      }, { quoted: m });
       return;
     }
   }
   
   // Regular command handling
-  const cmd = m.body?.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+  const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
 
   if (!['alive', 'uptime', 'runtime'].includes(cmd)) return;
 
-  // Uptime calculation
-  const uptimeSeconds = process.uptime();
-  const days = Math.floor(uptimeSeconds / (3600 * 24));
-  const hours = Math.floor((uptimeSeconds % (3600 * 24)) / 3600);
-  const minutes = Math.floor((uptimeSeconds % 3600) / 60);
-  const seconds = Math.floor(uptimeSeconds % 60);
-  const timeString = `${days}d ${hours}h ${minutes}m ${seconds}s`;
-
-  // Memory usage calculation
-  const usedMem = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-  const totalMem = Math.round(os.totalmem() / 1024 / 1024);
-  const platform = os.platform();
-
-  const caption = `
-╭───❰ *AM ALIVE 🎉* ❱──┈⊷
-┃ *✨𝖴ᴘᴛɪᴍᴇ* : *${timeString}*
-┃ *💾 𝖱ᴀᴍ ᴜsᴀɢᴇ* : *${usedMem}MB / ${totalMem}MB*
-┃ *🧑‍💻𝖣ᴇᴘʟᴏʏᴇᴅ ᴏɴ* : *${platform}*
-┃ *👨‍💻𝖮ᴡɴᴇʀ* : *𝖬ʀ ᴄᴀsᴇʏʀʜᴏᴅᴇs*
-┃ *🧬𝖵ᴇʀsɪᴏɴ* : *𝟣.𝟢.𝟢 𝖡𝖤𝖳𝖠*
-╰────────────┈⊷
-> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ`;
+  const str = `
+╭──❖ 「 *${toTinyCap("Bot Status")}* 」 ❖─
+│ 👤 ʜɪ: *${pushname}*
+│ 🕓 ᴛɪᴍᴇ: *${currentTime}*
+│ 📆 ᴅᴀᴛᴇ: *${currentDate}*
+│ 🧭 ᴜᴘᴛɪᴍᴇ: *${uptime}*
+│ ⚙️ ᴍᴏᴅᴇ: *${config.MODE || 'default'}*
+│ 🔰 ᴠᴇʀsɪᴏɴ: *${config.version || '1.0.0'}*
+╰─────────❖`;
 
   const buttons = [
     {
-      buttonId: `${prefix}join`,
-      buttonText: { displayText: '📢 Join Channel' },
+      buttonId: `${prefix}repo`,
+      buttonText: { displayText: '📂 Repo' },
       type: 1
     },
     {
-      buttonId: `${prefix}owner`,
-      buttonText: { displayText: '👤 Owner' },
+      buttonId: `${prefix}voice`,
+      buttonText: { displayText: '🎶 Voice Note' },
       type: 1
     }
   ];
 
   const buttonMessage = {
     image: fs.readFileSync('./media/Casey.jpg'),
-    audio: fs.readFileSync('./media/alive.mp3'), // Add your audio file
-    mimetype: 'audio/mp4', // Set the appropriate mimetype
-    caption: caption,
+    caption: str,
+    footer: 'Choose an option',
     buttons: buttons,
-    headerType: 4
+    headerType: 4,
+    contextInfo: {
+      mentionedJid: [m.sender],
+      forwardingScore: 999,
+      isForwarded: true
+    }
   };
 
   await Matrix.sendMessage(m.from, buttonMessage, {
