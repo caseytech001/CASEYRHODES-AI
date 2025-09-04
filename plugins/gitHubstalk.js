@@ -1,24 +1,23 @@
 import axios from 'axios';
 import config from '../config.cjs';
-import fs from 'fs';
-import { generateWAMessageFromContent, proto } from '@whiskeysockets/baileys';
 
 const gitstalk = async (m, Matrix) => {
     try {
         const prefix = config.PREFIX || ".";
-        const body = m.body?.startsWith(prefix)
-            ? m.body.slice(prefix.length).trim()
+        const body = m.body || "";
+        const cmd = body.startsWith(prefix)
+            ? body.slice(prefix.length).trim().split(" ")[0].toLowerCase()
             : "";
-        const args = body.split(" ");
-        const command = args[0].toLowerCase();
+            
+        if (cmd !== "gitstalk") return;
 
-        if (command !== "gitstalk") return;
-
+        const args = body.slice(prefix.length).trim().split(" ");
         const username = args[1];
+        
         if (!username) {
             return await Matrix.sendMessage(
                 m.from,
-                { text: "Please provide a GitHub username." },
+                { text: "Please provide a GitHub username.\nExample: .gitstalk caseyrhodes" },
                 { quoted: m }
             );
         }
@@ -78,10 +77,16 @@ const gitstalk = async (m, Matrix) => {
         console.log(e);
         await Matrix.sendMessage(
             m.from,
-            { text: `error: ${e.response ? e.response.data.message : e.message}` },
+            { text: `❌ Error: ${e.response ? e.response.data.message : e.message}` },
             { quoted: m }
         );
     }
 };
+
+// Add pattern property for handler detection
+gitstalk.pattern = /^gitstalk$/i;
+gitstalk.desc = "Get information about a GitHub user";
+gitstalk.category = "tools";
+gitstalk.use = ".gitstalk <username>";
 
 export default gitstalk;
