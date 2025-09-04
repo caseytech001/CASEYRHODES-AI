@@ -7,10 +7,9 @@ const { proto } = pkg;
 
 const online = async (m, Matrix) => {
   try {
-    const prefix = config.Prefix || config.PREFIX || ".";
-    const body = m.body || "";
-    const cmd = body.startsWith(prefix)
-      ? body.slice(prefix.length).trim().split(" ")[0].toLowerCase()
+    const prefix = config.PREFIX;
+    const cmd = m.body.startsWith(prefix) 
+      ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() 
       : "";
 
     if (!["online", "whosonline", "onlinemembers"].includes(cmd)) return;
