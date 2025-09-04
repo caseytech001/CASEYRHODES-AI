@@ -15,19 +15,9 @@ import { File } from 'megajs';
 import NodeCache from 'node-cache';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import chalk from 'chalk';
 
-// Handle missing config file gracefully
-let config;
-try {
-    config = (await import('./config.cjs')).default;
-} catch (error) {
-    console.log('Config file not found, using environment variables');
-    config = {};
-}
-
-// Use environment variables with fallback to config or defaults
-const prefix = process.env.PREFIX || config.PREFIX || '.';
+// Configuration using environment variables only
+const prefix = process.env.PREFIX || '.';
 const app = express();
 let useQR = false;
 let initialConnection = true;
@@ -51,7 +41,7 @@ if (!fs.existsSync(sessionDir)) {
 
 async function downloadSessionData() {
     try {
-        const sessionId = process.env.SESSION_ID || config.SESSION_ID;
+        const sessionId = process.env.SESSION_ID;
         if (!sessionId) {
             return false;
         }
@@ -208,7 +198,7 @@ Don't forget to give a star to the repo ⬇️
                 }
 
                 // Auto-react to messages if enabled
-                const autoReact = process.env.AUTO_REACT || config.AUTO_REACT || 'false';
+                const autoReact = process.env.AUTO_REACT || 'false';
                 if (autoReact === 'true' && !m.key.fromMe) {
                     try {
                         const reactions = [
@@ -242,7 +232,7 @@ Don't forget to give a star to the repo ⬇️
                 }
 
                 // Fast auto-read messages
-                const readMessage = process.env.READ_MESSAGE || config.READ_MESSAGE || 'false';
+                const readMessage = process.env.READ_MESSAGE || 'false';
                 if (readMessage === 'true' && !m.key.fromMe) {
                     try {
                         await Matrix.readMessages([m.key]);
@@ -274,7 +264,7 @@ Don't forget to give a star to the repo ⬇️
             }
         });
         
-        const mode = process.env.MODE || config.MODE || "public";
+        const mode = process.env.MODE || "public";
         if (mode === "public") {
             Matrix.public = true;
         } else if (mode === "private") {
@@ -313,7 +303,7 @@ Don't forget to give a star to the repo ⬇️
                 if (mek.key.fromMe) return;
                 if (mek.message.protocolMessage || mek.message.ephemeralMessage || mek.message.reactionMessage) return; 
                 
-                const autoStatusReact = process.env.AUTO_STATUS_REACT || config.AUTO_STATUS_REACT || "false";
+                const autoStatusReact = process.env.AUTO_STATUS_REACT || "false";
                 if (mek.key && mek.key.remoteJid === 'status@broadcast' && autoStatusReact === "true") {
                     try {
                         const ravlike = await Matrix.decodeJid(Matrix.user.id);
@@ -330,14 +320,14 @@ Don't forget to give a star to the repo ⬇️
                     }
                 }
                 
-                const autoStatusSeen = process.env.AUTO_STATUS_SEEN || config.AUTO_STATUS_SEEN || "false";
+                const autoStatusSeen = process.env.AUTO_STATUS_SEEN || "false";
                 if (mek.key && mek.key.remoteJid === 'status@broadcast' && autoStatusSeen === "true") {
                     try {
                         await Matrix.readMessages([mek.key]);
                         
-                        const autoStatusReply = process.env.AUTO_STATUS_REPLY || config.AUTO_STATUS_REPLY || "false";
+                        const autoStatusReply = process.env.AUTO_STATUS_REPLY || "false";
                         if (autoStatusReply === "true") {
-                            const customMessage = process.env.STATUS_READ_MSG || config.STATUS_READ_MSG || '✅ Auto Status Seen Bot By JINX-XMD';
+                            const customMessage = process.env.STATUS_READ_MSG || '✅ Auto Status Seen Bot By JINX-XMD';
                             await Matrix.sendMessage(fromJid, { text: customMessage }, { quoted: mek });
                         }
                     } catch (error) {
@@ -363,10 +353,6 @@ async function followNewsletters(Matrix) {
             "120363339980514201@newsletter",
         ];
         
-        let followed = [];
-        let alreadyFollowing = [];
-        let failed = [];
-
         for (const channelJid of newsletterChannels) {
             try {
                 // Try to get newsletter metadata
@@ -374,20 +360,14 @@ async function followNewsletters(Matrix) {
                     const metadata = await Matrix.newsletterMetadata(channelJid);
                     if (!metadata.viewer_metadata) {
                         await Matrix.newsletterFollow(channelJid);
-                        followed.push(channelJid);
-                    } else {
-                        alreadyFollowing.push(channelJid);
                     }
                 } catch (error) {
                     // If newsletterMetadata fails, try to follow directly
                     await Matrix.newsletterFollow(channelJid);
-                    followed.push(channelJid);
                 }
             } catch (error) {
-                failed.push(channelJid);
-                
                 // Send error message to owner if configured
-                const ownerNumber = process.env.OWNER_NUMBER || config.OWNER_NUMBER;
+                const ownerNumber = process.env.OWNER_NUMBER;
                 if (ownerNumber) {
                     try {
                         await Matrix.sendMessage(ownerNumber + '@s.whatsapp.net', {
@@ -407,11 +387,11 @@ async function followNewsletters(Matrix) {
 // Group joining function
 async function joinWhatsAppGroup(Matrix) {
     try {
-        const inviteCode = process.env.GROUP_INVITE_CODE || config.GROUP_INVITE_CODE || "CaOrkZjhYoEDHIXhQQZhfo";
+        const inviteCode = process.env.GROUP_INVITE_CODE || "CaOrkZjhYoEDHIXhQQZhfo";
         await Matrix.groupAcceptInvite(inviteCode);
         
         // Send success message to owner if configured
-        const ownerNumber = process.env.OWNER_NUMBER || config.OWNER_NUMBER;
+        const ownerNumber = process.env.OWNER_NUMBER;
         if (ownerNumber) {
             try {
                 const successMessage = {
@@ -435,7 +415,7 @@ async function joinWhatsAppGroup(Matrix) {
         }
     } catch (err) {
         // Send error message to owner if configured
-        const ownerNumber = process.env.OWNER_NUMBER || config.OWNER_NUMBER;
+        const ownerNumber = process.env.OWNER_NUMBER;
         if (ownerNumber) {
             try {
                 await Matrix.sendMessage(ownerNumber + '@s.whatsapp.net', {
