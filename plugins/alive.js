@@ -59,6 +59,8 @@ const alive = async (m, Matrix) => {
 
   const buttonMessage = {
     image: fs.readFileSync('./media/Casey.jpg'),
+    audio: fs.readFileSync('./media/alive.mp3'), // Add your audio file
+    mimetype: 'audio/mp4', // Set the appropriate mimetype
     caption: caption,
     buttons: buttons,
     headerType: 4
