@@ -39,9 +39,9 @@ const groupInfoCommand = async (m, sock) => {
           const admins = participants.filter(p => p.admin === 'admin' || p.admin === 'superadmin').map(p => p.id);
           
           // Prepare decorated response with emojis and single-line decoration
-          let response = `┌─────────────────────────────────\n`;
+          let response = `┌──────────────────\n`;
           response += `│         🏷️ GROUP INFORMATION 🏷️\n`;
-          response += `├─────────────────────────────────\n`;
+          response += `├────────────────────\n`;
           response += `│\n`;
           response += `│ 📛 Name: ${groupMetadata.subject}\n`;
           response += `│ 📝 Description: ${groupMetadata.desc || 'No description'}\n`;
@@ -53,7 +53,7 @@ const groupInfoCommand = async (m, sock) => {
           response += `│ 📢 Announcement: ${groupMetadata.announce ? '✅ Yes' : '❌ No'}\n`;
           response += `│ ⏱️ Ephemeral: ${groupMetadata.ephemeralDuration ? `${groupMetadata.ephemeralDuration} seconds` : '❌ Disabled'}\n`;
           response += `│\n`;
-          response += `└─────────────────────────────────`;
+          response += `└────────────────────`;
           
           // Try to get group picture
           try {
