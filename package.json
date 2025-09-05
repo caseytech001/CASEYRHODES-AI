@@ -9,11 +9,11 @@
   },
   "type": "module",
   "scripts": {
-    "start": "pm2 start index.js --deep-monitoring --attach --name Caseyrhodes-AI",
+    "start": "pm2 start index.js --deep-monitoring --attach --name CASEYRHODES-AI",
     "stop": "pm2 stop ",
-    "restart": "pm2 restart Caseyrhodes-AI"
+    "restart": "pm2 restart CASEYRHODES-AI"
   },
-  "keywords": ["Caseyrhodes-AI", "whatsapp-bot", "whatsapp md bot"],
+  "keywords": ["CASEYRHODES-AI", "whatsapp-bot", "whatsapp md bot"],
   "author": "Caseyrhodes",
   "license": "ISC",
   "dependencies": {
