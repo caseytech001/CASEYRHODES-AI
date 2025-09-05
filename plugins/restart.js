@@ -17,8 +17,12 @@ function toFancyFont(text, isUpperCase = false) {
 // Function to check if user is bot owner
 function isBotOwner(sender) {
   const ownerNumbers = config.OWNER_NUMBER || [];
+  const senderNumber = sender.split('@')[0];
+  
   // Ensure ownerNumbers is an array and check if sender is in the list
-  return Array.isArray(ownerNumbers) && ownerNumbers.includes(sender);
+  return Array.isArray(ownerNumbers) 
+    ? ownerNumbers.includes(senderNumber)
+    : ownerNumbers === senderNumber;
 }
 
 const restartBot = async (m, sock) => {
@@ -28,23 +32,13 @@ const restartBot = async (m, sock) => {
   const text = body.slice(prefix.length + cmd.length).trim();
   const sender = m.sender;
 
+  // Helper function to reply to messages
+  const reply = (text, options = {}) => sock.sendMessage(m.key.remoteJid, { text, ...options }, { quoted: m });
+
   if (cmd === 'restart') {
     // Check if user is bot owner
     if (!isBotOwner(sender)) {
-      // Send unauthorized message
-      await sock.sendMessage(m.key.remoteJid, {
-        text: `❌ *${toFancyFont("Unauthorized Access")}*\n\n` +
-              `⚠️ *${toFancyFont("This command is only available for bot owner")}*\n` +
-              `👤 *${toFancyFont("Your ID")}:* @${sender.split('@')[0]}`,
-        mentions: [sender]
-      });
-      
-      // Add reaction to indicate error
-      await sock.sendMessage(m.key.remoteJid, {
-        react: { text: "❌", key: m.key }
-      });
-      
-      return; // Exit the function
+      return reply("❌ This command is only for the bot owner.");
     }
 
     try {
@@ -65,14 +59,13 @@ const restartBot = async (m, sock) => {
       await sock.sendMessage(m.key.remoteJid, buttonMessage, { quoted: m });
 
       // Send confirmation message
-      await sock.sendMessage(m.key.remoteJid, { 
-        text: `✅ *${toFancyFont("Restart Command Received")}*\n\n` +
-              `📝 *${toFancyFont("Command")}:* ${prefix}restart\n` +
-              `👤 *${toFancyFont("User")}:* @${m.sender.split('@')[0]}\n` +
-              `⏰ *${toFancyFont("Time")}:* ${new Date().toLocaleString()}\n\n` +
-              `🔄 *${toFancyFont("Bot is now restarting...")}*`,
-        mentions: [m.sender]
-      });
+      await reply(`✅ *${toFancyFont("Restart Command Received")}*\n\n` +
+            `📝 *${toFancyFont("Command")}:* ${prefix}restart\n` +
+            `👤 *${toFancyFont("User")}:* @${m.sender.split('@')[0]}\n` +
+            `⏰ *${toFancyFont("Time")}:* ${new Date().toLocaleString()}\n\n` +
+            `🔄 *${toFancyFont("Bot is now restarting...")}*`,
+        { mentions: [m.sender] }
+      );
 
       // Log the restart
       console.log(`🔄 Restart initiated by owner ${m.sender} at ${new Date().toLocaleString()}`);
@@ -87,12 +80,11 @@ const restartBot = async (m, sock) => {
       console.error('❌ Restart Error:', error);
 
       // Send error message
-      await sock.sendMessage(m.key.remoteJid, {
-        text: `❌ *${toFancyFont("Restart Failed")}*\n\n` +
-              `📛 *${toFancyFont("Error")}:* ${error.message}\n\n` +
-              `⚠️ *${toFancyFont("Please try again or contact support")}*`,
-        mentions: [m.sender]
-      });
+      await reply(`❌ *${toFancyFont("Restart Failed")}*\n\n` +
+            `📛 *${toFancyFont("Error")}:* ${error.message}\n\n` +
+            `⚠️ *${toFancyFont("Please try again or contact support")}*`,
+        { mentions: [m.sender] }
+      );
 
       // Add reaction to indicate error
       await sock.sendMessage(m.key.remoteJid, {
@@ -109,14 +101,13 @@ export const botStatus = async (m, sock) => {
   const cmd = body.startsWith(prefix) ? body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
   const sender = m.sender;
 
+  // Helper function to reply to messages
+  const reply = (text, options = {}) => sock.sendMessage(m.key.remoteJid, { text, ...options }, { quoted: m });
+
   if (cmd === 'status') {
     // Optional: You can also restrict status command to owner if desired
     // if (!isBotOwner(sender)) {
-    //   await sock.sendMessage(m.key.remoteJid, {
-    //     text: `❌ *${toFancyFont("Unauthorized Access")}*`,
-    //     mentions: [sender]
-    //   });
-    //   return;
+    //   return reply("❌ This command is only for the bot owner.");
     // }
 
     const uptime = process.uptime();
