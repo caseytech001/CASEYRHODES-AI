@@ -3,14 +3,16 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from 'url';
 import AdmZip from "adm-zip";
+import { createRequire } from 'module';
 
 // Get current directory path
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Import config
+// Import config using require for CommonJS files
+const require = createRequire(import.meta.url);
 const configPath = path.join(__dirname, '../config.cjs');
-const config = await import(configPath).then(m => m.default || m).catch(() => ({}));
+const config = require(configPath);
 
 // Simple database for commit hash (replace with your actual DB if available)
 let commitHashDB = {};
@@ -32,12 +34,20 @@ const update = async (m, Matrix) => {
         ? body.slice(prefix.length).trim().split(" ")[0].toLowerCase()
         : "";
 
+    // Helper function to reply to messages
+    const reply = (text) => Matrix.sendMessage(m.from, { text }, { quoted: m });
+
     if (cmd === "update") {
         // Only allow owner to use this command
         const ownerNumber = config.OWNER_NUMBER || config.MODS || "";
-        if (!ownerNumber.includes(m.sender.split('@')[0])) {
-            return Matrix.sendMessage(m.from, { text: "❌ *This command is only for the bot owner!*" }, { quoted: m });
-        }
+        const senderNumber = m.sender.split('@')[0];
+        
+        // Check if sender is owner (supports both string and array formats)
+        const isOwner = Array.isArray(ownerNumber) 
+            ? ownerNumber.includes(senderNumber)
+            : ownerNumber === senderNumber;
+        
+        if (!isOwner) return reply("❌ This command is only for the bot owner.");
 
         try {
             // Newsletter configuration
@@ -152,10 +162,7 @@ const update = async (m, Matrix) => {
         } catch (error) {
             console.error("❌ Update error:", error);
             if (m.React) await m.React("❌");
-            await Matrix.sendMessage(m.from, 
-                { text: `❌ *Update failed!*\n\nError: ${error.message}\n\nPlease try manually or contact support.` }, 
-                { quoted: m }
-            );
+            await reply(`❌ *Update failed!*\n\nError: ${error.message}\n\nPlease try manually or contact support.`);
         }
     }
 };
