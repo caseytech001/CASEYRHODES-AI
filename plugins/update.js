@@ -38,14 +38,15 @@ const update = async (m, Matrix) => {
     const reply = (text) => Matrix.sendMessage(m.from, { text }, { quoted: m });
 
     if (cmd === "update") {
-        // Only allow owner to use this command
-        const ownerNumber = config.OWNER_NUMBER || config.MODS || "";
-        const senderNumber = m.sender.split('@')[0];
+        // Get owner ID from Matrix user
+        const ownerId = Matrix.user?.id;
         
-        // Check if sender is owner (supports both string and array formats)
-        const isOwner = Array.isArray(ownerNumber) 
-            ? ownerNumber.includes(senderNumber)
-            : ownerNumber === senderNumber;
+        if (!ownerId) {
+            return reply("❌ Unable to verify bot owner.");
+        }
+        
+        // Check if sender is the bot owner
+        const isOwner = m.sender === ownerId;
         
         if (!isOwner) return reply("❌ This command is only for the bot owner.");
 
