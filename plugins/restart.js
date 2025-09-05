@@ -14,15 +14,21 @@ function toFancyFont(text, isUpperCase = false) {
     .join("");
 }
 
-// Function to check if user is bot owner
+// Function to check if user is bot owner using matrix.user.id
 function isBotOwner(sender) {
-  const ownerNumbers = config.OWNER_NUMBER || [];
-  const senderNumber = sender.split('@')[0];
+  // Get owner ID from matrix.user.id or fallback to config
+  const ownerId = matrix?.user?.id || config.OWNER_NUMBER;
   
-  // Ensure ownerNumbers is an array and check if sender is in the list
-  return Array.isArray(ownerNumbers) 
-    ? ownerNumbers.includes(senderNumber)
-    : ownerNumbers === senderNumber;
+  if (!ownerId) {
+    console.error("❌ No owner ID configured in matrix.user.id or config.OWNER_NUMBER");
+    return false;
+  }
+  
+  // Handle both matrix ID format and WhatsApp number format
+  const senderNumber = sender.split('@')[0];
+  const ownerNumber = ownerId.includes('@') ? ownerId.split('@')[0] : ownerId;
+  
+  return senderNumber === ownerNumber;
 }
 
 const restartBot = async (m, sock) => {
@@ -36,7 +42,7 @@ const restartBot = async (m, sock) => {
   const reply = (text, options = {}) => sock.sendMessage(m.key.remoteJid, { text, ...options }, { quoted: m });
 
   if (cmd === 'restart') {
-    // Check if user is bot owner
+    // Check if user is bot owner using matrix.user.id
     if (!isBotOwner(sender)) {
       return reply("❌ This command is only for the bot owner.");
     }
