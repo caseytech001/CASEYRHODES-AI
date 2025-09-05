@@ -119,12 +119,19 @@ async function fetchVideoData(videoUrl) {
       signal: controller.signal
     });
     
-    if (!response.ok) throw new Error('API request failed');
+    if (!response.ok) {
+      throw new Error(`API request failed with status: ${response.status}`);
+    }
     
     const data = await response.json();
     if (!data?.result) throw new Error('Invalid API response');
     
     return data.result;
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('API request timed out');
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
@@ -228,10 +235,10 @@ async function preloadVideo(session, qualityUrl) {
   }
 }
 
-const video = async (message, client) => {
+const video = async (message, client, config = {}) => {
   try {
     // Use a default prefix if config is not available
-    const prefix = (typeof config !== 'undefined' && (config.Prefix || config.PREFIX)) || '.';
+    const prefix = config.Prefix || config.PREFIX || '.';
     const body = message.body || '';
     const command = body.startsWith(prefix) ? body.slice(prefix.length).split(" ")[0].toLowerCase() : '';
     const args = body.slice(prefix.length + command.length).trim().split(" ");
@@ -314,7 +321,7 @@ const video = async (message, client) => {
         }));
         
         // Use a default footer if config is not available
-        const footer = (typeof config !== 'undefined' && config.FOOTER) || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ";
+        const footer = config.FOOTER || "> ᴍᴀᴅᴇ ᴡɪᴛʜ 🤍 ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ";
         
         // Newsletter context info
         const newsletterContext = {
