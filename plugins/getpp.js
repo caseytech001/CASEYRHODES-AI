@@ -15,18 +15,26 @@ const getpp = async (m, Matrix) => {
       await Matrix.sendMessage(m.from, { text }, { quoted: m });
     };
     
+    // Get quoted participant if message is a reply
     const quotedParticipant = m.message?.extendedTextMessage?.contextInfo?.participant;
-    const quotedMessage = m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
     
     let targetJid;
     if (isGroup) {
-      if (quotedParticipant && quotedMessage) {
+      // If it's a reply to someone's message in group
+      if (quotedParticipant) {
         targetJid = quotedParticipant;
-      } else {
-        return reply(" ᴘʟᴇᴀꜱᴇ ʀᴇᴘʟʏ ᴛᴏ ꜱᴏᴍᴇᴏɴᴇ'ꜱ ᴍᴇꜱꜱᴀɢᴇ ᴛᴏ ɢᴇᴛ ᴛʜᴇɪʀ ᴘʀᴏꜰɪʟᴇ ᴘɪᴄᴛᴜʀᴇ.");
+      } 
+      // If mentioned someone in the command
+      else if (m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length > 0) {
+        targetJid = m.message.extendedTextMessage.contextInfo.mentionedJid[0];
+      }
+      // If no reply or mention, use sender's own profile
+      else {
+        targetJid = sender;
       }
     } else {
-      targetJid = m.from.endsWith("@s.whatsapp.net") ? m.from : sender;
+      // In private chat, always use sender's profile
+      targetJid = sender;
     }
     
     let imageUrl;
@@ -36,7 +44,9 @@ const getpp = async (m, Matrix) => {
       imageUrl = "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg";
     }
     
-    // Fixed fakeVCard with proper structure
+    const targetUser = targetJid.split('@')[0];
+    
+    // Verification contact card
     const fakeVCard = {
       key: {
         fromMe: false,
@@ -53,14 +63,15 @@ const getpp = async (m, Matrix) => {
 
     const messageOptions = {
       image: { url: imageUrl },
-      caption: ` ᴘʀᴏꜰɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ᴏꜰ @${targetJid.split('@')[0]}`,
+      caption: `📸 Profile picture of @${targetUser}\n\n✨ _Powered by CaseyRhodes AI_`,
+      mentions: [targetJid],
       contextInfo: {
         mentionedJid: [targetJid],
-        forwardingScore: 5,
+        forwardingScore: 999,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
           newsletterJid: "120363402973786789@newsletter",
-          newsletterName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ 🌟",
+          newsletterName: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ ɴᴇᴡꜱʟᴇᴛᴛᴇʀ 🌟",
           serverMessageId: -1
         }
       }
