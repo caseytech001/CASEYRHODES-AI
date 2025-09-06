@@ -17,7 +17,7 @@
   "author": "Caseyrhodes",
   "license": "ISC",
   "dependencies": {
-     "@whiskeysockets/baileys": "npm:@rexxhayanasi/elaina-bail",
+     "@whiskeysockets/baileys": "npm:@angularsockets",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@google/generative-ai": "^0.9.0",
     "@hapi/boom": "^10.0.1",
