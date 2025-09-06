@@ -1,70 +1,26 @@
 import config from '../config.cjs';
 
-// Matrix structure to manage users and pending actions
-const matrix = {
-  // Store users with their JIDs and roles
-  users: new Map(),
-  
-  // Store pending actions
-  pendingActions: new Map(),
-  
-  // Initialize with owner from config
-  init: function() {
-    const ownerJid = config.OWNER_NUMBER.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
-    this.users.set(ownerJid, { 
-      role: 'owner', 
-      permissions: ['block', 'unblock', 'admin'] 
-    });
-    
-    // Clean up old pending actions periodically
-    setInterval(() => {
-      const now = Date.now();
-      for (const [key, action] of this.pendingActions.entries()) {
-        if (now - action.timestamp > 5 * 60 * 1000) {
-          this.pendingActions.delete(key);
-        }
-      }
-    }, 60 * 1000); // Check every minute
-  },
-  
-  // Check if user has permission
-  hasPermission: function(jid, permission) {
-    const user = this.users.get(jid);
-    return user && user.permissions && user.permissions.includes(permission);
-  },
-  
-  // Add user to matrix
-  addUser: function(jid, data = {}) {
-    if (!this.users.has(jid)) {
-      this.users.set(jid, { role: 'user', permissions: [], ...data });
-    }
-    return this.users.get(jid);
-  },
-  
-  // Get user from matrix
-  getUser: function(jid) {
-    return this.users.get(jid);
-  }
-};
+// Matrix to store pending block actions (userJid -> action data)
+const blockMatrix = new Map();
 
-// Initialize the matrix
-matrix.init();
-
-const block = async (m, gss) => {
+const block = async (m, Matrix) => {
   try {
-    // Get the sender's JID in proper format
+    // Get the owner's JID from config
+    const ownerJid = config.OWNER_NUMBER.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+
+    // Get the bot's paired JID (the device itself)
+    const botJid = Matrix.user.id.includes(':') ? Matrix.user.id.split(':')[0] : Matrix.user.id;
+
+    // Normalize sender JID
     const senderJid = m.sender.includes(':') ? m.sender.split(':')[0] : m.sender;
-    
-    // Add sender to matrix if not already present
-    matrix.addUser(senderJid);
-    
-    // Check if the sender is the owner
-    const isOwner = matrix.hasPermission(senderJid, 'block');
-    
+
+    // Check if the sender is the owner (either config number or the paired bot device)
+    const isOwner = senderJid === ownerJid || senderJid === botJid;
+
     const prefix = config.PREFIX;
     const body = m.body || '';
     const cmd = body.startsWith(prefix) ? body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-    
+
     // Handle confirmation responses
     if (body.startsWith(`${prefix}confirm-block-`)) {
       if (!isOwner) {
@@ -76,46 +32,39 @@ const block = async (m, gss) => {
           ],
           headerType: 1
         };
-        return await gss.sendMessage(m.from, buttonMessage, { quoted: m });
+        return await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
       }
-      
+
       const targetUser = body.split('-').pop();
-      const pendingAction = matrix.pendingActions.get(senderJid);
-      
+      const pendingAction = blockMatrix.get(senderJid);
+
       if (pendingAction && pendingAction.action === 'block') {
         // Execute the block
-        await gss.updateBlockStatus(pendingAction.userJid, "block");
-        
-        // Add blocked user to matrix
-        matrix.addUser(pendingAction.userJid, { 
-          status: 'blocked', 
-          blockedBy: senderJid,
-          blockedAt: new Date().toISOString()
-        });
-        
-        // Remove from pending actions
-        matrix.pendingActions.delete(senderJid);
-        
-        return await gss.sendMessage(m.from, { 
+        await Matrix.updateBlockStatus(pendingAction.userJid, "block");
+
+        // Remove from matrix
+        blockMatrix.delete(senderJid);
+
+        return await Matrix.sendMessage(m.from, { 
           text: `✅ Successfully blocked *${targetUser}*` 
         }, { quoted: m });
       }
-      
-      return await gss.sendMessage(m.from, { 
+
+      return await Matrix.sendMessage(m.from, { 
         text: "❌ No pending block action or action expired" 
       }, { quoted: m });
     }
-    
+
     // Handle cancel responses
     if (body === `${prefix}cancel`) {
-      if (matrix.pendingActions.has(senderJid)) {
-        matrix.pendingActions.delete(senderJid);
-        return await gss.sendMessage(m.from, { 
+      if (blockMatrix.has(senderJid)) {
+        blockMatrix.delete(senderJid);
+        return await Matrix.sendMessage(m.from, { 
           text: "❌ Block operation cancelled" 
         }, { quoted: m });
       }
     }
-    
+
     // Only process block command
     if (cmd !== 'block') return;
 
@@ -129,7 +78,7 @@ const block = async (m, gss) => {
         ],
         headerType: 1
       };
-      return await gss.sendMessage(m.from, buttonMessage, { quoted: m });
+      return await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
     }
 
     const text = body.slice(prefix.length + cmd.length).trim();
@@ -145,11 +94,11 @@ const block = async (m, gss) => {
         ],
         headerType: 1
       };
-      return await gss.sendMessage(m.from, buttonMessage, { quoted: m });
+      return await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
     }
 
     let users = m.mentionedJid?.[0] || (m.quoted ? m.quoted.sender : null);
-    
+
     // If no mentioned/quoted user, try to extract from text
     if (!users && text) {
       const numberMatch = text.match(/[\d+]+/g);
@@ -168,7 +117,7 @@ const block = async (m, gss) => {
         ],
         headerType: 1
       };
-      return await gss.sendMessage(m.from, buttonMessage, { quoted: m });
+      return await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
     }
 
     // Ensure the user JID is in the correct format
@@ -176,19 +125,8 @@ const block = async (m, gss) => {
       users = users.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
     }
 
-    // Add target user to matrix
-    matrix.addUser(users);
-    
     const userName = users.split('@')[0];
     const displayName = m.quoted?.pushName || userName;
-
-    // Check if user is already blocked
-    const targetUser = matrix.getUser(users);
-    if (targetUser && targetUser.status === 'blocked') {
-      return await gss.sendMessage(m.from, { 
-        text: `❌ User *${displayName}* is already blocked.` 
-      }, { quoted: m });
-    }
 
     // Create confirmation buttons before taking action
     const confirmButtons = {
@@ -202,15 +140,22 @@ const block = async (m, gss) => {
     };
 
     // Store the pending action in the matrix
-    matrix.pendingActions.set(senderJid, {
+    blockMatrix.set(senderJid, {
       action: 'block',
       userJid: users,
       timestamp: Date.now(),
-      userName: userName,
-      displayName: displayName
+      userName: userName
     });
 
-    await gss.sendMessage(m.from, confirmButtons, { quoted: m });
+    // Clean up old pending actions (older than 5 minutes)
+    const now = Date.now();
+    for (const [key, value] of blockMatrix.entries()) {
+      if (now - value.timestamp > 5 * 60 * 1000) {
+        blockMatrix.delete(key);
+      }
+    }
+
+    await Matrix.sendMessage(m.from, confirmButtons, { quoted: m });
       
   } catch (error) {
     console.error('Error in block command:', error);
@@ -224,29 +169,8 @@ const block = async (m, gss) => {
       headerType: 1
     };
     
-    await gss.sendMessage(m.from, errorButtons, { quoted: m });
+    await Matrix.sendMessage(m.from, errorButtons, { quoted: m });
   }
-};
-
-// Helper function to get list of blocked users
-export const getBlockedList = () => {
-  const blocked = [];
-  for (const [jid, user] of matrix.users.entries()) {
-    if (user.status === 'blocked') {
-      blocked.push({
-        jid,
-        blockedBy: user.blockedBy,
-        blockedAt: user.blockedAt
-      });
-    }
-  }
-  return blocked;
-};
-
-// Helper function to check if a user is blocked
-export const isBlocked = (jid) => {
-  const user = matrix.users.get(jid);
-  return user && user.status === 'blocked';
 };
 
 export default block;
